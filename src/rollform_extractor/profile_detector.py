@@ -196,7 +196,7 @@ def _endpoints(entity: CadEntityRecord):
                     _angle_point(center, radius, float(attrs["end_angle"])),
                 )
             )
-    return tuple(points) or tuple(_point(point) for point in entity.sampled_geometry[:2])
+    return tuple(points) or _first_last(tuple(_point(point) for point in entity.sampled_geometry))
 
 
 def _contains(outer: BBox, inner: BBox) -> bool:
@@ -223,6 +223,12 @@ def _angle_point(center, radius: float, angle: float):
         center[1] + radius * math.sin(math.radians(angle)),
         center[2],
     )
+
+
+def _first_last(points):
+    if len(points) <= 1:
+        return points
+    return (points[0], points[-1])
 
 
 def _point(value) -> tuple[float, float, float]:

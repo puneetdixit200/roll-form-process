@@ -149,7 +149,7 @@ def _endpoints(primitive: CadPrimitive):
             _angle_point(center, radius, float(attrs["start_angle"])),
             _angle_point(center, radius, float(attrs["end_angle"])),
         )
-    return _primitive_points(primitive)[:2]
+    return _first_last(_primitive_points(primitive))
 
 
 def _bend(primitive: CadPrimitive) -> BendFeature:
@@ -222,6 +222,13 @@ def _polyline_points(attrs):
         _point(vertex["point"] if isinstance(vertex, Mapping) else vertex)
         for vertex in attrs.get("vertices", attrs.get("points", ()))
     )
+
+
+def _first_last(points):
+    items = tuple(points)
+    if len(items) <= 1:
+        return items
+    return (items[0], items[-1])
 
 
 def _ellipse_points(attrs):

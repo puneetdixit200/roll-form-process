@@ -43,3 +43,19 @@
   - `18 passed in 0.13s`.
 - Full: `pytest -q`
   - `110 passed in 18.69s`.
+
+## Curve Endpoint Fallback Fix
+
+- Fixed fallback endpoints for `ELLIPSE`, `ELLIPSE_ARC`, and `SPLINE` to use first and last sampled/derived points instead of the first two points.
+- Added regression coverage where an `ELLIPSE_ARC` connects to a `LINE`; the selected profile chain now includes both handles and developed length includes both primitives.
+
+## Curve Endpoint TDD Evidence
+
+- Red: `pytest tests/test_profile_detector.py::test_ellipse_arc_connects_to_line_by_first_and_last_sampled_points tests/test_feature_extractor.py::test_ellipse_arc_chain_uses_first_and_last_sampled_points_for_selection -q`
+  - `2 failed`; both failures dropped the connected line from the selected contour.
+- Green: same command
+  - `2 passed in 0.09s`.
+- Focused: `pytest tests/test_profile_detector.py tests/test_feature_extractor.py -q`
+  - `20 passed in 0.14s`.
+- Full: `pytest -q`
+  - `112 passed in 18.32s`.

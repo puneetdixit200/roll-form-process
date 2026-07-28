@@ -168,6 +168,40 @@ def test_polyline_mapping_vertices_connect_to_line_after_model_freeze():
     assert result.profiles[0].source_handles == ("L1", "P1")
 
 
+def test_ellipse_arc_connects_to_line_by_first_and_last_sampled_points():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, 0, 20, 5), ("E1", "L1"))
+    ellipse_primitive = CadPrimitive(
+        kind="ELLIPSE_ARC",
+        attributes={
+            "center": (0, 0, 0),
+            "major_axis": (10, 0, 0),
+            "minor_axis": (0, 2, 0),
+            "start_param": 0.0,
+            "end_param": 3.141592653589793,
+        },
+        source_handle="E1",
+    )
+    ellipse = CadEntityRecord(
+        handle="E1",
+        entity_type="ELLIPSE",
+        layer="PROFILE",
+        color=3,
+        line_type="CONTINUOUS",
+        layout="Model",
+        bbox=BBox(-10, 0, 10, 2),
+        normalized_primitives=(ellipse_primitive,),
+        sampled_geometry=((10, 0, 0), (0, 2, 0), (-10, 0, 0)),
+        source_handles=("E1",),
+    )
+    line = _line("L1", (-10, 0), (-15, 0), layer="PROFILE")
+
+    result = detect_profiles((station,), (ellipse, line), config)
+
+    assert result.profiles[0].source_handles == ("E1", "L1")
+    assert result.profiles[0].features["exact_length"] > 5.0
+
+
 def _station(station_id, sequence, bbox, handles):
     return StationRecord(
         station_id=station_id,

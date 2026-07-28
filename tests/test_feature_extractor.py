@@ -138,6 +138,32 @@ def test_spline_uses_fit_points_before_control_points_for_length_and_points():
     assert features.sampled_points == ((0.0, 0.0, 0.0), (3.0, 0.0, 0.0), (3.0, 4.0, 0.0))
 
 
+def test_ellipse_arc_chain_uses_first_and_last_sampled_points_for_selection():
+    profile = _profile(
+        ("E1", "L1"),
+        (
+            CadPrimitive(
+                "ELLIPSE_ARC",
+                {
+                    "center": (0, 0, 0),
+                    "major_axis": (10, 0, 0),
+                    "minor_axis": (0, 2, 0),
+                    "start_param": 0.0,
+                    "end_param": 3.141592653589793,
+                },
+                "E1",
+            ),
+            CadPrimitive("LINE", {"start": (-10, 0, 0), "end": (-15, 0, 0)}, "L1"),
+        ),
+        ((10, 0, 0), (0, 2, 0), (-10, 0, 0), (-15, 0, 0)),
+    )
+
+    features = extract_profile_features(profile, "config-hash")
+
+    assert features.developed_length_mm > 25.0
+    assert features.provenance["developed_length_mm"].source_handles == ("E1", "L1")
+
+
 def test_mirrored_fingerprint_matches_unmirrored_profile():
     features = extract_profile_features(_profile_with_lines("P", ((0, 0), (10, 0), (10, 5))), "hash")
     mirrored_points = tuple((-x, y, z) for x, y, z in features.sampled_points)
