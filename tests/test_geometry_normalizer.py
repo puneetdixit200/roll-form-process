@@ -129,6 +129,28 @@ def test_non_uniform_scale_does_not_keep_circle_as_exact_circle():
     assert len(normalized.sampled_points) >= 20
 
 
+def test_mirrored_arc_does_not_keep_unmirrored_exact_arc():
+    primitive = CadPrimitive(
+        kind="ARC",
+        attributes={
+            "center": (0.0, 0.0, 0.0),
+            "radius": 2.0,
+            "start_angle": 0.0,
+            "end_angle": 90.0,
+        },
+        source_handle="A",
+    )
+    transform = np.diag([-1.0, 1.0, 1.0, 1.0])
+
+    normalized = normalize_primitives([primitive], transform, unit_factor=1.0, spacing=1.0)
+
+    assert normalized.primitives[0].kind == "ELLIPSE_ARC"
+    assert normalized.primitives[0].attributes["source_kind"] == "ARC"
+    assert normalized.primitives[0].attributes["transform_warning"] == "orientation_reversing"
+    assert normalized.sampled_points[0] == (-2.0, 0.0, 0.0)
+    assert np.allclose(normalized.sampled_points[-1], (0.0, 2.0, 0.0))
+
+
 def test_close_endpoints_are_joined_only_in_sampled_geometry():
     first = CadPrimitive(
         kind="LINE",

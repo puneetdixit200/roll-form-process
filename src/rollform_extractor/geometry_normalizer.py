@@ -54,17 +54,21 @@ def _normalize_primitive(
 ) -> CadPrimitive:
     attrs = dict(primitive.attributes)
     kind = primitive.kind
-    if kind in {"CIRCLE", "ARC"} and not _uniform_xy_scale(matrix):
+    if kind in {"CIRCLE", "ARC"} and not _safe_exact_circle_transform(matrix):
         center = _transform_point(attrs["center"], matrix, unit_factor)
         radius = float(attrs["radius"])
+        warning = "orientation_reversing" if _orientation_reversing(matrix) else "non_uniform_scale"
         attrs = {
             **attrs,
             "center": center,
             "major_axis": _transform_vector((radius, 0.0, 0.0), matrix, unit_factor),
             "minor_axis": _transform_vector((0.0, radius, 0.0), matrix, unit_factor),
             "source_kind": kind,
-            "transform_warning": "non_uniform_scale",
+            "transform_warning": warning,
         }
+        if kind == "ARC":
+            attrs["start_param"] = math.radians(float(attrs["start_angle"]))
+            attrs["end_param"] = math.radians(float(attrs["end_angle"]))
         kind = "ELLIPSE" if kind == "CIRCLE" else "ELLIPSE_ARC"
         return CadPrimitive(kind=kind, attributes=attrs, source_handle=primitive.source_handle)
     for key in ("start", "end", "center", "location", "point", "insert"):
@@ -235,13 +239,17 @@ def _scale_factor(matrix: np.ndarray) -> float:
     return float(np.linalg.norm(matrix[:3, 0]))
 
 
-def _uniform_xy_scale(matrix: np.ndarray) -> bool:
-    return math.isclose(
+def _safe_exact_circle_transform(matrix: np.ndarray) -> bool:
+    return not _orientation_reversing(matrix) and math.isclose(
         float(np.linalg.norm(matrix[:3, 0])),
         float(np.linalg.norm(matrix[:3, 1])),
         rel_tol=1e-9,
         abs_tol=1e-9,
     )
+
+
+def _orientation_reversing(matrix: np.ndarray) -> bool:
+    return bool(np.linalg.det(matrix[:2, :2]) < 0)
 
 
 def _distance(a, b) -> float:
