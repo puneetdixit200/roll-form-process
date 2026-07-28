@@ -7,7 +7,22 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text, create_engine, event, text
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    Float,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    create_engine,
+    delete,
+    event,
+    select,
+    text,
+)
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
@@ -81,9 +96,11 @@ class Layer(Base):
 
 class Station(Base):
     __tablename__ = "stations"
+    __table_args__ = (UniqueConstraint("project_id", "station_id"),)
 
-    station_id: Mapped[str] = mapped_column(String, primary_key=True)
-    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    station_id: Mapped[str] = mapped_column(String)
     sequence_index: Mapped[int | None] = mapped_column(Integer)
     bbox_json: Mapped[dict[str, float] | None] = mapped_column(JSON)
     source_handles: Mapped[list[str]] = mapped_column(JSON, default=list)
@@ -95,10 +112,15 @@ class Station(Base):
 
 class Profile(Base):
     __tablename__ = "profiles"
+    __table_args__ = (
+        UniqueConstraint("project_id", "profile_id"),
+        ForeignKeyConstraint(["project_id", "station_id"], ["stations.project_id", "stations.station_id"], ondelete="CASCADE"),
+    )
 
-    profile_id: Mapped[str] = mapped_column(String, primary_key=True)
-    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    station_id: Mapped[str] = mapped_column(ForeignKey("stations.station_id", ondelete="CASCADE"))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    profile_id: Mapped[str] = mapped_column(String)
+    station_id: Mapped[str] = mapped_column(String)
     source_handles: Mapped[list[str]] = mapped_column(JSON, default=list)
     method: Mapped[str | None] = mapped_column(String)
     configuration_hash: Mapped[str | None] = mapped_column(String)
@@ -108,20 +130,30 @@ class Profile(Base):
 
 class Roller(Base):
     __tablename__ = "rollers"
+    __table_args__ = (
+        UniqueConstraint("project_id", "roller_id"),
+        ForeignKeyConstraint(["project_id", "station_id"], ["stations.project_id", "stations.station_id"], ondelete="SET NULL"),
+    )
 
-    roller_id: Mapped[str] = mapped_column(String, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    station_id: Mapped[str | None] = mapped_column(ForeignKey("stations.station_id", ondelete="SET NULL"))
+    roller_id: Mapped[str] = mapped_column(String)
+    station_id: Mapped[str | None] = mapped_column(String)
     role: Mapped[str | None] = mapped_column(String)
     evidence_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
 class Assembly(Base):
     __tablename__ = "assemblies"
+    __table_args__ = (
+        UniqueConstraint("project_id", "assembly_id"),
+        ForeignKeyConstraint(["project_id", "station_id"], ["stations.project_id", "stations.station_id"], ondelete="SET NULL"),
+    )
 
-    assembly_id: Mapped[str] = mapped_column(String, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    assembly_id: Mapped[str] = mapped_column(String)
     project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    station_id: Mapped[str | None] = mapped_column(ForeignKey("stations.station_id", ondelete="SET NULL"))
+    station_id: Mapped[str | None] = mapped_column(String)
     template_id: Mapped[str | None] = mapped_column(ForeignKey("assembly_templates.template_id"))
 
 
@@ -129,16 +161,18 @@ class AssemblyMember(Base):
     __tablename__ = "assembly_members"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    assembly_id: Mapped[str] = mapped_column(ForeignKey("assemblies.assembly_id", ondelete="CASCADE"))
-    roller_id: Mapped[str] = mapped_column(ForeignKey("rollers.roller_id", ondelete="CASCADE"))
+    assembly_id: Mapped[int] = mapped_column(ForeignKey("assemblies.id", ondelete="CASCADE"))
+    roller_id: Mapped[int] = mapped_column(ForeignKey("rollers.id", ondelete="CASCADE"))
     role: Mapped[str | None] = mapped_column(String)
 
 
 class CadEntity(Base):
     __tablename__ = "cad_entities"
+    __table_args__ = (UniqueConstraint("project_id", "handle"),)
 
-    handle: Mapped[str] = mapped_column(String, primary_key=True)
-    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    handle: Mapped[str] = mapped_column(String)
     entity_type: Mapped[str] = mapped_column(String)
     layer: Mapped[str] = mapped_column(String)
     color: Mapped[str | int | None] = mapped_column(JSON)
@@ -161,7 +195,7 @@ class Annotation(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    entity_handle: Mapped[str | None] = mapped_column(ForeignKey("cad_entities.handle", ondelete="SET NULL"))
+    cad_entity_id: Mapped[int | None] = mapped_column(ForeignKey("cad_entities.id", ondelete="SET NULL"))
     text: Mapped[str | None] = mapped_column(Text)
 
 
@@ -170,7 +204,7 @@ class Dimension(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    entity_handle: Mapped[str | None] = mapped_column(ForeignKey("cad_entities.handle", ondelete="SET NULL"))
+    cad_entity_id: Mapped[int | None] = mapped_column(ForeignKey("cad_entities.id", ondelete="SET NULL"))
     measurement: Mapped[float | None] = mapped_column(Float)
 
 
@@ -179,8 +213,8 @@ class StationTransition(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    from_station_id: Mapped[str | None] = mapped_column(ForeignKey("stations.station_id", ondelete="SET NULL"))
-    to_station_id: Mapped[str | None] = mapped_column(ForeignKey("stations.station_id", ondelete="SET NULL"))
+    from_station_id: Mapped[int | None] = mapped_column(ForeignKey("stations.id", ondelete="SET NULL"))
+    to_station_id: Mapped[int | None] = mapped_column(ForeignKey("stations.id", ondelete="SET NULL"))
     measurements_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
@@ -214,10 +248,15 @@ class RollerCatalog(Base):
 
 class RollerOccurrence(Base):
     __tablename__ = "roller_occurrences"
+    __table_args__ = (
+        UniqueConstraint("project_id", "occurrence_id"),
+        ForeignKeyConstraint(["project_id", "station_id"], ["stations.project_id", "stations.station_id"], ondelete="CASCADE"),
+    )
 
-    occurrence_id: Mapped[str] = mapped_column(String, primary_key=True)
-    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    station_id: Mapped[str] = mapped_column(ForeignKey("stations.station_id", ondelete="CASCADE"))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    occurrence_id: Mapped[str] = mapped_column(String)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    station_id: Mapped[str] = mapped_column(String)
     roller_catalog_id: Mapped[int | None] = mapped_column(ForeignKey("roller_catalog.roller_catalog_id"))
     role: Mapped[str | None] = mapped_column(String)
     source_handles: Mapped[list[str]] = mapped_column(JSON, default=list)
@@ -233,8 +272,8 @@ class ProjectRollUsage(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     roller_catalog_id: Mapped[int] = mapped_column(ForeignKey("roller_catalog.roller_catalog_id"))
-    assembly_id: Mapped[str | None] = mapped_column(ForeignKey("assemblies.assembly_id", ondelete="SET NULL"))
-    occurrence_id: Mapped[str | None] = mapped_column(ForeignKey("roller_occurrences.occurrence_id", ondelete="SET NULL"))
+    assembly_id: Mapped[int | None] = mapped_column(ForeignKey("assemblies.id", ondelete="SET NULL"))
+    occurrence_id: Mapped[int | None] = mapped_column(ForeignKey("roller_occurrences.id", ondelete="SET NULL"))
 
 
 class AssemblyTemplate(Base):
@@ -264,7 +303,10 @@ class ProcessingStage(Base):
     stage: Mapped[str] = mapped_column(String)
     status: Mapped[str] = mapped_column(String)
     input_hash: Mapped[str | None] = mapped_column(String)
+    source_handles: Mapped[list[str]] = mapped_column(JSON, default=list)
+    method: Mapped[str | None] = mapped_column(String)
     configuration_hash: Mapped[str] = mapped_column(String)
+    confidence: Mapped[float | None] = mapped_column(Float)
     software_version: Mapped[str | None] = mapped_column(String)
     started_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     finished_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
@@ -318,57 +360,104 @@ def create_project_database(path: Path) -> Engine:
 
 
 def persist_extraction(engine: Engine, bundle: ExtractionBundle) -> int:
-    with Session(engine) as session, session.begin():
-        project = Project(
-            drawing_id=bundle.drawing_id,
-            source_path=str(bundle.source_path),
-            source_sha256=bundle.source_sha256,
-            converted_path=str(bundle.converted_path) if bundle.converted_path else None,
-            converted_sha256=bundle.converted_sha256,
-        )
-        session.add(project)
-        session.flush()
+    project_id, run_id = _record_run_header(engine, bundle)
+    try:
+        with Session(engine) as session, session.begin():
+            _clear_current_project_results(session, project_id)
+            for layer in sorted({entity.layer for entity in bundle.entities}):
+                session.add(Layer(project_id=project_id, name=layer))
+            for entity in bundle.entities:
+                session.add(_cad_entity(project_id, entity))
+                _add_provenance(session, project_id, "cad_entities", entity.handle, None, entity)
+            for station in bundle.stations:
+                session.add(_station(project_id, station))
+                _add_provenance(session, project_id, "stations", station.station_id, None, station)
+            session.flush()
+            for profile in bundle.profiles:
+                session.add(_profile(project_id, profile))
+                _add_provenance(session, project_id, "profiles", profile.profile_id, None, profile)
+            for occurrence in bundle.roller_occurrences:
+                session.add(_roller_occurrence(project_id, occurrence))
+                _add_provenance(session, project_id, "roller_occurrences", occurrence.occurrence_id, None, occurrence)
+            for warning in bundle.warnings:
+                session.add(_warning(project_id, warning))
+    except Exception as exc:
+        _mark_run_failed(engine, project_id, run_id, exc)
+        raise
+    return project_id
 
+
+def _record_run_header(engine: Engine, bundle: ExtractionBundle) -> tuple[int, int]:
+    with Session(engine) as session, session.begin():
+        project = session.scalar(select(Project).where(Project.drawing_id == bundle.drawing_id))
+        if project is None:
+            project = Project(drawing_id=bundle.drawing_id, source_path="", source_sha256="")
+            session.add(project)
+            session.flush()
+        project.source_path = str(bundle.source_path)
+        project.source_sha256 = bundle.source_sha256
+        project.converted_path = str(bundle.converted_path) if bundle.converted_path else None
+        project.converted_sha256 = bundle.converted_sha256
+        run = ExtractionRun(
+            project_id=project.id,
+            status=bundle.status,
+            configuration_hash=bundle.configuration_hash,
+            configuration_snapshot_json=_jsonable(bundle.configuration_snapshot),
+        )
+        session.add(run)
+        session.flush()
+        return project.id, run.id
+
+
+def _clear_current_project_results(session: Session, project_id: int) -> None:
+    for model in (
+        ProjectRollUsage,
+        RollerOccurrence,
+        Profile,
+        Roller,
+        Assembly,
+        CadEntity,
+        Station,
+        Layer,
+        GeometryFingerprint,
+        ResultProvenance,
+    ):
+        session.execute(delete(model).where(model.project_id == project_id))
+
+
+def _mark_run_failed(engine: Engine, project_id: int, run_id: int, exc: Exception) -> None:
+    with Session(engine) as session, session.begin():
+        run = session.get(ExtractionRun, run_id)
+        if run is not None:
+            run.status = "failed"
+            run.finished_at = _now()
         session.add(
-            ExtractionRun(
-                project_id=project.id,
-                status=bundle.status,
-                configuration_hash=bundle.configuration_hash,
-                configuration_snapshot_json=_jsonable(bundle.configuration_snapshot),
+            ExtractionWarning(
+                project_id=project_id,
+                code="persistence_failed",
+                message=str(exc),
+                source_handles=[],
+                method="persistence",
+                configuration_hash=None,
+                confidence=1.0,
             )
         )
-        for layer in sorted({entity.layer for entity in bundle.entities}):
-            session.add(Layer(project_id=project.id, name=layer))
-        for entity in bundle.entities:
-            session.add(_cad_entity(project.id, entity))
-            _add_provenance(session, project.id, "cad_entities", entity.handle, None, entity)
-        for station in bundle.stations:
-            session.add(_station(project.id, station))
-            _add_provenance(session, project.id, "stations", station.station_id, None, station)
-        session.flush()
-        for profile in bundle.profiles:
-            session.add(_profile(project.id, profile))
-            _add_provenance(session, project.id, "profiles", profile.profile_id, None, profile)
-        for occurrence in bundle.roller_occurrences:
-            session.add(_roller_occurrence(project.id, occurrence))
-            _add_provenance(session, project.id, "roller_occurrences", occurrence.occurrence_id, None, occurrence)
-        for warning in bundle.warnings:
-            session.add(_warning(project.id, warning))
-
-        return project.id
 
 
 def record_stage(engine: Engine, project_id: int, result: StageResult) -> None:
     warnings = [{"code": warning.code, "message": warning.message} for warning in result.warnings]
-    status = "failed" if warnings or result.confidence <= 0 else "success"
+    status = _stage_status(result)
     with Session(engine) as session, session.begin():
         session.add(
             ProcessingStage(
                 project_id=project_id,
                 stage=result.stage,
                 status=status,
-                input_hash=",".join(result.source_handles) or None,
+                input_hash=None,
+                source_handles=list(result.source_handles),
+                method=result.method,
                 configuration_hash=result.configuration_hash,
+                confidence=result.confidence,
                 software_version=None,
                 artifact_hashes_json={},
                 diagnostics_json={"warnings": warnings},
@@ -376,6 +465,22 @@ def record_stage(engine: Engine, project_id: int, result: StageResult) -> None:
         )
         for warning in result.warnings:
             session.add(_warning(project_id, warning))
+
+
+def _stage_status(result: StageResult) -> str:
+    explicit = getattr(result, "status", None)
+    if explicit:
+        return explicit
+    if result.confidence <= 0:
+        return "failed"
+    if any(_is_error_warning(warning) for warning in result.warnings):
+        return "failed"
+    return "success"
+
+
+def _is_error_warning(warning: WarningRecord) -> bool:
+    code = warning.code.lower()
+    return "failed" in code or "error" in code or "exception" in code
 
 
 def foreign_key_violations(engine: Engine) -> list[tuple[Any, ...]]:
