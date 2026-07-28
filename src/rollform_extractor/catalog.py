@@ -169,6 +169,7 @@ def _template_payload(assembly: AssemblyInput) -> Mapping[str, Any]:
         "members": [
             {
                 "role": member.get("role"),
+                "position": member.get("position"),
                 "relative_center": _relative_center(member.get("center", (0.0, 0.0)), px, py),
                 "roller_catalog_id": member.get("roller_catalog_id"),
             }

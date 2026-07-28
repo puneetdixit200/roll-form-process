@@ -127,6 +127,14 @@ def test_assembly_template_signature_changes_when_roles_or_catalog_ids_change():
     assert first.signature_hash != third.signature_hash
 
 
+def test_assembly_template_signature_changes_when_position_changes():
+    first = detect_assembly_template(_assembly("A1", (("top", 0.0, 8.0, 21, "entry"),)), ())
+    second = detect_assembly_template(_assembly("A2", (("top", 0.0, 8.0, 21, "exit"),)), ())
+
+    assert first.signature_hash != second.signature_hash
+    assert first.template_id != second.template_id
+
+
 def _occurrence(
     occurrence_id: str,
     *,
@@ -161,20 +169,21 @@ def _occurrence(
     )
 
 
-def _assembly(assembly_id: str, members: tuple[tuple[str, float, float, int | None], ...]) -> AssemblyInput:
+def _assembly(assembly_id: str, members: tuple[tuple, ...]) -> AssemblyInput:
     return AssemblyInput(
         assembly_id=assembly_id,
         station_id="S1",
         profile_center=(10.0, 5.0),
         members=tuple(
             {
-                "role": role,
-                "center": (x, y),
-                "roller_catalog_id": catalog_id,
-                "source_handles": (role,),
+                "role": member[0],
+                "center": (member[1], member[2]),
+                "roller_catalog_id": member[3],
+                "position": member[4] if len(member) > 4 else None,
+                "source_handles": (member[0],),
                 "note": "project-specific annotation",
             }
-            for role, x, y, catalog_id in members
+            for member in members
         ),
     )
 

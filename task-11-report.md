@@ -14,3 +14,10 @@
 
 - `pytest tests/test_catalog.py -q` -> 9 passed
 - `pytest -q` -> 139 passed
+
+## Fix: Template Position Signature
+
+- Added member `position` to assembly template signatures.
+- Added regression proving same roles, centers, and catalog IDs with different positions produce different signatures/templates.
+- `pytest tests/test_catalog.py -q` -> 10 passed
+- `pytest -q` -> 140 passed
