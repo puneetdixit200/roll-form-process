@@ -37,3 +37,16 @@
 - Green focused: `pytest tests/test_batch.py -q` -> 9 passed.
 - Full suite: `pytest -q` -> 149 passed.
 - Whitespace: `git diff --check` -> clean.
+
+## Remaining Issue Fixes
+
+- `validate_batch()` now validates nested project outputs with `rglob("project.json")`, covering hash-qualified same-stem output directories.
+- Batch reruns now mark previously successful ledger entries as `stale` when their source is no longer discovered, excluding them from current master aggregation.
+
+## Remaining Fix TDD Evidence
+
+- Red: `pytest tests/test_batch.py::test_batch_rerun_with_missing_source_excludes_stale_success_from_master tests/test_batch.py::test_validate_batch_checks_nested_project_outputs -q` failed on stale ledger status and missed nested validation.
+- Green focused: same command -> 2 passed.
+- Batch suite: `pytest tests/test_batch.py -q` -> 11 passed.
+- Full suite: `pytest -q` -> 151 passed.
+- Whitespace: `git diff --check` -> clean.

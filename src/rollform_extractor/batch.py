@@ -48,7 +48,12 @@ def batch_extract(request: BatchRequest) -> BatchSummary:
     entries: dict[str, dict[str, Any]] = {entry["source_path"]: entry for entry in ledger.get("files", ())}
     totals = {"success": 0, "failed": 0, "skipped": 0, "reprocessed": 0, "stations": 0, "profiles": 0, "rollers": 0, "warnings": 0}
     sources = _discover_sources(request)
+    source_keys = {str(source.resolve()) for source in sources}
     collisions = _colliding_stems(sources)
+    for key, entry in list(entries.items()):
+        if key not in source_keys and entry.get("status") == "success":
+            entries[key] = {**entry, "status": "stale", "action": "stale", "error": "source no longer discovered"}
+    _write_ledger(ledger_path, entries, config_hash)
 
     for source in sources:
         source_sha = _sha256(source)
@@ -104,7 +109,9 @@ def aggregate_master(output_root: Path) -> Path:
 
 def validate_batch(output_root: Path) -> ValidationReport:
     issues: list[ValidationIssue] = []
-    for project_json in sorted(output_root.glob("*/project.json")):
+    for project_json in sorted(output_root.rglob("project.json")):
+        if "master" in project_json.parts:
+            continue
         report = validate_project(project_json.parent)
         issues.extend(ValidationIssue(issue.code, f"{project_json.parent.name}: {issue.message}") for issue in report.issues)
     if not (output_root / "master" / "master_rollform.sqlite").exists():

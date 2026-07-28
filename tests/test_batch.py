@@ -4,7 +4,7 @@ from dataclasses import replace
 import json
 import sqlite3
 
-from rollform_extractor.batch import BatchRequest, aggregate_master, batch_extract
+from rollform_extractor.batch import BatchRequest, aggregate_master, batch_extract, validate_batch
 from rollform_extractor.cli import main
 from rollform_extractor.pipeline import ExtractionRequest, extract_project
 from tests.cad_factory import make_flower_dxf
@@ -67,6 +67,24 @@ def test_batch_failure_isolated_per_file(tmp_path):
     assert summary.projects_succeeded == 1
     assert summary.projects_failed == 1
     assert {entry["status"] for entry in ledger["files"]} == {"success", "failed"}
+
+
+def test_batch_rerun_with_missing_source_excludes_stale_success_from_master(tmp_path):
+    source_root = tmp_path / "inputs"
+    source_root.mkdir()
+    source = make_flower_dxf(source_root / "one.dxf", station_count=1, labels=True)
+    request = BatchRequest(source_root, tmp_path / "out")
+    first = batch_extract(request)
+    source.unlink()
+
+    second = batch_extract(replace(request, resume=True, skip_unchanged=True))
+    ledger = json.loads(second.ledger_path.read_text(encoding="utf-8"))
+    master = sqlite3.connect(second.master_database)
+
+    assert first.projects_succeeded == 1
+    assert second.total_files == 0
+    assert ledger["files"][0]["status"] == "stale"
+    assert master.execute("select count(*) from projects").fetchone()[0] == 0
 
 
 def test_same_stem_sources_write_distinct_project_outputs(tmp_path):
@@ -168,3 +186,20 @@ def test_batch_report_refreshes_master_before_counting(tmp_path):
     assert main(["batch-report", str(out)]) == 0
 
     assert "projects=2" in (out / "master" / "extraction_dashboard.html").read_text(encoding="utf-8")
+
+
+def test_validate_batch_checks_nested_project_outputs(tmp_path):
+    source_root = tmp_path / "inputs"
+    (source_root / "a").mkdir(parents=True)
+    (source_root / "b").mkdir(parents=True)
+    make_flower_dxf(source_root / "a" / "part.dxf", station_count=1, labels=True)
+    make_flower_dxf(source_root / "b" / "part.dxf", station_count=1, labels=True)
+    out = tmp_path / "out"
+    batch_extract(BatchRequest(source_root, out))
+    nested_project = next(path for path in out.rglob("project.json") if path.parent.parent != out)
+    (nested_project.parent / "manifest.json").unlink()
+
+    report = validate_batch(out)
+
+    assert not report.valid
+    assert any(issue.code == "missing_manifest" for issue in report.issues)
