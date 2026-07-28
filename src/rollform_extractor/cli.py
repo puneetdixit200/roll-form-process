@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 
+from rollform_extractor.batch import BatchRequest, batch_extract, validate_batch, write_batch_report
 from rollform_extractor.dxf_reader import inspect_drawing
 from rollform_extractor.pipeline import ExtractionRequest, extract_project, reprocess_project
 from rollform_extractor.validation import validate_project
@@ -25,6 +26,15 @@ def main(argv: list[str] | None = None) -> int:
     reprocess_cmd.add_argument("project", type=Path)
     validate_cmd = sub.add_parser("validate")
     validate_cmd.add_argument("project", type=Path)
+    batch_extract_cmd = sub.add_parser("batch-extract")
+    batch_extract_cmd.add_argument("source_root", type=Path)
+    batch_extract_cmd.add_argument("output_root", type=Path)
+    batch_extract_cmd.add_argument("--resume", action="store_true")
+    batch_extract_cmd.add_argument("--skip-unchanged", action="store_true")
+    batch_validate_cmd = sub.add_parser("batch-validate")
+    batch_validate_cmd.add_argument("output_root", type=Path)
+    batch_report_cmd = sub.add_parser("batch-report")
+    batch_report_cmd.add_argument("output_root", type=Path)
     args = parser.parse_args(argv)
 
     if args.command == "inspect":
@@ -50,4 +60,18 @@ def main(argv: list[str] | None = None) -> int:
         report = validate_project(args.project)
         print("valid" if report.valid else "\n".join(f"{issue.code}: {issue.message}" for issue in report.issues))
         return 0 if report.valid else 1
+    if args.command == "batch-extract":
+        summary = batch_extract(BatchRequest(args.source_root, args.output_root, resume=args.resume, skip_unchanged=args.skip_unchanged))
+        print(
+            f"files={summary.total_files} success={summary.projects_succeeded} "
+            f"failed={summary.projects_failed} skipped={summary.projects_skipped}"
+        )
+        return 0 if summary.projects_failed == 0 else 1
+    if args.command == "batch-validate":
+        report = validate_batch(args.output_root)
+        print("valid" if report.valid else "\n".join(f"{issue.code}: {issue.message}" for issue in report.issues))
+        return 0 if report.valid else 1
+    if args.command == "batch-report":
+        print(write_batch_report(args.output_root))
+        return 0
     return 2
