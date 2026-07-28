@@ -601,6 +601,10 @@ def _bbox(bbox: Any) -> dict[str, float] | None:
 
 
 def _jsonable(value: Any) -> Any:
+    if isinstance(value, CadPrimitive):
+        return _primitive(value)
+    if hasattr(value, "min_x") and hasattr(value, "min_y") and hasattr(value, "max_x") and hasattr(value, "max_y"):
+        return _bbox(value)
     if isinstance(value, MappingProxyType):
         return {key: _jsonable(item) for key, item in value.items()}
     if isinstance(value, Mapping):

@@ -1,5 +1,4 @@
-def main() -> int:
-    return 0
+from rollform_extractor.cli import main
 
 
 if __name__ == "__main__":

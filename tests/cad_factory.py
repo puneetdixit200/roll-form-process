@@ -26,3 +26,31 @@ def sha256_file(path: Path) -> str:
     import hashlib
 
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def make_flower_dxf(
+    path: Path,
+    *,
+    station_count: int,
+    labels: bool,
+    rollers: bool = False,
+) -> Path:
+    doc = ezdxf.new("R2013", setup=True)
+    doc.header["$INSUNITS"] = 4
+    doc.layers.add("PROFILE", color=3)
+    doc.layers.add("ROLLER", color=5)
+    msp = doc.modelspace()
+    for index in range(station_count):
+        x = index * 40
+        msp.add_lwpolyline(
+            [(x, 0), (x + 16, 0), (x + 16, 10), (x, 10)],
+            close=True,
+            dxfattribs={"layer": "PROFILE"},
+        )
+        if rollers:
+            msp.add_circle((x + 8, 5), radius=3, dxfattribs={"layer": "ROLLER"})
+            msp.add_circle((x + 8, 5), radius=1, dxfattribs={"layer": "ROLLER"})
+        if labels:
+            msp.add_text(f"ST{index + 1:02d}", dxfattribs={"layer": "PROFILE", "height": 2}).set_placement((x, 14))
+    doc.saveas(path)
+    return path
