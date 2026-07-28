@@ -258,6 +258,56 @@ def test_review_queue_preserves_completed_json_and_csv_decisions(tmp_path):
     assert any(row["category"] == "low_confidence" for row in rows)
 
 
+def test_review_queue_preserves_completed_csv_decision_when_json_is_corrupt(tmp_path):
+    json_path = tmp_path / "review_queue.json"
+    csv_path = tmp_path / "review_queue.csv"
+    json_path.write_text("{ stale json", encoding="utf-8")
+    with csv_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "category",
+                "message",
+                "source_handles",
+                "method",
+                "configuration_hash",
+                "confidence",
+                "status",
+                "engineer_decision",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "category": "missing_label",
+                "message": "engineer resolved in csv",
+                "source_handles": "A1 A2",
+                "method": "manual",
+                "configuration_hash": "csv-hash",
+                "confidence": "1.0",
+                "status": "resolved",
+                "engineer_decision": "S1",
+            }
+        )
+
+    write_review_queue(tmp_path, (_warning("low_confidence", ("B1",)),), {"schema_version": 1})
+
+    queue = json.loads(json_path.read_text(encoding="utf-8"))
+    assert {
+        "category": "missing_label",
+        "message": "engineer resolved in csv",
+        "source_handles": ["A1", "A2"],
+        "method": "manual",
+        "configuration_hash": "csv-hash",
+        "confidence": "1.0",
+        "status": "resolved",
+        "engineer_decision": "S1",
+    } in queue["items"]
+    with csv_path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert any(row["engineer_decision"] == "S1" for row in rows)
+
+
 def write_overrides(
     tmp_path: Path,
     *,

@@ -130,7 +130,7 @@ def write_review_queue(
     path.mkdir(parents=True, exist_ok=True)
     json_path = path / "review_queue.json"
     csv_path = path / "review_queue.csv"
-    preserved = _completed_items(json_path)
+    preserved = _completed_items(json_path, csv_path)
     preserved_keys = {_item_key(item) for item in preserved}
     new_items = [
         {
@@ -307,7 +307,18 @@ def _category(code: str) -> str:
     }.get(code, code)
 
 
-def _completed_items(json_path: Path) -> list[dict[str, Any]]:
+def _completed_items(json_path: Path, csv_path: Path) -> list[dict[str, Any]]:
+    items = _completed_json_items(json_path)
+    seen = {_item_key(item) for item in items}
+    for item in _completed_csv_items(csv_path):
+        key = _item_key(item)
+        if key not in seen:
+            items.append(item)
+            seen.add(key)
+    return items
+
+
+def _completed_json_items(json_path: Path) -> list[dict[str, Any]]:
     if not json_path.exists():
         return []
     try:
@@ -316,6 +327,19 @@ def _completed_items(json_path: Path) -> list[dict[str, Any]]:
         return []
     items = data.get("items", []) if isinstance(data, dict) else []
     return [dict(item) for item in items if isinstance(item, dict) and _is_completed(item)]
+
+
+def _completed_csv_items(csv_path: Path) -> list[dict[str, Any]]:
+    if not csv_path.exists():
+        return []
+    with csv_path.open(newline="", encoding="utf-8") as handle:
+        return [_csv_item(row) for row in csv.DictReader(handle) if _is_completed(row)]
+
+
+def _csv_item(row: Mapping[str, Any]) -> dict[str, Any]:
+    item = dict(row)
+    item["source_handles"] = str(item.get("source_handles", "")).split()
+    return item
 
 
 def _is_completed(item: Mapping[str, Any]) -> bool:
