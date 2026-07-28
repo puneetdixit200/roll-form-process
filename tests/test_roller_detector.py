@@ -1,0 +1,199 @@
+from __future__ import annotations
+
+import pytest
+
+from rollform_extractor.config import ExtractionConfig
+from rollform_extractor.models import BBox, CadEntityRecord, CadPrimitive, ProfileRecord, StationRecord
+from rollform_extractor.roller_detector import detect_rollers
+from rollform_extractor.review import ManualOverrides
+
+
+@pytest.fixture
+def profile_and_rolls():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, 0, 100, 80), ("P1", "UL1", "UL2", "UR1", "UR2", "LL1", "LL2", "LR1", "LR2"))
+    profile = _profile(station, BBox(35, 30, 65, 40), ("P1",))
+    entities = (
+        _line("P1", (35, 35), (65, 35), layer="PROFILE"),
+        _circle("UL1", (30, 55), 8),
+        _circle("UL2", (30, 55), 3),
+        _circle("UR1", (70, 55), 8),
+        _circle("UR2", (70, 55), 3),
+        _circle("LL1", (30, 15), 8),
+        _circle("LL2", (30, 15), 3),
+        _circle("LR1", (70, 15), 8),
+        _circle("LR2", (70, 15), 3),
+    )
+    return (station,), (profile,), entities, config
+
+
+@pytest.fixture
+def profile_only_station():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, 0, 100, 80), ("P1",))
+    profile = _profile(station, BBox(35, 30, 65, 40), ("P1",))
+    entities = (_line("P1", (35, 35), (65, 35), layer="PROFILE"),)
+    return (station,), (profile,), entities, config
+
+
+def test_subrollers_remain_separate_and_receive_profile_relative_roles(profile_and_rolls):
+    result = detect_rollers(*profile_and_rolls, overrides=None)
+
+    assert len(result.rollers) == 4
+    assert {roller.role for roller in result.rollers} == {
+        "upper_left",
+        "upper_right",
+        "lower_left",
+        "lower_right",
+    }
+
+
+def test_profile_only_station_still_creates_empty_assembly(profile_only_station):
+    result = detect_rollers(*profile_only_station, overrides=None)
+
+    assert len(result.assemblies) == 1
+    assert result.assemblies[0].tooling_status == "unavailable"
+
+
+def test_concentric_circles_capture_outer_bore_keyway_and_annotation():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, 0, 80, 80), ("P1", "R1", "R2", "K1", "T1"))
+    profile = _profile(station, BBox(30, 25, 50, 35), ("P1",))
+    entities = (
+        _line("P1", (30, 30), (50, 30), layer="PROFILE"),
+        _circle("R1", (40, 50), 10),
+        _circle("R2", (40, 50), 4),
+        _line("K1", (36, 50), (44, 50), layer="ROLLER"),
+        _text("T1", "R12 OD20 BORE8", (48, 56)),
+    )
+
+    result = detect_rollers((station,), (profile,), entities, config)
+
+    roller = result.rollers[0]
+    assert roller.evidence["outer_diameter_mm"] == 20.0
+    assert roller.evidence["bore_diameter_mm"] == 8.0
+    assert roller.evidence["keyway"] is True
+    assert roller.evidence["identifier"] == "R12"
+    assert roller.evidence["annotations"] == ("R12 OD20 BORE8",)
+
+
+def test_manual_roller_roles_override_profile_relative_classification(profile_and_rolls):
+    stations, profiles, entities, config = profile_and_rolls
+    overrides = ManualOverrides(roller_handles={"1": {"guide": ("UL1", "UL2")}})
+
+    result = detect_rollers(stations, profiles, entities, config, overrides=overrides)
+
+    guide = next(roller for roller in result.rollers if set(roller.source_handles) == {"UL1", "UL2"})
+    assert guide.role == "guide"
+    assert guide.method == "manual_override"
+    assert result.manual_review_required is False
+
+
+def test_weak_centre_role_and_duplicate_identifiers_go_to_review():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, 0, 100, 80), ("P1", "A1", "A2", "TA", "B1", "B2", "TB"))
+    profile = _profile(station, BBox(35, 30, 65, 40), ("P1",))
+    entities = (
+        _line("P1", (35, 35), (65, 35), layer="PROFILE"),
+        _circle("A1", (49, 55), 8),
+        _circle("A2", (49, 55), 3),
+        _text("TA", "R9", (55, 60)),
+        _circle("B1", (51, 15), 8),
+        _circle("B2", (51, 15), 3),
+        _text("TB", "R9", (57, 20)),
+    )
+
+    result = detect_rollers((station,), (profile,), entities, config)
+
+    assert result.manual_review_required is True
+    assert {warning.code for warning in result.warnings} == {"weak_roller_role", "duplicate_roller_identifier"}
+
+
+def test_shaft_and_spacer_candidates_remain_separate_from_tooling_roles():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, 0, 100, 80), ("P1", "S1", "S2", "D1", "D2"))
+    profile = _profile(station, BBox(35, 30, 65, 40), ("P1",))
+    entities = (
+        _line("P1", (35, 35), (65, 35), layer="PROFILE"),
+        _circle("S1", (50, 60), 5, layer="SHAFT"),
+        _circle("S2", (50, 60), 2, layer="SHAFT"),
+        _circle("D1", (50, 10), 6, layer="SPACER"),
+        _circle("D2", (50, 10), 3, layer="SPACER"),
+    )
+
+    result = detect_rollers((station,), (profile,), entities, config)
+
+    assert {roller.role for roller in result.rollers} == {"shaft", "spacer"}
+    assert len(result.rollers) == 2
+
+
+def _station(station_id, sequence, bbox, handles):
+    return StationRecord(
+        station_id=station_id,
+        sequence_index=sequence,
+        bbox=bbox,
+        source_handles=handles,
+        method="station_detector",
+        configuration_hash="station-hash",
+        confidence=0.9,
+    )
+
+
+def _profile(station, bbox, handles):
+    return ProfileRecord(
+        profile_id=f"{station.station_id}-P1",
+        station_id=station.station_id,
+        source_handles=handles,
+        method="profile_detector",
+        configuration_hash="profile-hash",
+        confidence=0.9,
+        features={"bbox": bbox},
+    )
+
+
+def _circle(handle, center, radius, *, layer="ROLLER"):
+    primitive = CadPrimitive(kind="CIRCLE", attributes={"center": (*center, 0.0), "radius": radius}, source_handle=handle)
+    return CadEntityRecord(
+        handle=handle,
+        entity_type="CIRCLE",
+        layer=layer,
+        color=3,
+        line_type="CONTINUOUS",
+        layout="Model",
+        bbox=BBox(center[0] - radius, center[1] - radius, center[0] + radius, center[1] + radius),
+        normalized_primitives=(primitive,),
+        sampled_geometry=((center[0] + radius, center[1], 0.0),),
+        source_handles=(handle,),
+    )
+
+
+def _line(handle, start, end, *, layer="0"):
+    primitive = CadPrimitive(kind="LINE", attributes={"start": (*start, 0.0), "end": (*end, 0.0)}, source_handle=handle)
+    return CadEntityRecord(
+        handle=handle,
+        entity_type="LINE",
+        layer=layer,
+        color=3,
+        line_type="CONTINUOUS",
+        layout="Model",
+        bbox=BBox(min(start[0], end[0]), min(start[1], end[1]), max(start[0], end[0]), max(start[1], end[1])),
+        normalized_primitives=(primitive,),
+        sampled_geometry=((*start, 0.0), (*end, 0.0)),
+        source_handles=(handle,),
+    )
+
+
+def _text(handle, text, insert, *, layer="ROLLER"):
+    primitive = CadPrimitive(kind="TEXT", attributes={"text": text, "insert": (*insert, 0.0)}, source_handle=handle)
+    return CadEntityRecord(
+        handle=handle,
+        entity_type="TEXT",
+        layer=layer,
+        color=3,
+        line_type="CONTINUOUS",
+        layout="Model",
+        bbox=BBox(insert[0], insert[1], insert[0], insert[1]),
+        normalized_primitives=(primitive,),
+        sampled_geometry=((*insert, 0.0),),
+        source_handles=(handle,),
+    )
