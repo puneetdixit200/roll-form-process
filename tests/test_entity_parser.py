@@ -72,6 +72,108 @@ def test_nested_insert_records_composed_mirror_rotation_and_scale():
     assert entity.original_primitives[0].attributes["start"] == (0.0, 0.0, 0.0)
 
 
+def test_top_level_insert_record_has_its_own_transform():
+    doc = ezdxf.new("R2013", setup=True)
+    doc.blocks.new("PART").add_line((0, 0), (1, 0))
+    doc.modelspace().add_blockref(
+        "PART",
+        (10, 20),
+        dxfattribs={"rotation": 90, "xscale": 2, "yscale": 3},
+    )
+
+    insert = parse_entities(doc, ExtractionConfig.load()).entities[0]
+
+    assert np.round(np.asarray(insert.transform.matrix_4x4), 6).tolist() == [
+        [0.0, -3.0, 0.0, 10.0],
+        [2.0, 0.0, 0.0, 20.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+
+
+def test_expanded_entities_only_contains_insert_expansion():
+    doc = ezdxf.new("R2013", setup=True)
+    block = doc.blocks.new("PART")
+    block.add_line((0, 0), (1, 0))
+    msp = doc.modelspace()
+    msp.add_line((5, 5), (6, 5))
+    msp.add_blockref("PART", (0, 0))
+
+    parsed = parse_entities(doc, ExtractionConfig.load())
+
+    assert [entity.entity_type for entity in parsed.entities] == ["LINE", "INSERT"]
+    assert [entity.entity_type for entity in parsed.expanded_entities] == ["LINE"]
+
+
+def test_polyline_spline_hatch_text_and_dimension_keep_geometry_fields():
+    doc = ezdxf.new("R2013", setup=True)
+    msp = doc.modelspace()
+    lw = msp.add_lwpolyline(
+        [(0, 0, 0.5, 0.1, 0.2), (2, 0, 0.0, 0.3, 0.4)],
+        format="xybse",
+    )
+    lw.closed = True
+    poly = msp.add_polyline2d([(0, 0), (1, 0)])
+    poly.close(True)
+    spline = msp.add_rational_spline(
+        [(0, 0), (1, 2), (3, 0)],
+        weights=[1, 0.5, 1],
+        degree=2,
+        knots=[0, 0, 0, 1, 1, 1],
+    )
+    hatch = msp.add_hatch()
+    path = hatch.paths.add_edge_path()
+    path.add_line((0, 0), (1, 0))
+    path.add_arc((1, 1), 1, 0, 90)
+    text = msp.add_text("ST01", dxfattribs={"height": 2, "rotation": 15})
+    text.set_placement((4, 5))
+    mtext = msp.add_mtext("note", dxfattribs={"char_height": 3, "rotation": 25})
+    mtext.set_location((6, 7))
+    msp.add_linear_dim(base=(0, 1), p1=(0, 0), p2=(4, 0), angle=0).render()
+
+    by_handle = {
+        entity.handle: entity.original_primitive.attributes
+        for entity in parse_entities(doc, ExtractionConfig.load()).entities
+    }
+
+    assert by_handle[lw.dxf.handle]["vertices"] == (
+        {"point": (0.0, 0.0, 0.0), "bulge": 0.5, "start_width": 0.1, "end_width": 0.2},
+        {"point": (2.0, 0.0, 0.0), "bulge": 0.0, "start_width": 0.3, "end_width": 0.4},
+    )
+    assert by_handle[lw.dxf.handle]["closed"] is True
+    assert by_handle[poly.dxf.handle]["closed"] is True
+    assert by_handle[spline.dxf.handle]["knots"] == (0.0, 0.0, 0.0, 1.0, 1.0, 1.0)
+    assert by_handle[spline.dxf.handle]["weights"] == (1.0, 0.5, 1.0)
+    assert by_handle[hatch.dxf.handle]["paths"][0]["edges"][1]["kind"] == "ARC"
+    assert by_handle[text.dxf.handle]["height"] == 2.0
+    assert by_handle[mtext.dxf.handle]["rotation"] == 25.0
+    dim_attrs = next(attrs for attrs in by_handle.values() if attrs.get("measurement") == 4.0)
+    assert dim_attrs["defpoint2"] == (0.0, 0.0, 0.0)
+    assert dim_attrs["defpoint3"] == (4.0, 0.0, 0.0)
+
+
+def test_per_handle_bbox_and_normalization_failures_become_warnings(monkeypatch):
+    doc = ezdxf.new("R2013", setup=True)
+    line = doc.modelspace().add_line((0, 0), (1, 0))
+
+    def fail_bbox(_entity):
+        raise RuntimeError("bbox broke")
+
+    def fail_normalize(*_args, **_kwargs):
+        raise RuntimeError("normalize broke")
+
+    monkeypatch.setattr("rollform_extractor.entity_parser._bbox_from_entity", fail_bbox)
+    monkeypatch.setattr("rollform_extractor.entity_parser.normalize_primitives", fail_normalize)
+
+    parsed = parse_entities(doc, ExtractionConfig.load())
+
+    assert parsed.entities[0].handle == line.dxf.handle
+    assert parsed.entities[0].bbox is None
+    assert parsed.entities[0].normalized_primitives == ()
+    assert {warning.code for warning in parsed.warnings} == {"bbox_failed", "normalization_failed"}
+    assert all(warning.source_handles == (line.dxf.handle,) for warning in parsed.warnings)
+
+
 def test_unsupported_entity_keeps_ledger_and_warning():
     doc = ezdxf.new("R2013", setup=True)
     mesh = doc.modelspace().add_mesh()

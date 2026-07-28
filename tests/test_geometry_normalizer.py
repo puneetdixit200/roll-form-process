@@ -51,6 +51,84 @@ def test_normalize_circle_preserves_curve_primitive_and_samples_points():
     assert len(normalized.sampled_points) >= 7
 
 
+def test_normalize_arc_samples_along_arc_not_just_center():
+    primitive = CadPrimitive(
+        kind="ARC",
+        attributes={
+            "center": (0.0, 0.0, 0.0),
+            "radius": 2.0,
+            "start_angle": 0.0,
+            "end_angle": 90.0,
+        },
+        source_handle="A",
+    )
+
+    normalized = normalize_primitives([primitive], np.identity(4), unit_factor=1.0, spacing=1.0)
+
+    assert normalized.primitives[0].kind == "ARC"
+    assert normalized.sampled_points[0] == (2.0, 0.0, 0.0)
+    assert np.allclose(normalized.sampled_points[-1], (0.0, 2.0, 0.0))
+    assert len(normalized.sampled_points) >= 4
+
+
+def test_normalize_ellipse_samples_param_range():
+    primitive = CadPrimitive(
+        kind="ELLIPSE",
+        attributes={
+            "center": (0.0, 0.0, 0.0),
+            "major_axis": (4.0, 0.0, 0.0),
+            "ratio": 0.5,
+            "start_param": 0.0,
+            "end_param": 1.5707963267948966,
+        },
+        source_handle="E",
+    )
+
+    normalized = normalize_primitives([primitive], np.identity(4), unit_factor=1.0, spacing=1.0)
+
+    assert normalized.primitives[0].kind == "ELLIPSE"
+    assert normalized.sampled_points[0] == (4.0, 0.0, 0.0)
+    assert np.allclose(normalized.sampled_points[-1], (0.0, 2.0, 0.0))
+    assert len(normalized.sampled_points) >= 5
+
+
+def test_normalize_spline_samples_control_polyline_deterministically():
+    primitive = CadPrimitive(
+        kind="SPLINE",
+        attributes={
+            "degree": 2,
+            "control_points": ((0.0, 0.0, 0.0), (1.0, 2.0, 0.0), (3.0, 0.0, 0.0)),
+            "fit_points": (),
+            "knots": (0.0, 0.0, 0.0, 1.0, 1.0, 1.0),
+            "weights": (1.0, 0.5, 1.0),
+        },
+        source_handle="S",
+    )
+
+    normalized = normalize_primitives([primitive], np.identity(4), unit_factor=1.0, spacing=1.0)
+
+    assert normalized.primitives[0].attributes["weights"] == (1.0, 0.5, 1.0)
+    assert normalized.sampled_points[0] == (0.0, 0.0, 0.0)
+    assert normalized.sampled_points[-1] == (3.0, 0.0, 0.0)
+    assert len(normalized.sampled_points) >= 6
+
+
+def test_non_uniform_scale_does_not_keep_circle_as_exact_circle():
+    primitive = CadPrimitive(
+        kind="CIRCLE",
+        attributes={"center": (0.0, 0.0, 0.0), "radius": 2.0},
+        source_handle="C",
+    )
+    transform = np.diag([2.0, 3.0, 1.0, 1.0])
+
+    normalized = normalize_primitives([primitive], transform, unit_factor=1.0, spacing=1.0)
+
+    assert normalized.primitives[0].kind == "ELLIPSE"
+    assert normalized.primitives[0].attributes["source_kind"] == "CIRCLE"
+    assert normalized.primitives[0].attributes["transform_warning"] == "non_uniform_scale"
+    assert len(normalized.sampled_points) >= 20
+
+
 def test_close_endpoints_are_joined_only_in_sampled_geometry():
     first = CadPrimitive(
         kind="LINE",

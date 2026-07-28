@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from typing import Iterable
 
 import numpy as np
@@ -53,16 +54,35 @@ def _normalize_primitive(
 ) -> CadPrimitive:
     attrs = dict(primitive.attributes)
     kind = primitive.kind
+    if kind in {"CIRCLE", "ARC"} and not _uniform_xy_scale(matrix):
+        center = _transform_point(attrs["center"], matrix, unit_factor)
+        radius = float(attrs["radius"])
+        attrs = {
+            **attrs,
+            "center": center,
+            "major_axis": _transform_vector((radius, 0.0, 0.0), matrix, unit_factor),
+            "minor_axis": _transform_vector((0.0, radius, 0.0), matrix, unit_factor),
+            "source_kind": kind,
+            "transform_warning": "non_uniform_scale",
+        }
+        kind = "ELLIPSE" if kind == "CIRCLE" else "ELLIPSE_ARC"
+        return CadPrimitive(kind=kind, attributes=attrs, source_handle=primitive.source_handle)
     for key in ("start", "end", "center", "location", "point", "insert"):
         if key in attrs:
             attrs[key] = _transform_point(attrs[key], matrix, unit_factor)
-    for key in ("points", "control_points", "fit_points", "vertices"):
+    for key in ("points", "control_points", "fit_points"):
         if key in attrs:
             attrs[key] = tuple(_transform_point(point, matrix, unit_factor) for point in attrs[key])
+    if "vertices" in attrs:
+        attrs["vertices"] = tuple(_transform_vertex(vertex, matrix, unit_factor) for vertex in attrs["vertices"])
     if "radius" in attrs:
         attrs["radius"] = float(attrs["radius"]) * _scale_factor(matrix) * unit_factor
     if "major_axis" in attrs:
         attrs["major_axis"] = _transform_vector(attrs["major_axis"], matrix, unit_factor)
+    if kind == "ELLIPSE" and "minor_axis" not in attrs:
+        major = primitive.attributes["major_axis"]
+        ratio = float(primitive.attributes["ratio"])
+        attrs["minor_axis"] = _transform_vector((-major[1] * ratio, major[0] * ratio, 0.0), matrix, unit_factor)
     return CadPrimitive(kind=kind, attributes=attrs, source_handle=primitive.source_handle)
 
 
@@ -91,6 +111,31 @@ def _sample(
             )
             for i in range(steps)
         )
+    if primitive.kind == "ARC":
+        return _sample_arc(
+            attrs["center"],
+            float(attrs["radius"]),
+            float(attrs["start_angle"]),
+            float(attrs["end_angle"]),
+            spacing,
+        )
+    if primitive.kind in {"ELLIPSE", "ELLIPSE_ARC"}:
+        return _sample_ellipse(
+            attrs["center"],
+            attrs["major_axis"],
+            attrs.get("minor_axis"),
+            float(attrs.get("ratio", 1.0)),
+            float(attrs.get("start_param", 0.0)),
+            float(attrs.get("end_param", 2 * math.pi)),
+            spacing,
+        )
+    if primitive.kind == "SPLINE":
+        points = attrs.get("fit_points") or attrs.get("control_points") or ()
+        out: list[tuple[float, float, float]] = []
+        for start, end in zip(points, points[1:]):
+            segment = _sample_segment(start, end, spacing)
+            out.extend(segment if not out else segment[1:])
+        return tuple(out)
     return tuple(
         point
         for key in ("point", "location", "center", "insert")
@@ -113,6 +158,52 @@ def _sample_segment(start, end, spacing: float) -> tuple[tuple[float, float, flo
     )
 
 
+def _sample_arc(
+    center, radius: float, start_angle: float, end_angle: float, spacing: float
+) -> tuple[tuple[float, float, float], ...]:
+    center = _point(center)
+    sweep = end_angle - start_angle
+    if sweep <= 0:
+        sweep += 360.0
+    length = abs(math.radians(sweep) * radius)
+    steps = max(1, math.ceil(length / max(spacing, 0.001)))
+    return tuple(
+        (
+            center[0] + radius * math.cos(math.radians(start_angle + sweep * i / steps)),
+            center[1] + radius * math.sin(math.radians(start_angle + sweep * i / steps)),
+            center[2],
+        )
+        for i in range(steps + 1)
+    )
+
+
+def _sample_ellipse(
+    center,
+    major_axis,
+    minor_axis,
+    ratio: float,
+    start_param: float,
+    end_param: float,
+    spacing: float,
+) -> tuple[tuple[float, float, float], ...]:
+    center = _point(center)
+    major = _point(major_axis)
+    minor = _point(minor_axis) if minor_axis is not None else (-major[1] * ratio, major[0] * ratio, 0.0)
+    sweep = end_param - start_param
+    if sweep <= 0:
+        sweep += 2 * math.pi
+    radius = max(math.dist((0, 0, 0), major), math.dist((0, 0, 0), minor))
+    steps = max(1, math.ceil(abs(sweep) * radius / max(spacing, 0.001)))
+    return tuple(
+        (
+            center[0] + major[0] * math.cos(start_param + sweep * i / steps) + minor[0] * math.sin(start_param + sweep * i / steps),
+            center[1] + major[1] * math.cos(start_param + sweep * i / steps) + minor[1] * math.sin(start_param + sweep * i / steps),
+            center[2] + major[2] * math.cos(start_param + sweep * i / steps) + minor[2] * math.sin(start_param + sweep * i / steps),
+        )
+        for i in range(steps + 1)
+    )
+
+
 def _transform_point(point, matrix: np.ndarray, unit_factor: float) -> tuple[float, float, float]:
     x, y, z = _point(point)
     out = matrix @ np.array([x, y, z, 1.0])
@@ -123,6 +214,12 @@ def _transform_vector(vector, matrix: np.ndarray, unit_factor: float) -> tuple[f
     x, y, z = _point(vector)
     out = matrix @ np.array([x, y, z, 0.0])
     return (float(out[0] * unit_factor), float(out[1] * unit_factor), float(out[2] * unit_factor))
+
+
+def _transform_vertex(vertex, matrix: np.ndarray, unit_factor: float) -> dict:
+    if isinstance(vertex, Mapping):
+        return {**vertex, "point": _transform_point(vertex["point"], matrix, unit_factor)}
+    return {"point": _transform_point(vertex, matrix, unit_factor)}
 
 
 def _point(value) -> tuple[float, float, float]:
@@ -136,6 +233,15 @@ def _point(value) -> tuple[float, float, float]:
 
 def _scale_factor(matrix: np.ndarray) -> float:
     return float(np.linalg.norm(matrix[:3, 0]))
+
+
+def _uniform_xy_scale(matrix: np.ndarray) -> bool:
+    return math.isclose(
+        float(np.linalg.norm(matrix[:3, 0])),
+        float(np.linalg.norm(matrix[:3, 1])),
+        rel_tol=1e-9,
+        abs_tol=1e-9,
+    )
 
 
 def _distance(a, b) -> float:

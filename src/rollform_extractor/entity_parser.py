@@ -38,7 +38,15 @@ def parse_entities(doc, config: ExtractionConfig) -> ParseResult:
     config_hash = config.hash_for("parsing")
     warnings: list[WarningRecord] = []
     entities = [
-        _record_entity(entity, layout.name, np.identity(4), (), config, config_hash, warnings)
+        _record_entity(
+            entity,
+            layout.name,
+            _top_level_matrix(entity),
+            (),
+            config,
+            config_hash,
+            warnings,
+        )
         for layout in doc.layouts
         for entity in layout
     ]
@@ -48,10 +56,6 @@ def parse_entities(doc, config: ExtractionConfig) -> ParseResult:
             if entity.dxftype() == "INSERT":
                 expanded.extend(
                     _expand_insert(entity, doc, layout.name, np.identity(4), (), config, config_hash, warnings)
-                )
-            else:
-                expanded.append(
-                    _record_entity(entity, layout.name, np.identity(4), (), config, config_hash, warnings)
                 )
     return ParseResult(
         entities=tuple(entities),
@@ -109,17 +113,18 @@ def _record_entity(
             warnings.append(_warning("primitive_parse_failed", str(exc), (handle,), config_hash))
     else:
         warnings.append(_warning("unsupported_entity", entity_type, (handle,), config_hash))
-    normalized = (
-        normalize_primitives(
-            (primitive,),
-            matrix,
-            _unit_factor(entity.doc.header.get("$INSUNITS", 0)),
-            config.geometry.curve_sampling_spacing_mm,
-            config.geometry.endpoint_join_tolerance_mm,
-        )
-        if primitive is not None
-        else None
-    )
+    normalized = None
+    if primitive is not None:
+        try:
+            normalized = normalize_primitives(
+                (primitive,),
+                matrix,
+                _unit_factor(entity.doc.header.get("$INSUNITS", 0)),
+                config.geometry.curve_sampling_spacing_mm,
+                config.geometry.endpoint_join_tolerance_mm,
+            )
+        except Exception as exc:
+            warnings.append(_warning("normalization_failed", str(exc), (handle,), config_hash))
     transform = TransformRecord(
         matrix_4x4=_matrix_tuple(matrix),
         block_path=block_path,
@@ -133,7 +138,7 @@ def _record_entity(
         color=getattr(entity.dxf, "color", None),
         line_type=getattr(entity.dxf, "linetype", None),
         layout=layout,
-        bbox=_bbox(entity),
+        bbox=_bbox(entity, config_hash, warnings),
         original_primitives=(primitive,) if primitive is not None else (),
         normalized_primitives=normalized.primitives if normalized is not None else (),
         sampled_geometry=normalized.sampled_points if normalized is not None else (),
@@ -152,9 +157,35 @@ def _primitive(entity) -> CadPrimitive:
     if kind == "LINE":
         attrs = {"start": _point(entity.dxf.start), "end": _point(entity.dxf.end)}
     elif kind == "LWPOLYLINE":
-        attrs = {"points": tuple((float(x), float(y), 0.0) for x, y, *_ in entity.get_points())}
+        vertices = tuple(
+            {
+                "point": (float(x), float(y), 0.0),
+                "bulge": float(bulge),
+                "start_width": float(start_width),
+                "end_width": float(end_width),
+            }
+            for x, y, bulge, start_width, end_width in entity.get_points("xybse")
+        )
+        attrs = {
+            "vertices": vertices,
+            "points": tuple(vertex["point"] for vertex in vertices),
+            "closed": bool(entity.closed),
+        }
     elif kind == "POLYLINE":
-        attrs = {"points": tuple(_point(vertex.dxf.location) for vertex in entity.vertices)}
+        vertices = tuple(
+            {
+                "point": _point(vertex.dxf.location),
+                "bulge": float(getattr(vertex.dxf, "bulge", 0.0) or 0.0),
+                "start_width": float(getattr(vertex.dxf, "start_width", 0.0) or 0.0),
+                "end_width": float(getattr(vertex.dxf, "end_width", 0.0) or 0.0),
+            }
+            for vertex in entity.vertices
+        )
+        attrs = {
+            "vertices": vertices,
+            "points": tuple(vertex["point"] for vertex in vertices),
+            "closed": bool(getattr(entity, "is_closed", False)),
+        }
     elif kind == "ARC":
         attrs = {
             "center": _point(entity.dxf.center),
@@ -176,18 +207,41 @@ def _primitive(entity) -> CadPrimitive:
         attrs = {
             "control_points": tuple(_point(point) for point in getattr(entity, "control_points", ())),
             "fit_points": tuple(_point(point) for point in getattr(entity, "fit_points", ())),
+            "knots": tuple(float(value) for value in getattr(entity, "knots", ())),
+            "weights": tuple(float(value) for value in getattr(entity, "weights", ())),
             "degree": int(getattr(entity.dxf, "degree", 0) or 0),
         }
     elif kind == "INSERT":
         attrs = {"name": str(entity.dxf.name), "insert": _point(entity.dxf.insert)}
     elif kind == "TEXT":
-        attrs = {"text": entity.dxf.text, "insert": _point(entity.dxf.insert)}
+        attrs = {
+            "text": entity.dxf.text,
+            "insert": _point(entity.dxf.insert),
+            "height": float(getattr(entity.dxf, "height", 0.0) or 0.0),
+            "rotation": float(getattr(entity.dxf, "rotation", 0.0) or 0.0),
+        }
     elif kind == "MTEXT":
-        attrs = {"text": entity.text, "insert": _point(entity.dxf.insert)}
+        attrs = {
+            "text": entity.text,
+            "insert": _point(entity.dxf.insert),
+            "height": float(getattr(entity.dxf, "char_height", 0.0) or 0.0),
+            "rotation": float(getattr(entity.dxf, "rotation", 0.0) or 0.0),
+        }
     elif kind == "DIMENSION":
         attrs = _dxf_attributes(entity)
+        attrs.update(
+            {
+                "dimtype": int(entity.dimtype),
+                "text": str(getattr(entity.dxf, "text", "")),
+                "measurement": float(entity.get_measurement()),
+            }
+        )
     elif kind == "HATCH":
-        attrs = {"path_count": len(entity.paths), "solid_fill": bool(entity.dxf.solid_fill)}
+        attrs = {
+            "path_count": len(entity.paths),
+            "solid_fill": bool(entity.dxf.solid_fill),
+            "paths": tuple(_hatch_path(path) for path in entity.paths),
+        }
     elif kind == "POINT":
         attrs = {"point": _point(entity.dxf.location)}
     else:
@@ -202,11 +256,16 @@ def _dxf_attributes(entity) -> dict[str, Any]:
     }
 
 
-def _bbox(entity) -> BBox | None:
+def _bbox(entity, config_hash: str, warnings: list[WarningRecord]) -> BBox | None:
     try:
-        box = bbox.extents([entity])
-    except Exception:
+        return _bbox_from_entity(entity)
+    except Exception as exc:
+        warnings.append(_warning("bbox_failed", str(exc), (str(entity.dxf.handle),), config_hash))
         return None
+
+
+def _bbox_from_entity(entity) -> BBox | None:
+    box = bbox.extents([entity])
     if not box.has_data:
         return None
     return BBox(float(box.extmin[0]), float(box.extmin[1]), float(box.extmax[0]), float(box.extmax[1]))
@@ -225,6 +284,37 @@ def _warning(code: str, message: str, handles: Iterable[str], config_hash: str) 
 
 def _matrix_tuple(matrix: np.ndarray) -> tuple[tuple[float, ...], ...]:
     return tuple(tuple(float(value) for value in row) for row in np.asarray(matrix, dtype=float))
+
+
+def _top_level_matrix(entity) -> np.ndarray:
+    if entity.dxftype() == "INSERT":
+        return compose_insert_matrix(entity, np.identity(4))
+    return np.identity(4)
+
+
+def _hatch_path(path) -> dict[str, Any]:
+    if hasattr(path, "edges"):
+        return {
+            "kind": "EDGE",
+            "edges": tuple(_hatch_edge(edge) for edge in path.edges),
+        }
+    return {
+        "kind": "POLYLINE",
+        "vertices": tuple(_point(vertex[:2]) for vertex in getattr(path, "vertices", ())),
+        "closed": bool(getattr(path, "is_closed", False)),
+    }
+
+
+def _hatch_edge(edge) -> dict[str, Any]:
+    name = type(edge).__name__.replace("Edge", "").upper()
+    data = {"kind": name}
+    for key in ("start", "end", "center"):
+        if hasattr(edge, key):
+            data[key] = _point(getattr(edge, key))
+    for key in ("radius", "start_angle", "end_angle", "ccw"):
+        if hasattr(edge, key):
+            data[key] = _json_safe(getattr(edge, key))
+    return data
 
 
 def _point(value) -> tuple[float, float, float]:
