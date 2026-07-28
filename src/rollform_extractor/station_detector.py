@@ -65,7 +65,7 @@ def detect_stations(
     labels = _labels(records)
     geometry_candidates = _geometry_candidates(records, config.stations.cluster_gap_factor)
     block_candidates = _block_candidates(records)
-    candidates = _choose_candidates(labels, block_candidates, geometry_candidates)
+    candidates = _choose_candidates(labels, block_candidates, geometry_candidates, config.stations.label_search_radius_mm)
     labelled, warnings = _attach_labels(candidates, labels, config.stations.label_search_radius_mm, config_hash)
     ordered = _order(labelled)
     sequences = _sequences(ordered)
@@ -120,9 +120,15 @@ def _choose_candidates(
     labels: tuple[_Label, ...],
     block_candidates: tuple[_Candidate, ...],
     geometry_candidates: tuple[_Candidate, ...],
+    label_radius: float,
 ) -> tuple[_Candidate, ...]:
     if labels:
-        return block_candidates if len(block_candidates) == len(labels) else geometry_candidates
+        labelled_blocks = sum(
+            1
+            for label in labels
+            if any(_box_distance(candidate.bbox, label.bbox) <= label_radius for candidate in block_candidates)
+        )
+        return block_candidates if block_candidates and labelled_blocks == len(labels) else geometry_candidates
     return block_candidates or geometry_candidates
 
 
@@ -131,6 +137,7 @@ def _geometry_candidates(entities: tuple[CadEntityRecord, ...], gap_factor: floa
         entity
         for entity in entities
         if entity.entity_type not in {"TEXT", "MTEXT", "DIMENSION", "INSERT"} and entity.bbox is not None
+        and not (entity.transform and entity.transform.block_path)
     )
     if not parts:
         return ()

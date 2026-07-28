@@ -40,6 +40,22 @@ def test_labelled_repeated_station_blocks_keep_unique_insert_handles(tmp_path):
     assert len({station.source_handles[0] for station in result.stations}) == 5
 
 
+def test_partial_labels_on_repeated_station_blocks_keep_all_inserts_for_review(tmp_path):
+    doc = make_flower_dxf(station_count=5, labels=False, blocks=True)
+    for index, number in enumerate((1, 2, 4, 5)):
+        doc.modelspace().add_text(f"ST{number:02d}", dxfattribs={"layer": "PROFILE", "height": 2}).set_placement((index * 40, 14))
+    parsed = parse_entities(doc, ExtractionConfig.load())
+
+    result = _detect_parsed(tmp_path, doc, parsed)
+
+    expanded_handles = {entity.handle for entity in parsed.expanded_entities}
+    assert len(result.stations) == 5
+    assert all(station.evidence["candidate_method"] == "block_repetition" for station in result.stations)
+    assert all(not expanded_handles.intersection(station.source_handles) for station in result.stations)
+    assert any(station.drawing_label.startswith("Station_Unknown_") for station in result.stations)
+    assert result.manual_review_required is True
+
+
 def test_labelled_geometry_wins_over_repeated_nonstation_blocks(tmp_path):
     doc = make_flower_dxf(station_count=6, labels=True)
     fastener = doc.blocks.new("FASTENER")
@@ -128,9 +144,12 @@ def test_configured_cluster_gap_can_join_non_overlapping_station_geometry(tmp_pa
 
 
 def _detect(tmp_path, doc):
+    return _detect_parsed(tmp_path, doc, parse_entities(doc, ExtractionConfig.load()))
+
+
+def _detect_parsed(tmp_path, doc, parsed):
     dxf_path = tmp_path / "flower.dxf"
     doc.saveas(dxf_path)
-    parsed = parse_entities(doc, ExtractionConfig.load())
     return detect_stations(parsed.entities + parsed.expanded_entities, inspect_drawing(dxf_path), ExtractionConfig.load())
 
 
