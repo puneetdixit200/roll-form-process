@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rollform benchmark case",
+  "type": "object",
+  "required": ["stations", "profiles", "rollers"],
+  "properties": {
+    "stations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["station_id", "bbox"],
+        "properties": {
+          "station_id": {"type": "string"},
+          "bbox": {"$ref": "#/$defs/bbox"},
+          "automatic": {"type": "boolean"},
+          "method": {"type": "string"}
+        }
+      }
+    },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["profile_id", "station_id"],
+        "properties": {
+          "profile_id": {"type": "string"},
+          "station_id": {"type": "string"},
+          "contour": {"$ref": "#/$defs/points"},
+          "developed_length_mm": {"type": "number"},
+          "bends": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/bend"}
+          },
+          "features": {"type": "object"},
+          "automatic": {"type": "boolean"},
+          "method": {"type": "string"}
+        }
+      }
+    },
+    "rollers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["occurrence_id", "station_id", "role"],
+        "properties": {
+          "occurrence_id": {"type": "string"},
+          "station_id": {"type": "string"},
+          "role": {"type": ["string", "null"]},
+          "automatic": {"type": "boolean"},
+          "method": {"type": "string"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "bbox": {
+      "type": "object",
+      "required": ["min_x", "min_y", "max_x", "max_y"],
+      "properties": {
+        "min_x": {"type": "number"},
+        "min_y": {"type": "number"},
+        "max_x": {"type": "number"},
+        "max_y": {"type": "number"}
+      }
+    },
+    "points": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "items": {"type": "number"}
+      }
+    },
+    "bend": {
+      "type": "object",
+      "required": ["position_mm", "angle_deg", "radius_mm"],
+      "properties": {
+        "position_mm": {"type": "number"},
+        "angle_deg": {"type": "number"},
+        "radius_mm": {"type": "number"}
+      }
+    }
+  }
+}
