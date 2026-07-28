@@ -47,6 +47,40 @@ def test_provisional_targets_mark_dimensional_limits():
     assert report.targets["bend_position_error_mm"].provisional is True
 
 
+def test_zero_iou_station_is_not_a_match_and_counts_as_false_automatic_claim():
+    truth = {"stations": [{"station_id": "S1", "bbox": {"min_x": 0, "min_y": 0, "max_x": 10, "max_y": 10}}], "profiles": [], "rollers": []}
+    extraction = {
+        "stations": [{"station_id": "far", "bbox": {"min_x": 50, "min_y": 0, "max_x": 60, "max_y": 10}, "automatic": True}],
+        "profiles": [],
+        "rollers": [],
+    }
+
+    report = evaluate_benchmark(truth, extraction)
+
+    assert report.boundary_iou is None
+    assert report.incorrect_automatic_claim_rate == 1
+
+
+def test_roller_role_accuracy_uses_station_matches_not_occurrence_id_only():
+    truth = {
+        "stations": [{"station_id": "S1", "bbox": {"min_x": 0, "min_y": 0, "max_x": 10, "max_y": 10}}],
+        "profiles": [],
+        "rollers": [{"occurrence_id": "R1", "station_id": "S1", "role": "upper"}],
+    }
+    extraction = {
+        "stations": [
+            {"station_id": "E1", "bbox": {"min_x": 0, "min_y": 0, "max_x": 10, "max_y": 10}, "automatic": True},
+            {"station_id": "E2", "bbox": {"min_x": 50, "min_y": 0, "max_x": 60, "max_y": 10}, "automatic": True},
+        ],
+        "profiles": [],
+        "rollers": [{"occurrence_id": "R1", "station_id": "E2", "role": "upper", "automatic": True}],
+    }
+
+    report = evaluate_benchmark(truth, extraction)
+
+    assert report.roller_role_accuracy == 0
+
+
 def _truth():
     return {
         "stations": [

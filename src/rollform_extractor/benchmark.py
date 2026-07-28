@@ -54,7 +54,7 @@ def evaluate_benchmark(truth: Mapping[str, Any] | str | Path, extraction: Mappin
     matches = _station_matches(truth_data.get("stations", ()), extracted.get("stations", ()))
     profile_id_accuracy = _profile_id_accuracy(truth_data, extracted, matches)
     roller_recall = _roller_recall(truth_data, extracted, matches)
-    roller_role_accuracy = _roller_role_accuracy(truth_data, extracted)
+    roller_role_accuracy = _roller_role_accuracy(truth_data, extracted, matches)
     false_claim_rate = _incorrect_automatic_claim_rate(truth_data, extracted, matches)
     geometry = _geometry_metrics(truth_data, extracted, matches)
     report = BenchmarkReport(
@@ -122,10 +122,11 @@ def _station_matches(truth_stations: Sequence[Mapping[str, Any]], extracted_stat
     matches = []
     for truth_station in truth_stations:
         best = max(remaining, key=lambda item: _iou(truth_station.get("bbox"), item.get("bbox")), default=None)
-        if best is None:
+        best_iou = _iou(truth_station.get("bbox"), best.get("bbox")) if best else 0.0
+        if best is None or best_iou <= 0:
             continue
         remaining.remove(best)
-        matches.append((truth_station["station_id"], best["station_id"], _iou(truth_station.get("bbox"), best.get("bbox"))))
+        matches.append((truth_station["station_id"], best["station_id"], best_iou))
     return matches
 
 
@@ -152,12 +153,16 @@ def _roller_recall(truth: Mapping[str, Any], extracted: Mapping[str, Any], match
     return _mean_bool(values)
 
 
-def _roller_role_accuracy(truth: Mapping[str, Any], extracted: Mapping[str, Any]) -> float | None:
-    extracted_by_id = {item.get("occurrence_id"): item.get("role") for item in extracted.get("rollers", ())}
+def _roller_role_accuracy(truth: Mapping[str, Any], extracted: Mapping[str, Any], matches: list[tuple[str, str, float]]) -> float | None:
+    matched_station = {truth_id: extracted_id for truth_id, extracted_id, _ in matches}
+    extracted_by_station_and_id = {
+        (item.get("station_id"), item.get("occurrence_id")): item.get("role")
+        for item in extracted.get("rollers", ())
+    }
     values = [
-        extracted_by_id[item.get("occurrence_id")] == item.get("role")
+        extracted_by_station_and_id.get((matched_station.get(item.get("station_id")), item.get("occurrence_id"))) == item.get("role")
         for item in truth.get("rollers", ())
-        if item.get("occurrence_id") in extracted_by_id
+        if item.get("station_id") in matched_station
     ]
     return _mean_bool(values)
 

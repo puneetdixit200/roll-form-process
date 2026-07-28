@@ -212,6 +212,7 @@ def _station(station: StationRecord) -> dict[str, Any]:
         "sequence_index": station.sequence_index,
         "bbox": _bbox(station.bbox),
         "source_handles": list(station.source_handles),
+        "method": station.method,
         "confidence": station.confidence,
     }
 
@@ -221,6 +222,7 @@ def _profile(profile: ProfileRecord) -> dict[str, Any]:
         "profile_id": profile.profile_id,
         "station_id": profile.station_id,
         "source_handles": list(profile.source_handles),
+        "method": profile.method,
         "confidence": profile.confidence,
         "features": _jsonable(profile.features),
     }
@@ -232,6 +234,7 @@ def _roller(roller: RollerOccurrenceRecord) -> dict[str, Any]:
         "station_id": roller.station_id,
         "role": roller.role,
         "source_handles": list(roller.source_handles),
+        "method": roller.method,
         "confidence": roller.confidence,
         "evidence": _jsonable(roller.evidence),
     }
