@@ -63,6 +63,9 @@ def load_overrides(path: Path, known_handles: set[str]) -> ManualOverrides:
     units = data.get("units")
     if units is not None and str(units).lower() not in VALID_UNITS:
         raise OverrideValidationError(f"invalid units: {units}")
+    configuration_snapshot = data.get("configuration_snapshot", {})
+    if not isinstance(configuration_snapshot, Mapping):
+        raise OverrideValidationError("configuration_snapshot must be a mapping")
 
     stations = tuple(_station_override(item, known_handles) for item in _list(data, "stations"))
     _validate_station_order(stations)
@@ -77,7 +80,7 @@ def load_overrides(path: Path, known_handles: set[str]) -> ManualOverrides:
         station_boxes=stations,
         profile_handles=profile_handles,
         roller_handles=roller_handles,
-        configuration_snapshot=data.get("configuration_snapshot", {}),
+        configuration_snapshot=configuration_snapshot,
         source_hash=sha256(payload.encode("utf-8")).hexdigest(),
     )
 
@@ -87,16 +90,20 @@ def apply_station_overrides(
 ) -> list[StationRecord]:
     records = tuple(entities)
     stations: list[StationRecord] = []
+    bbox_owners: dict[str, str] = {}
     for override in sorted(overrides.station_boxes, key=lambda station: station.sequence_index):
         handles = set(override.source_handles)
-        handles.update(
-            entity.handle
-            for entity in records
-            if entity.bbox is not None and _intersects(entity.bbox, override.bbox)
-        )
-        key = str(override.sequence_index)
-        handles.update(overrides.profile_handles.get(key, ()))
-        for role_handles in overrides.roller_handles.get(key, {}).values():
+        station_key = str(override.sequence_index)
+        for entity in records:
+            if entity.bbox is not None and _intersects(entity.bbox, override.bbox):
+                owner = bbox_owners.setdefault(entity.handle, station_key)
+                if owner != station_key:
+                    raise OverrideValidationError(
+                        f"entity handle assigned to multiple stations: {entity.handle}"
+                    )
+                handles.add(entity.handle)
+        handles.update(overrides.profile_handles.get(station_key, ()))
+        for role_handles in overrides.roller_handles.get(station_key, {}).values():
             handles.update(role_handles)
         stations.append(
             StationRecord(
@@ -121,7 +128,11 @@ def write_review_queue(
     path: Path, warnings: Iterable[WarningRecord], template: Mapping[str, Any]
 ) -> tuple[Path, Path]:
     path.mkdir(parents=True, exist_ok=True)
-    items = [
+    json_path = path / "review_queue.json"
+    csv_path = path / "review_queue.csv"
+    preserved = _completed_items(json_path)
+    preserved_keys = {_item_key(item) for item in preserved}
+    new_items = [
         {
             "category": _category(warning.code),
             "message": warning.message,
@@ -132,27 +143,20 @@ def write_review_queue(
         }
         for warning in warnings
     ]
-    json_path = path / "review_queue.json"
-    csv_path = path / "review_queue.csv"
+    items = preserved + [item for item in new_items if _item_key(item) not in preserved_keys]
     json_path.write_text(
         json.dumps({"schema_version": SCHEMA_VERSION, "items": items}, indent=2, sort_keys=True),
         encoding="utf-8",
     )
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
+        fieldnames = _csv_fieldnames(items)
         writer = csv.DictWriter(
             handle,
-            fieldnames=[
-                "category",
-                "message",
-                "source_handles",
-                "method",
-                "configuration_hash",
-                "confidence",
-            ],
+            fieldnames=fieldnames,
         )
         writer.writeheader()
         for item in items:
-            writer.writerow({**item, "source_handles": " ".join(item["source_handles"])})
+            writer.writerow({**item, "source_handles": " ".join(item.get("source_handles", ()))})
     manual_path = path / "manual_overrides.json"
     if not manual_path.exists():
         manual_path.write_text(json.dumps(template, indent=2, sort_keys=True), encoding="utf-8")
@@ -163,9 +167,11 @@ def _station_override(data: Any, known_handles: set[str]) -> StationOverride:
     if not isinstance(data, dict):
         raise OverrideValidationError("station override must be an object")
     try:
-        sequence_index = int(data["sequence_index"])
-    except (KeyError, TypeError, ValueError) as exc:
+        sequence_index = data["sequence_index"]
+    except KeyError as exc:
         raise OverrideValidationError("station sequence_index must be an integer") from exc
+    if isinstance(sequence_index, bool) or not isinstance(sequence_index, int):
+        raise OverrideValidationError("station sequence_index must be an integer")
     if sequence_index <= 0:
         raise OverrideValidationError("station sequence_index must be positive")
     bbox = _bbox(data.get("bbox"))
@@ -299,3 +305,46 @@ def _category(code: str) -> str:
         "order_conflict": "uncertain_boundary",
         "unidentified_rollers": "roller_ambiguity",
     }.get(code, code)
+
+
+def _completed_items(json_path: Path) -> list[dict[str, Any]]:
+    if not json_path.exists():
+        return []
+    try:
+        data = json.loads(json_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    items = data.get("items", []) if isinstance(data, dict) else []
+    return [dict(item) for item in items if isinstance(item, dict) and _is_completed(item)]
+
+
+def _is_completed(item: Mapping[str, Any]) -> bool:
+    status = str(item.get("status", "")).lower()
+    return (
+        status in {"resolved", "completed", "complete"}
+        or item.get("resolved") is True
+        or item.get("completed") is True
+        or bool(item.get("engineer_decision"))
+    )
+
+
+def _item_key(item: Mapping[str, Any]) -> tuple[str, tuple[str, ...]]:
+    handles = item.get("source_handles", ())
+    if isinstance(handles, str):
+        handle_tuple = tuple(handles.split())
+    else:
+        handle_tuple = tuple(str(handle) for handle in handles)
+    return str(item.get("category", "")), handle_tuple
+
+
+def _csv_fieldnames(items: Iterable[Mapping[str, Any]]) -> list[str]:
+    base = [
+        "category",
+        "message",
+        "source_handles",
+        "method",
+        "configuration_hash",
+        "confidence",
+    ]
+    extras = sorted({key for item in items for key in item.keys()} - set(base))
+    return base + extras

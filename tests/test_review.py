@@ -80,6 +80,17 @@ def test_duplicate_station_order_is_rejected(parsed_flower, tmp_path):
         load_overrides(path, parsed_flower.handles)
 
 
+@pytest.mark.parametrize("sequence_index", [1.9, "1"])
+def test_non_integer_station_sequence_is_rejected(parsed_flower, tmp_path, sequence_index):
+    path = write_overrides(
+        tmp_path,
+        raw_station_boxes=[{"sequence_index": sequence_index, "bbox": _box_json(BOX_A)}],
+    )
+
+    with pytest.raises(OverrideValidationError, match="sequence_index"):
+        load_overrides(path, parsed_flower.handles)
+
+
 def test_invalid_station_box_is_rejected(parsed_flower, tmp_path):
     path = write_overrides(
         tmp_path,
@@ -113,6 +124,20 @@ def test_same_station_profile_and_roller_handle_is_rejected(parsed_flower, tmp_p
         load_overrides(path, parsed_flower.handles)
 
 
+def test_overlapping_station_boxes_reject_shared_entity_ownership(parsed_flower, tmp_path):
+    path = write_overrides(
+        tmp_path,
+        raw_station_boxes=[
+            {"sequence_index": 1, "bbox": _box_json(BBox(0, 0, 7, 10))},
+            {"sequence_index": 2, "bbox": _box_json(BBox(5, 0, 12, 10))},
+        ],
+    )
+
+    overrides = load_overrides(path, parsed_flower.handles)
+    with pytest.raises(OverrideValidationError, match="assigned to multiple stations"):
+        apply_station_overrides(parsed_flower.entities, overrides)
+
+
 def test_unknown_station_reference_is_rejected(parsed_flower, tmp_path):
     path = write_overrides(tmp_path, station_boxes=[BOX_A], profile_handles={"2": ["A1"]})
 
@@ -135,6 +160,13 @@ def test_schema_version_is_required(parsed_flower, tmp_path):
     path.write_text(json.dumps({"stations": []}), encoding="utf-8")
 
     with pytest.raises(OverrideValidationError, match="schema_version"):
+        load_overrides(path, parsed_flower.handles)
+
+
+def test_configuration_snapshot_must_be_a_mapping(parsed_flower, tmp_path):
+    path = write_overrides(tmp_path, configuration_snapshot=["not", "a", "mapping"])
+
+    with pytest.raises(OverrideValidationError, match="configuration_snapshot"):
         load_overrides(path, parsed_flower.handles)
 
 
@@ -181,6 +213,51 @@ def test_review_queue_writes_json_and_csv_without_overwriting_engineer_decisions
     assert rows[-1]["category"] == "unit_uncertainty"
 
 
+def test_review_queue_preserves_completed_json_and_csv_decisions(tmp_path):
+    json_path = tmp_path / "review_queue.json"
+    csv_path = tmp_path / "review_queue.csv"
+    resolved_item = {
+        "category": "missing_label",
+        "message": "engineer resolved",
+        "source_handles": ["A1"],
+        "method": "manual",
+        "configuration_hash": "old-hash",
+        "confidence": 1.0,
+        "status": "resolved",
+        "engineer_decision": "S1",
+    }
+    json_path.write_text(
+        json.dumps({"schema_version": 1, "items": [resolved_item]}),
+        encoding="utf-8",
+    )
+    with csv_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "category",
+                "message",
+                "source_handles",
+                "method",
+                "configuration_hash",
+                "confidence",
+                "status",
+                "engineer_decision",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow({**resolved_item, "source_handles": "A1"})
+
+    write_review_queue(tmp_path, (_warning("low_confidence", ("B1",)),), {"schema_version": 1})
+
+    queue = json.loads(json_path.read_text(encoding="utf-8"))
+    assert resolved_item in queue["items"]
+    assert any(item["category"] == "low_confidence" for item in queue["items"])
+    with csv_path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert any(row["engineer_decision"] == "S1" for row in rows)
+    assert any(row["category"] == "low_confidence" for row in rows)
+
+
 def write_overrides(
     tmp_path: Path,
     *,
@@ -189,6 +266,7 @@ def write_overrides(
     raw_station_boxes: list[dict] | None = None,
     profile_handles: dict[str, list[str]] | None = None,
     roller_handles: dict[str, dict[str, list[str]]] | None = None,
+    configuration_snapshot: object = None,
 ) -> Path:
     stations = raw_station_boxes
     if stations is None:
@@ -202,7 +280,9 @@ def write_overrides(
             {
                 "schema_version": 1,
                 "units": units,
-                "configuration_snapshot": {"source": "test"},
+                "configuration_snapshot": (
+                    {"source": "test"} if configuration_snapshot is None else configuration_snapshot
+                ),
                 "stations": stations,
                 "profile_handles": profile_handles or {},
                 "roller_handles": roller_handles or {},
