@@ -25,6 +25,20 @@ class CadPrimitive:
 
 
 @dataclass(frozen=True)
+class TransformRecord:
+    matrix_4x4: tuple[tuple[float, ...], ...]
+    block_path: tuple[str, ...] = ()
+    parent_block: str | None = None
+    mirrored: bool = False
+
+
+@dataclass(frozen=True)
+class NormalizedGeometry:
+    primitives: tuple[CadPrimitive, ...]
+    sampled_points: tuple[tuple[float, float, float], ...]
+
+
+@dataclass(frozen=True)
 class CadEntityRecord:
     handle: str
     entity_type: str
@@ -35,6 +49,8 @@ class CadEntityRecord:
     bbox: BBox | None
     original_primitives: tuple[CadPrimitive, ...] = ()
     normalized_primitives: tuple[CadPrimitive, ...] = ()
+    sampled_geometry: tuple[tuple[float, float, float], ...] = ()
+    transform: TransformRecord | None = None
     source_handles: tuple[str, ...] = ()
     method: str = "parsed"
     configuration_hash: str = ""
@@ -43,6 +59,23 @@ class CadEntityRecord:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "attributes", _freeze(self.attributes))
+
+    @property
+    def original_primitive(self) -> CadPrimitive:
+        return self.original_primitives[0]
+
+    @property
+    def original_dxf_attributes(self) -> Mapping[str, Any]:
+        return self.attributes
+
+
+@dataclass(frozen=True)
+class ParseResult:
+    entities: tuple[CadEntityRecord, ...]
+    expanded_entities: tuple[CadEntityRecord, ...]
+    warnings: tuple["WarningRecord", ...]
+    method: str
+    configuration_hash: str
 
 
 @dataclass(frozen=True)

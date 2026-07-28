@@ -1,0 +1,257 @@
+from __future__ import annotations
+
+from typing import Any, Iterable
+
+import numpy as np
+from ezdxf import bbox
+
+from rollform_extractor.config import ExtractionConfig
+from rollform_extractor.geometry_normalizer import compose_insert_matrix, normalize_primitives
+from rollform_extractor.models import (
+    BBox,
+    CadEntityRecord,
+    CadPrimitive,
+    ParseResult,
+    TransformRecord,
+    WarningRecord,
+)
+
+
+SUPPORTED_TYPES = {
+    "LINE",
+    "LWPOLYLINE",
+    "POLYLINE",
+    "ARC",
+    "CIRCLE",
+    "ELLIPSE",
+    "SPLINE",
+    "INSERT",
+    "TEXT",
+    "MTEXT",
+    "DIMENSION",
+    "HATCH",
+    "POINT",
+}
+
+
+def parse_entities(doc, config: ExtractionConfig) -> ParseResult:
+    config_hash = config.hash_for("parsing")
+    warnings: list[WarningRecord] = []
+    entities = [
+        _record_entity(entity, layout.name, np.identity(4), (), config, config_hash, warnings)
+        for layout in doc.layouts
+        for entity in layout
+    ]
+    expanded: list[CadEntityRecord] = []
+    for layout in doc.layouts:
+        for entity in layout:
+            if entity.dxftype() == "INSERT":
+                expanded.extend(
+                    _expand_insert(entity, doc, layout.name, np.identity(4), (), config, config_hash, warnings)
+                )
+            else:
+                expanded.append(
+                    _record_entity(entity, layout.name, np.identity(4), (), config, config_hash, warnings)
+                )
+    return ParseResult(
+        entities=tuple(entities),
+        expanded_entities=tuple(expanded),
+        warnings=tuple(warnings),
+        method="entity_parser",
+        configuration_hash=config_hash,
+    )
+
+
+def _expand_insert(
+    insert,
+    doc,
+    layout: str,
+    parent_matrix: np.ndarray,
+    block_path: tuple[str, ...],
+    config: ExtractionConfig,
+    config_hash: str,
+    warnings: list[WarningRecord],
+) -> tuple[CadEntityRecord, ...]:
+    matrix = compose_insert_matrix(insert, parent_matrix)
+    name = str(insert.dxf.name)
+    path = (*block_path, name)
+    try:
+        block = doc.blocks[name]
+    except Exception as exc:
+        warnings.append(_warning("missing_block", str(exc), (insert.dxf.handle,), config_hash))
+        return ()
+    records: list[CadEntityRecord] = []
+    for entity in block:
+        if entity.dxftype() == "INSERT":
+            records.extend(_expand_insert(entity, doc, layout, matrix, path, config, config_hash, warnings))
+        else:
+            records.append(_record_entity(entity, layout, matrix, path, config, config_hash, warnings))
+    return tuple(records)
+
+
+def _record_entity(
+    entity,
+    layout: str,
+    matrix: np.ndarray,
+    block_path: tuple[str, ...],
+    config: ExtractionConfig,
+    config_hash: str,
+    warnings: list[WarningRecord],
+) -> CadEntityRecord:
+    handle = str(entity.dxf.handle)
+    entity_type = entity.dxftype()
+    attrs = _dxf_attributes(entity)
+    primitive = None
+    if entity_type in SUPPORTED_TYPES:
+        try:
+            primitive = _primitive(entity)
+        except Exception as exc:
+            warnings.append(_warning("primitive_parse_failed", str(exc), (handle,), config_hash))
+    else:
+        warnings.append(_warning("unsupported_entity", entity_type, (handle,), config_hash))
+    normalized = (
+        normalize_primitives(
+            (primitive,),
+            matrix,
+            _unit_factor(entity.doc.header.get("$INSUNITS", 0)),
+            config.geometry.curve_sampling_spacing_mm,
+            config.geometry.endpoint_join_tolerance_mm,
+        )
+        if primitive is not None
+        else None
+    )
+    transform = TransformRecord(
+        matrix_4x4=_matrix_tuple(matrix),
+        block_path=block_path,
+        parent_block=block_path[-2] if len(block_path) > 1 else (block_path[-1] if block_path else None),
+        mirrored=bool(np.linalg.det(np.asarray(matrix)[:3, :3]) < 0),
+    )
+    return CadEntityRecord(
+        handle=handle,
+        entity_type=entity_type,
+        layer=str(getattr(entity.dxf, "layer", "0")),
+        color=getattr(entity.dxf, "color", None),
+        line_type=getattr(entity.dxf, "linetype", None),
+        layout=layout,
+        bbox=_bbox(entity),
+        original_primitives=(primitive,) if primitive is not None else (),
+        normalized_primitives=normalized.primitives if normalized is not None else (),
+        sampled_geometry=normalized.sampled_points if normalized is not None else (),
+        source_handles=(handle,),
+        method="entity_parser",
+        configuration_hash=config_hash,
+        confidence=1.0 if primitive is not None else 0.0,
+        attributes=attrs,
+        transform=transform,
+    )
+
+
+def _primitive(entity) -> CadPrimitive:
+    kind = entity.dxftype()
+    attrs: dict[str, Any]
+    if kind == "LINE":
+        attrs = {"start": _point(entity.dxf.start), "end": _point(entity.dxf.end)}
+    elif kind == "LWPOLYLINE":
+        attrs = {"points": tuple((float(x), float(y), 0.0) for x, y, *_ in entity.get_points())}
+    elif kind == "POLYLINE":
+        attrs = {"points": tuple(_point(vertex.dxf.location) for vertex in entity.vertices)}
+    elif kind == "ARC":
+        attrs = {
+            "center": _point(entity.dxf.center),
+            "radius": float(entity.dxf.radius),
+            "start_angle": float(entity.dxf.start_angle),
+            "end_angle": float(entity.dxf.end_angle),
+        }
+    elif kind == "CIRCLE":
+        attrs = {"center": _point(entity.dxf.center), "radius": float(entity.dxf.radius)}
+    elif kind == "ELLIPSE":
+        attrs = {
+            "center": _point(entity.dxf.center),
+            "major_axis": _point(entity.dxf.major_axis),
+            "ratio": float(entity.dxf.ratio),
+            "start_param": float(entity.dxf.start_param),
+            "end_param": float(entity.dxf.end_param),
+        }
+    elif kind == "SPLINE":
+        attrs = {
+            "control_points": tuple(_point(point) for point in getattr(entity, "control_points", ())),
+            "fit_points": tuple(_point(point) for point in getattr(entity, "fit_points", ())),
+            "degree": int(getattr(entity.dxf, "degree", 0) or 0),
+        }
+    elif kind == "INSERT":
+        attrs = {"name": str(entity.dxf.name), "insert": _point(entity.dxf.insert)}
+    elif kind == "TEXT":
+        attrs = {"text": entity.dxf.text, "insert": _point(entity.dxf.insert)}
+    elif kind == "MTEXT":
+        attrs = {"text": entity.text, "insert": _point(entity.dxf.insert)}
+    elif kind == "DIMENSION":
+        attrs = _dxf_attributes(entity)
+    elif kind == "HATCH":
+        attrs = {"path_count": len(entity.paths), "solid_fill": bool(entity.dxf.solid_fill)}
+    elif kind == "POINT":
+        attrs = {"point": _point(entity.dxf.location)}
+    else:
+        raise ValueError(f"unsupported entity type: {kind}")
+    return CadPrimitive(kind=kind, attributes=attrs, source_handle=str(entity.dxf.handle))
+
+
+def _dxf_attributes(entity) -> dict[str, Any]:
+    return {
+        key: _json_safe(value)
+        for key, value in entity.dxf.all_existing_dxf_attribs().items()
+    }
+
+
+def _bbox(entity) -> BBox | None:
+    try:
+        box = bbox.extents([entity])
+    except Exception:
+        return None
+    if not box.has_data:
+        return None
+    return BBox(float(box.extmin[0]), float(box.extmin[1]), float(box.extmax[0]), float(box.extmax[1]))
+
+
+def _warning(code: str, message: str, handles: Iterable[str], config_hash: str) -> WarningRecord:
+    return WarningRecord(
+        code=code,
+        message=message,
+        source_handles=tuple(handles),
+        method="entity_parser",
+        configuration_hash=config_hash,
+        confidence=0.0,
+    )
+
+
+def _matrix_tuple(matrix: np.ndarray) -> tuple[tuple[float, ...], ...]:
+    return tuple(tuple(float(value) for value in row) for row in np.asarray(matrix, dtype=float))
+
+
+def _point(value) -> tuple[float, float, float]:
+    if hasattr(value, "xyz"):
+        value = value.xyz
+    values = tuple(value)
+    if len(values) == 2:
+        return (float(values[0]), float(values[1]), 0.0)
+    return (float(values[0]), float(values[1]), float(values[2]))
+
+
+def _json_safe(value: Any) -> Any:
+    if hasattr(value, "xyz"):
+        return tuple(value.xyz)
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, (list, tuple)):
+        return tuple(_json_safe(item) for item in value)
+    return str(value)
+
+
+def _unit_factor(insunits: int) -> float:
+    return {
+        0: 1.0,
+        1: 25.4,
+        2: 304.8,
+        4: 1.0,
+        5: 10.0,
+        6: 1000.0,
+    }.get(int(insunits or 0), 1.0)
