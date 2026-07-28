@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 import json
+from pathlib import Path
 import sqlite3
 
 from rollform_extractor.batch import BatchRequest, aggregate_master, batch_extract, validate_batch
@@ -201,5 +202,22 @@ def test_validate_batch_checks_nested_project_outputs(tmp_path):
 
     report = validate_batch(out)
 
+    assert not report.valid
+    assert any(issue.code == "missing_manifest" for issue in report.issues)
+
+
+def test_validate_batch_checks_project_named_master(tmp_path):
+    source_root = tmp_path / "inputs"
+    source_root.mkdir()
+    make_flower_dxf(source_root / "master.dxf", station_count=1, labels=True)
+    out = tmp_path / "out"
+    summary = batch_extract(BatchRequest(source_root, out))
+    ledger = json.loads(summary.ledger_path.read_text(encoding="utf-8"))
+    project_path = Path(ledger["files"][0]["project_path"])
+    (project_path / "manifest.json").unlink()
+
+    report = validate_batch(out)
+
+    assert project_path != out / "master"
     assert not report.valid
     assert any(issue.code == "missing_manifest" for issue in report.issues)

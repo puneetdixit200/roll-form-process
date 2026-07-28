@@ -50,3 +50,17 @@
 - Batch suite: `pytest tests/test_batch.py -q` -> 11 passed.
 - Full suite: `pytest -q` -> 151 passed.
 - Whitespace: `git diff --check` -> clean.
+
+## Validation Filter Fix
+
+- `validate_batch()` now excludes only paths under the root `output_root/master` batch artifact directory.
+- Batch project output naming treats `master` as reserved, so a source named `master.dxf` is written to a hash-qualified nested project output instead of colliding with master artifacts.
+- Fallback project database discovery uses the same root-master-only exclusion.
+
+## Validation Filter TDD Evidence
+
+- Red: `pytest tests/test_batch.py::test_validate_batch_checks_project_named_master -q` failed because `master.dxf` wrote into `output_root/master` and was skipped by validation.
+- Green focused: same command -> 1 passed.
+- Batch suite: `pytest tests/test_batch.py -q` -> 12 passed.
+- Full suite: `pytest -q` -> 152 passed.
+- Whitespace: `git diff --check` -> clean.

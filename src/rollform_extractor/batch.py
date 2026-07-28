@@ -110,7 +110,7 @@ def aggregate_master(output_root: Path) -> Path:
 def validate_batch(output_root: Path) -> ValidationReport:
     issues: list[ValidationIssue] = []
     for project_json in sorted(output_root.rglob("project.json")):
-        if "master" in project_json.parts:
+        if _is_under(project_json, output_root / "master"):
             continue
         report = validate_project(project_json.parent)
         issues.extend(ValidationIssue(issue.code, f"{project_json.parent.name}: {issue.message}") for issue in report.issues)
@@ -195,7 +195,7 @@ def _colliding_stems(sources: list[Path]) -> set[str]:
     counts: dict[str, int] = {}
     for source in sources:
         counts[source.stem] = counts.get(source.stem, 0) + 1
-    return {stem for stem, count in counts.items() if count > 1}
+    return {stem for stem, count in counts.items() if count > 1} | {"master"}
 
 
 def _project_output_root(request: BatchRequest, source: Path, collisions: set[str]) -> Path:
@@ -219,7 +219,15 @@ def _current_project_databases(output_root: Path) -> list[Path]:
             if entry.get("status") == "success" and entry.get("project_database")
         ]
         return sorted(path for path in databases if path.exists())
-    return sorted(path for path in output_root.rglob("project.sqlite") if "master" not in path.parts)
+    return sorted(path for path in output_root.rglob("project.sqlite") if not _is_under(path, output_root / "master"))
+
+
+def _is_under(path: Path, parent: Path) -> bool:
+    try:
+        path.resolve().relative_to(parent.resolve())
+    except ValueError:
+        return False
+    return True
 
 
 def _add_totals(totals: dict[str, int], entry: dict[str, Any]) -> None:
