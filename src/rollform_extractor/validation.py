@@ -35,8 +35,11 @@ def validate_project(project_path: Path) -> ValidationReport:
 
     source = project.get("source_path")
     source_path = Path(source) if source else None
-    if source_path is not None and source_path.is_file() and _sha256(source_path) != manifest.get("source_sha256"):
-        issues.append(ValidationIssue("source_hash_mismatch", "source hash does not match manifest"))
+    if source_path is not None:
+        if not source_path.is_file():
+            issues.append(ValidationIssue("missing_source", "original source file is missing"))
+        elif _sha256(source_path) != manifest.get("source_sha256"):
+            issues.append(ValidationIssue("source_hash_mismatch", "source hash does not match manifest"))
     if not project.get("units"):
         issues.append(ValidationIssue("missing_units", "project units are not visible"))
 

@@ -24,3 +24,10 @@ def test_cli_inspect_review_and_reprocess_return_zero(tmp_path):
     assert main(["inspect", str(source)]) == 0
     assert main(["review", str(out / "flower")]) == 0
     assert main(["reprocess", str(out / "flower")]) == 0
+
+
+def test_cli_rejects_unsupported_stage(tmp_path, capsys):
+    source = make_flower_dxf(tmp_path / "flower.dxf", station_count=1, labels=True)
+
+    assert main(["extract", str(source), str(tmp_path / "out"), "--stage", "profiles"]) == 2
+    assert "not supported" in capsys.readouterr().err

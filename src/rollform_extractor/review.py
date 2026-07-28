@@ -345,7 +345,7 @@ def _csv_item(row: Mapping[str, Any]) -> dict[str, Any]:
 def _is_completed(item: Mapping[str, Any]) -> bool:
     status = str(item.get("status", "")).lower()
     return (
-        status in {"resolved", "completed", "complete"}
+        status in {"resolved", "completed", "complete", "done"}
         or item.get("resolved") is True
         or item.get("completed") is True
         or bool(item.get("engineer_decision"))

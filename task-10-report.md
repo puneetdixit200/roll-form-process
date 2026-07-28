@@ -11,3 +11,14 @@ Validation:
 - focused: `pytest tests/test_exporters.py tests/test_pipeline.py tests/test_cli.py tests/test_validation.py -q`
 - full: `pytest -q`
 - result: 126 passed
+
+Blocker fix:
+- reprocess now preserves `project.sqlite`, run history, and completed review decisions
+- validation reports `missing_source` when the original source path is gone
+- `--stage profiles/rollers` is rejected with exit code 2 instead of ignored
+- DXF export writes review warnings for primitives it cannot recreate
+
+Validation:
+- focused: `pytest tests/test_exporters.py tests/test_pipeline.py tests/test_cli.py tests/test_validation.py -q`
+- full: `pytest -q`
+- result: 130 passed

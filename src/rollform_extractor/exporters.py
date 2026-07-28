@@ -5,12 +5,13 @@ import json
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
+import shutil
 from typing import Any, Iterable, Mapping
 
 import ezdxf
 
 from rollform_extractor.database import ExtractionBundle
-from rollform_extractor.models import BBox, CadPrimitive, ProfileRecord, RollerOccurrenceRecord, StationRecord
+from rollform_extractor.models import BBox, CadPrimitive, ProfileRecord, RollerOccurrenceRecord, StationRecord, WarningRecord
 from rollform_extractor.preview import render_drawing_preview
 from rollform_extractor.review import write_review_queue
 
@@ -27,28 +28,37 @@ class Manifest:
 def export_project(bundle: ExtractionBundle, output_root: Path) -> Manifest:
     project_path = output_root / Path(bundle.source_path).stem
     project_path.mkdir(parents=True, exist_ok=True)
-    (project_path / "stations").mkdir(exist_ok=True)
+    stations_path = project_path / "stations"
+    if stations_path.exists():
+        shutil.rmtree(stations_path)
+    stations_path.mkdir(exist_ok=True)
     (project_path / "previews").mkdir(exist_ok=True)
     (project_path / "summaries").mkdir(exist_ok=True)
     (project_path / "review").mkdir(exist_ok=True)
 
-    _write_json(project_path / "project.json", _project_payload(bundle))
     _write_station_csv(project_path / "summaries" / "stations.csv", bundle.stations, bundle.profiles, bundle.roller_occurrences)
     render_drawing_preview(bundle.entities, project_path / "previews" / "classification.png")
-    write_review_queue(project_path / "review", bundle.warnings, _review_template(bundle))
 
     dxf_files = []
+    export_warnings: list[WarningRecord] = []
     for station in sorted(bundle.stations, key=lambda item: item.sequence_index or 0):
         station_dir = project_path / "stations" / f"station_{station.sequence_index:02d}"
         station_dir.mkdir(exist_ok=True)
         profiles = tuple(profile for profile in bundle.profiles if profile.station_id == station.station_id)
         rollers = tuple(roller for roller in bundle.roller_occurrences if roller.station_id == station.station_id)
-        dxf_files.append(_write_dxf(station_dir / "profile.dxf", _profile_primitives(profiles)))
+        path, warnings = _write_dxf(station_dir / "profile.dxf", _profile_primitives(profiles), bundle.configuration_hash)
+        dxf_files.append(path)
+        export_warnings.extend(warnings)
         if rollers:
             _write_rollers_csv(station_dir / "rollers.csv", rollers)
         for role in sorted({roller.role for roller in rollers if roller.role}):
-            dxf_files.append(_write_dxf(station_dir / f"{role}.dxf", _roller_primitives(rollers, role)))
+            path, warnings = _write_dxf(station_dir / f"{role}.dxf", _roller_primitives(rollers, role), bundle.configuration_hash)
+            dxf_files.append(path)
+            export_warnings.extend(warnings)
 
+    warnings = bundle.warnings + tuple(export_warnings)
+    _write_json(project_path / "project.json", _project_payload(bundle, warnings))
+    write_review_queue(project_path / "review", warnings, _review_template(bundle))
     (project_path / "report.html").write_text(_report(bundle), encoding="utf-8")
     files = _file_manifest(project_path)
     manifest = Manifest(project_path, files, tuple(dxf_files), bundle.source_sha256, len(bundle.stations))
@@ -56,7 +66,7 @@ def export_project(bundle: ExtractionBundle, output_root: Path) -> Manifest:
     return manifest
 
 
-def _project_payload(bundle: ExtractionBundle) -> dict[str, Any]:
+def _project_payload(bundle: ExtractionBundle, warnings: tuple[WarningRecord, ...]) -> dict[str, Any]:
     return {
         "drawing_id": bundle.drawing_id,
         "source_path": str(bundle.source_path),
@@ -68,7 +78,7 @@ def _project_payload(bundle: ExtractionBundle) -> dict[str, Any]:
         "stations": [_station(station) for station in bundle.stations],
         "profiles": [_profile(profile) for profile in bundle.profiles],
         "rollers": [_roller(roller) for roller in bundle.roller_occurrences],
-        "warnings": [_warning(warning) for warning in bundle.warnings],
+        "warnings": [_warning(warning) for warning in warnings],
     }
 
 
@@ -102,17 +112,28 @@ def _write_csv(path: Path, rows: list[dict[str, Any]], fieldnames: tuple[str, ..
         writer.writerows(rows)
 
 
-def _write_dxf(path: Path, primitives: Iterable[CadPrimitive]) -> Path:
+def _write_dxf(path: Path, primitives: Iterable[CadPrimitive], config_hash: str) -> tuple[Path, tuple[WarningRecord, ...]]:
     doc = ezdxf.new("R2013", setup=True)
     doc.header["$INSUNITS"] = 4
     msp = doc.modelspace()
+    warnings = []
     for primitive in primitives:
-        _add_primitive(msp, primitive)
+        if not _add_primitive(msp, primitive):
+            warnings.append(
+                WarningRecord(
+                    "export",
+                    f"unsupported DXF export primitive {primitive.kind}",
+                    (primitive.source_handle,),
+                    "exporter",
+                    config_hash,
+                    1.0,
+                )
+            )
     doc.saveas(path)
-    return path
+    return path, tuple(warnings)
 
 
-def _add_primitive(msp, primitive: CadPrimitive) -> None:
+def _add_primitive(msp, primitive: CadPrimitive) -> bool:
     attrs = primitive.attributes
     if primitive.kind == "LINE":
         msp.add_line(attrs["start"], attrs["end"])
@@ -124,6 +145,9 @@ def _add_primitive(msp, primitive: CadPrimitive) -> None:
         msp.add_circle(attrs["center"], float(attrs["radius"]))
     elif primitive.kind == "ARC":
         msp.add_arc(attrs["center"], float(attrs["radius"]), float(attrs["start_angle"]), float(attrs["end_angle"]))
+    else:
+        return False
+    return True
 
 
 def _profile_primitives(profiles: tuple[ProfileRecord, ...]) -> tuple[CadPrimitive, ...]:

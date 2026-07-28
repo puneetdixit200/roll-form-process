@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-import shutil
 
 import ezdxf
 
@@ -36,6 +35,8 @@ class ExtractionSummary:
 
 
 def extract_project(request: ExtractionRequest) -> ExtractionSummary:
+    if request.stage is not None:
+        raise ValueError(f"stage-limited extraction is not supported: {request.stage}")
     config = ExtractionConfig.load()
     project_path = request.output_root / request.source.stem
     staged = stage_input(request.source, project_path / "source")
@@ -76,9 +77,7 @@ def extract_project(request: ExtractionRequest) -> ExtractionSummary:
 def reprocess_project(project_path: Path) -> ExtractionSummary:
     data = __import__("json").loads((project_path / "project.json").read_text(encoding="utf-8"))
     source = Path(data["source_path"])
-    root = project_path.parent
-    shutil.rmtree(project_path)
-    return extract_project(ExtractionRequest(source, root))
+    return extract_project(ExtractionRequest(source, project_path.parent))
 
 
 def _record_stages(engine, project_id: int, parsed, classified, stations, profiles, rollers) -> None:
