@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from hashlib import sha256
+from importlib import resources
 import json
 from pathlib import Path
 from typing import Any
@@ -62,7 +63,7 @@ class ExtractionConfig:
     def load(
         cls, path: Path | None = None, overrides: dict[str, Any] | None = None
     ) -> "ExtractionConfig":
-        data = _load_yaml(_default_config_path())
+        data = _load_packaged_defaults()
         if path is not None:
             data = _merge_strict(data, _load_yaml(path))
         if overrides:
@@ -90,8 +91,13 @@ class ExtractionConfig:
         return sha256(payload.encode("utf-8")).hexdigest()
 
 
-def _default_config_path() -> Path:
-    return Path(__file__).resolve().parents[2] / "config" / "default.yaml"
+def _load_packaged_defaults() -> dict[str, Any]:
+    default_yaml = resources.files("rollform_extractor").joinpath("config/default.yaml")
+    with default_yaml.open("r", encoding="utf-8") as handle:
+        data = yaml.safe_load(handle) or {}
+    if not isinstance(data, dict):
+        raise ValueError("default configuration must be a mapping")
+    return data
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -102,15 +108,18 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
-def _merge_strict(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+def _merge_strict(
+    base: dict[str, Any], override: dict[str, Any], prefix: str = ""
+) -> dict[str, Any]:
     merged = dict(base)
     for key, value in override.items():
+        name = f"{prefix}.{key}" if prefix else key
         if key not in base:
-            raise KeyError(f"unknown configuration key: {key}")
+            raise KeyError(f"unknown configuration key: {name}")
         if isinstance(base[key], dict):
             if not isinstance(value, dict):
-                raise TypeError(f"configuration section must be a mapping: {key}")
-            merged[key] = _merge_strict(base[key], value)
+                raise TypeError(f"configuration section must be a mapping: {name}")
+            merged[key] = _merge_strict(base[key], value, name)
         else:
             merged[key] = value
     return merged

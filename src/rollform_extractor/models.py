@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from collections.abc import Mapping as MappingABC
+from types import MappingProxyType
 from typing import Any, Mapping
 
 
@@ -17,6 +19,9 @@ class CadPrimitive:
     kind: str
     attributes: Mapping[str, Any]
     source_handle: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attributes", _freeze(self.attributes))
 
 
 @dataclass(frozen=True)
@@ -36,6 +41,9 @@ class CadEntityRecord:
     confidence: float = 1.0
     attributes: Mapping[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "attributes", _freeze(self.attributes))
+
 
 @dataclass(frozen=True)
 class StationRecord:
@@ -48,6 +56,9 @@ class StationRecord:
     confidence: float
     evidence: Mapping[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "evidence", _freeze(self.evidence))
+
 
 @dataclass(frozen=True)
 class ProfileRecord:
@@ -58,6 +69,9 @@ class ProfileRecord:
     configuration_hash: str
     confidence: float
     features: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "features", _freeze(self.features))
 
 
 @dataclass(frozen=True)
@@ -71,6 +85,9 @@ class RollerOccurrenceRecord:
     confidence: float
     evidence: Mapping[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "evidence", _freeze(self.evidence))
+
 
 @dataclass(frozen=True)
 class WarningRecord:
@@ -80,6 +97,16 @@ class WarningRecord:
     method: str
     configuration_hash: str
     confidence: float
+
+
+def _freeze(value: Any) -> Any:
+    if isinstance(value, MappingABC):
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
+    if isinstance(value, tuple):
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, list):
+        return tuple(_freeze(item) for item in value)
+    return value
 
 
 @dataclass(frozen=True)

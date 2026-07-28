@@ -28,5 +28,8 @@ rollform-extractor = "rollform_extractor.__main__:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+rollform_extractor = ["config/*.yaml"]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
