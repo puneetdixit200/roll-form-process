@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 import math
 from typing import Iterable
@@ -184,7 +185,7 @@ def _endpoints(entity: CadEntityRecord):
         if primitive.kind == "LINE":
             points.extend((_point(attrs["start"]), _point(attrs["end"])))
         elif primitive.kind in {"LWPOLYLINE", "POLYLINE"}:
-            items = tuple(vertex["point"] if isinstance(vertex, dict) else vertex for vertex in attrs.get("vertices", attrs.get("points", ())))
+            items = tuple(vertex["point"] if isinstance(vertex, Mapping) else vertex for vertex in attrs.get("vertices", attrs.get("points", ())))
             points.extend(_point(item) for item in items[:1] + items[-1:])
         elif primitive.kind == "ARC":
             center = _point(attrs["center"])

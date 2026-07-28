@@ -44,6 +44,100 @@ def test_double_boundary_uses_longest_connected_contour_for_developed_length():
     assert features.provenance["developed_length_mm"].source_handles == ("O1", "O2")
 
 
+def test_developed_length_ignores_stale_exact_length_from_rejected_contours():
+    profile = _profile(
+        ("O1", "O2", "I1"),
+        (
+            CadPrimitive("LINE", {"start": (0, 0, 0), "end": (10, 0, 0)}, "O1"),
+            CadPrimitive("LINE", {"start": (10, 0, 0), "end": (20, 0, 0)}, "O2"),
+            CadPrimitive("LINE", {"start": (0, 2, 0), "end": (8, 2, 0)}, "I1"),
+        ),
+        ((0, 0, 0), (10, 0, 0), (20, 0, 0), (0, 2, 0), (8, 2, 0)),
+        exact_length=28.0,
+    )
+
+    features = extract_profile_features(profile, "config-hash")
+
+    assert features.developed_length_mm == pytest.approx(20.0)
+    assert features.provenance["developed_length_mm"].source_handles == ("O1", "O2")
+
+
+def test_polyline_vertices_survive_model_freeze_for_length_and_features():
+    profile = _profile(
+        ("P1",),
+        (
+            CadPrimitive(
+                "LWPOLYLINE",
+                {
+                    "vertices": (
+                        {"point": (0, 0, 0), "bulge": 0, "start_width": 0, "end_width": 0},
+                        {"point": (3, 0, 0), "bulge": 0, "start_width": 0, "end_width": 0},
+                        {"point": (3, 4, 0), "bulge": 0, "start_width": 0, "end_width": 0},
+                    ),
+                    "closed": False,
+                },
+                "P1",
+            ),
+        ),
+        ((0, 0, 0), (3, 0, 0), (3, 4, 0)),
+    )
+
+    features = extract_profile_features(profile, "config-hash")
+
+    assert features.developed_length_mm == pytest.approx(7.0)
+    assert features.width_mm == pytest.approx(3.0)
+    assert features.height_mm == pytest.approx(4.0)
+
+
+def test_ellipse_arc_uses_exact_fields_for_length_and_points():
+    profile = _profile(
+        ("E1",),
+        (
+            CadPrimitive(
+                "ELLIPSE_ARC",
+                {
+                    "center": (0, 0, 0),
+                    "major_axis": (4, 0, 0),
+                    "minor_axis": (0, 2, 0),
+                    "start_param": 0.0,
+                    "end_param": 1.5707963267948966,
+                },
+                "E1",
+            ),
+        ),
+        ((0, 0, 0),),
+    )
+
+    features = extract_profile_features(profile, "config-hash")
+
+    assert features.developed_length_mm == pytest.approx(4.844, abs=0.01)
+    assert features.sampled_points[0] == pytest.approx((4.0, 0.0, 0.0))
+    assert features.sampled_points[-1] == pytest.approx((0.0, 2.0, 0.0))
+
+
+def test_spline_uses_fit_points_before_control_points_for_length_and_points():
+    profile = _profile(
+        ("S1",),
+        (
+            CadPrimitive(
+                "SPLINE",
+                {
+                    "control_points": ((0, 0, 0), (100, 0, 0)),
+                    "fit_points": ((0, 0, 0), (3, 0, 0), (3, 4, 0)),
+                    "degree": 2,
+                },
+                "S1",
+            ),
+        ),
+        ((0, 0, 0),),
+    )
+
+    features = extract_profile_features(profile, "config-hash")
+
+    assert features.developed_length_mm == pytest.approx(7.0)
+    assert features.sampled_points == ((0.0, 0.0, 0.0), (3.0, 0.0, 0.0), (3.0, 4.0, 0.0))
+
+
 def test_mirrored_fingerprint_matches_unmirrored_profile():
     features = extract_profile_features(_profile_with_lines("P", ((0, 0), (10, 0), (10, 5))), "hash")
     mirrored_points = tuple((-x, y, z) for x, y, z in features.sampled_points)

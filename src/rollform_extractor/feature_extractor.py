@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from hashlib import sha256
 import json
@@ -54,9 +55,7 @@ def extract_profile_features(profile: ProfileRecord, config_hash: str) -> Profil
     source_handles = tuple(primitive.source_handle for primitive in selected)
     points = _points(sampled_points, selected)
     bbox = _bbox(points)
-    developed = float(profile.features.get("exact_length", sum(lengths)))
-    if "exact_length" not in profile.features:
-        developed = sum(lengths)
+    developed = sum(lengths)
     provenance = {
         "developed_length_mm": Provenance(source_handles, "exact_primitives", config_hash, profile.confidence),
         "width_mm": Provenance(source_handles, "normalized_bbox", config_hash, profile.confidence),
@@ -95,7 +94,7 @@ def primitive_length(primitive: CadPrimitive) -> float:
     if primitive.kind == "LINE":
         return _distance(attrs["start"], attrs["end"])
     if primitive.kind in {"LWPOLYLINE", "POLYLINE"}:
-        points = tuple(vertex["point"] if isinstance(vertex, dict) else vertex for vertex in attrs.get("vertices", attrs.get("points", ())))
+        points = _polyline_points(attrs)
         total = sum(_distance(start, end) for start, end in zip(points, points[1:]))
         if attrs.get("closed") and len(points) > 1:
             total += _distance(points[-1], points[0])
@@ -105,6 +104,9 @@ def primitive_length(primitive: CadPrimitive) -> float:
         return abs(math.radians(sweep) * float(attrs["radius"]))
     if primitive.kind == "CIRCLE":
         return 2 * math.pi * float(attrs["radius"])
+    if primitive.kind in {"ELLIPSE", "ELLIPSE_ARC"}:
+        points = _ellipse_points(attrs)
+        return sum(_distance(start, end) for start, end in zip(points, points[1:]))
     points = _primitive_points(primitive)
     return sum(_distance(start, end) for start, end in zip(points, points[1:]))
 
@@ -138,7 +140,7 @@ def _endpoints(primitive: CadPrimitive):
     if primitive.kind == "LINE":
         return (_point(attrs["start"]), _point(attrs["end"]))
     if primitive.kind in {"LWPOLYLINE", "POLYLINE"}:
-        points = tuple(vertex["point"] if isinstance(vertex, dict) else vertex for vertex in attrs.get("vertices", attrs.get("points", ())))
+        points = _polyline_points(attrs)
         return tuple(_point(point) for point in points[:1] + points[-1:])
     if primitive.kind == "ARC":
         center = _point(attrs["center"])
@@ -160,7 +162,7 @@ def _bend(primitive: CadPrimitive) -> BendFeature:
 
 
 def _points(sampled_points, primitives):
-    if sampled_points:
+    if len(sampled_points) > 1:
         return tuple(_point(point) for point in sampled_points)
     return tuple(point for primitive in primitives for point in _primitive_points(primitive))
 
@@ -171,8 +173,14 @@ def _primitive_points(primitive: CadPrimitive):
         return (_point(attrs["start"]), _point(attrs["end"]))
     if primitive.kind == "ARC":
         return _endpoints(primitive)
+    if primitive.kind in {"ELLIPSE", "ELLIPSE_ARC"}:
+        return _ellipse_points(attrs)
+    if primitive.kind == "SPLINE":
+        return tuple(_point(point) for point in (attrs.get("fit_points") or attrs.get("control_points") or ()))
     if "points" in attrs:
         return tuple(_point(point) for point in attrs["points"])
+    if "vertices" in attrs:
+        return _polyline_points(attrs)
     return tuple(_point(value) for key, value in attrs.items() if key in {"point", "center", "insert", "start", "end"})
 
 
@@ -207,6 +215,33 @@ def _sweep_degrees(start: float, end: float) -> float:
     if sweep <= 0:
         sweep += 360.0
     return sweep
+
+
+def _polyline_points(attrs):
+    return tuple(
+        _point(vertex["point"] if isinstance(vertex, Mapping) else vertex)
+        for vertex in attrs.get("vertices", attrs.get("points", ()))
+    )
+
+
+def _ellipse_points(attrs):
+    center = _point(attrs["center"])
+    major = _point(attrs["major_axis"])
+    minor = _point(attrs.get("minor_axis", (-major[1] * float(attrs.get("ratio", 1.0)), major[0] * float(attrs.get("ratio", 1.0)), 0.0)))
+    start = float(attrs.get("start_param", 0.0))
+    end = float(attrs.get("end_param", 2 * math.pi))
+    sweep = end - start
+    if sweep <= 0:
+        sweep += 2 * math.pi
+    steps = max(16, math.ceil(abs(sweep) * 16))
+    return tuple(
+        (
+            center[0] + major[0] * math.cos(start + sweep * index / steps) + minor[0] * math.sin(start + sweep * index / steps),
+            center[1] + major[1] * math.cos(start + sweep * index / steps) + minor[1] * math.sin(start + sweep * index / steps),
+            center[2] + major[2] * math.cos(start + sweep * index / steps) + minor[2] * math.sin(start + sweep * index / steps),
+        )
+        for index in range(steps + 1)
+    )
 
 
 def _angle_point(center, radius: float, angle: float):

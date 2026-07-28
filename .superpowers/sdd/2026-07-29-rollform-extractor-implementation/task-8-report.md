@@ -28,3 +28,18 @@
 ## Deliberate Limits
 
 - The scorer is deterministic and conservative, but still intentionally small. Add richer roller-centre/topology evidence when roller detection lands.
+
+## Blocker Fix
+
+- Fixed frozen `LWPOLYLINE`/`POLYLINE` vertices by treating vertex records as `Mapping`, not only `dict`.
+- Fixed developed length extraction so it is recomputed from the selected contour chain and does not reuse stale `features["exact_length"]` from rejected competing contours.
+- Added exact-field fallback length and points for `ELLIPSE`, `ELLIPSE_ARC`, and `SPLINE`.
+
+## Blocker TDD Evidence
+
+- Red: `pytest tests/test_profile_detector.py tests/test_feature_extractor.py -q`
+  - `5 failed, 13 passed`; failures covered frozen polyline vertices, stale developed length, ellipse-arc measurement, and spline fit-point measurement.
+- Green: `pytest tests/test_profile_detector.py tests/test_feature_extractor.py -q`
+  - `18 passed in 0.13s`.
+- Full: `pytest -q`
+  - `110 passed in 18.69s`.

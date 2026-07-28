@@ -135,6 +135,39 @@ def test_arc_connected_to_line_stays_in_same_profile_chain():
     assert result.profiles[0].source_handles == ("L1", "A1")
 
 
+def test_polyline_mapping_vertices_connect_to_line_after_model_freeze():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, 0, 20, 10), ("L1", "P1"))
+    line = _line("L1", (0, 0), (10, 0), layer="PROFILE")
+    polyline_primitive = CadPrimitive(
+        kind="LWPOLYLINE",
+        attributes={
+            "vertices": (
+                {"point": (10, 0, 0), "bulge": 0, "start_width": 0, "end_width": 0},
+                {"point": (15, 0, 0), "bulge": 0, "start_width": 0, "end_width": 0},
+            ),
+            "closed": False,
+        },
+        source_handle="P1",
+    )
+    polyline = CadEntityRecord(
+        handle="P1",
+        entity_type="LWPOLYLINE",
+        layer="PROFILE",
+        color=3,
+        line_type="CONTINUOUS",
+        layout="Model",
+        bbox=BBox(10, 0, 15, 0),
+        normalized_primitives=(polyline_primitive,),
+        sampled_geometry=(),
+        source_handles=("P1",),
+    )
+
+    result = detect_profiles((station,), (line, polyline), config)
+
+    assert result.profiles[0].source_handles == ("L1", "P1")
+
+
 def _station(station_id, sequence, bbox, handles):
     return StationRecord(
         station_id=station_id,
