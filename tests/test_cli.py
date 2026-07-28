@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import csv
+import sqlite3
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
+from rollform_extractor.batch import _create_master_schema
 from rollform_extractor.cli import main
-from rollform_extractor.database import Project, ProjectMetadata, create_project_database
 from tests.cad_factory import make_flower_dxf
 
 
@@ -40,10 +38,16 @@ def test_cli_rejects_unsupported_stage(tmp_path, capsys):
 
 
 def test_cli_import_metadata_uses_master_database(tmp_path, capsys):
-    db_path = tmp_path / "project.sqlite"
-    engine = create_project_database(db_path)
-    with Session(engine) as session, session.begin():
-        session.add(Project(drawing_id="D0064-D0065-FlowerSequence", source_path="source.dxf", source_sha256="hash"))
+    db_path = tmp_path / "master_rollform.sqlite"
+    with sqlite3.connect(db_path) as db:
+        _create_master_schema(db)
+        db.execute(
+            "insert into projects "
+            "(drawing_id, source_path, source_hash, source_database, source_project_id, configuration_hash) "
+            "values (?, ?, ?, ?, ?, ?)",
+            ("D0064-D0065-FlowerSequence", "source.dxf", "hash", "project.sqlite", 1, "config"),
+        )
+        db.commit()
     metadata_path = tmp_path / "metadata.csv"
     with metadata_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=["drawing_id", "material_grade"])
@@ -52,7 +56,6 @@ def test_cli_import_metadata_uses_master_database(tmp_path, capsys):
 
     assert main(["import-metadata", str(metadata_path), "--master", str(db_path)]) == 0
 
-    with Session(engine) as session:
-        row = session.scalar(select(ProjectMetadata).where(ProjectMetadata.key == "material_grade"))
-    assert row.value == "CR4"
+    with sqlite3.connect(db_path) as db:
+        assert db.execute("select key, value from project_metadata").fetchall() == [("material_grade", "CR4")]
     assert "imported=1" in capsys.readouterr().out

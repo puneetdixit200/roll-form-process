@@ -3,10 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sqlite3
 import sys
 
 from rollform_extractor.batch import BatchRequest, batch_extract, validate_batch, write_batch_report
-from rollform_extractor.database import create_project_database
 from rollform_extractor.dxf_reader import inspect_drawing
 from rollform_extractor.metadata_import import import_metadata
 from rollform_extractor.pipeline import ExtractionRequest, extract_project, reprocess_project
@@ -81,7 +81,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "import-metadata":
         try:
-            summary = import_metadata(args.metadata, create_project_database(args.master))
+            with sqlite3.connect(args.master) as db:
+                summary = import_metadata(args.metadata, db)
         except ValueError as exc:
             print(str(exc), file=sys.stderr)
             return 2

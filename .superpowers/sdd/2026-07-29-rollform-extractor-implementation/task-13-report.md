@@ -20,3 +20,11 @@ Verification:
 - Red: `pytest tests/test_cli.py::test_cli_import_metadata_uses_master_database -q` failed because `import-metadata` was not registered.
 - Green focused: `pytest tests/test_metadata_import.py tests/test_cli.py::test_cli_import_metadata_uses_master_database -q` passed.
 - Full: `pytest -q` passed, 159 tests.
+
+Blocker fix:
+- Added regression coverage for Task 12 master DB schema via `_create_master_schema()`.
+- `import_metadata()` now supports the existing SQLAlchemy project DB path and raw sqlite master/project DB files.
+- `import-metadata --master` no longer calls the ORM schema creator on Task 12 master DBs.
+- Red: `pytest tests/test_metadata_import.py::test_import_metadata_accepts_task12_master_schema tests/test_cli.py::test_cli_import_metadata_uses_master_database -q` failed on sqlite/ORM schema mismatch.
+- Green relevant: `pytest tests/test_metadata_import.py tests/test_cli.py tests/test_batch.py -q` passed, 23 tests.
+- Full: `pytest -q` passed, 160 tests.

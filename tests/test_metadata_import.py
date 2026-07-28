@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+import sqlite3
 
 from openpyxl import Workbook
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from rollform_extractor.batch import _create_master_schema
 from rollform_extractor.database import Project, ProjectCode, ProjectMetadata, ResultProvenance, create_project_database
 from rollform_extractor.metadata_import import import_metadata, resolve_project_codes
 
@@ -134,6 +136,28 @@ def test_unmatched_and_conflicting_rows_enter_review_without_overwriting(tmp_pat
     assert conflict.conflicts == ("2:D0064-D0065-FlowerSequence:machine_id",)
     assert unmatched.unmatched == ("2:missing",)
     assert _metadata(engine, "D0064-D0065-FlowerSequence")["machine_id"] == "RF-1"
+
+
+def test_import_metadata_accepts_task12_master_schema(tmp_path):
+    master_path = tmp_path / "master_rollform.sqlite"
+    metadata_path = _csv(
+        tmp_path / "metadata.csv",
+        {"drawing_id": "D0064-D0065-FlowerSequence", "material_grade": "CR4"},
+    )
+    with sqlite3.connect(master_path) as db:
+        _create_master_schema(db)
+        db.execute(
+            "insert into projects "
+            "(drawing_id, source_path, source_hash, source_database, source_project_id, configuration_hash) "
+            "values (?, ?, ?, ?, ?, ?)",
+            ("D0064-D0065-FlowerSequence", "source.dxf", "hash", "project.sqlite", 1, "config"),
+        )
+        db.commit()
+
+        summary = import_metadata(metadata_path, db)
+
+        assert summary.imported == 1
+        assert db.execute("select key, value from project_metadata").fetchall() == [("material_grade", "CR4")]
 
 
 def _project(engine, drawing_id: str) -> int:
