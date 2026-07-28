@@ -1,0 +1,12 @@
+ezdxf
+matplotlib
+networkx
+numpy
+openpyxl
+pandas
+pillow
+pytest
+pyyaml
+scipy
+shapely
+sqlalchemy

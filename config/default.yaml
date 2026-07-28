@@ -1,0 +1,16 @@
+units:
+  default: null
+geometry:
+  endpoint_join_tolerance_mm: 0.05
+  duplicate_tolerance_mm: 0.01
+  curve_sampling_spacing_mm: 0.25
+  minimum_entity_length_mm: 0.02
+stations:
+  minimum_confidence: 0.60
+  label_search_radius_mm: 100
+  cluster_gap_factor: 1.5
+profiles:
+  minimum_confidence: 0.70
+  minimum_score_margin: 0.15
+rollers:
+  minimum_confidence: 0.65
