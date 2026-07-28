@@ -6,7 +6,9 @@ from pathlib import Path
 import sys
 
 from rollform_extractor.batch import BatchRequest, batch_extract, validate_batch, write_batch_report
+from rollform_extractor.database import create_project_database
 from rollform_extractor.dxf_reader import inspect_drawing
+from rollform_extractor.metadata_import import import_metadata
 from rollform_extractor.pipeline import ExtractionRequest, extract_project, reprocess_project
 from rollform_extractor.validation import validate_project
 
@@ -35,6 +37,9 @@ def main(argv: list[str] | None = None) -> int:
     batch_validate_cmd.add_argument("output_root", type=Path)
     batch_report_cmd = sub.add_parser("batch-report")
     batch_report_cmd.add_argument("output_root", type=Path)
+    import_metadata_cmd = sub.add_parser("import-metadata")
+    import_metadata_cmd.add_argument("metadata", type=Path)
+    import_metadata_cmd.add_argument("--master", type=Path, default=Path("master.sqlite"))
     args = parser.parse_args(argv)
 
     if args.command == "inspect":
@@ -74,4 +79,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "batch-report":
         print(write_batch_report(args.output_root))
         return 0
+    if args.command == "import-metadata":
+        try:
+            summary = import_metadata(args.metadata, create_project_database(args.master))
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(f"imported={summary.imported} unmatched={len(summary.unmatched)} conflicts={len(summary.conflicts)}")
+        return 0 if not summary.unmatched and not summary.conflicts else 1
     return 2
