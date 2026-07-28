@@ -127,6 +127,54 @@ def test_shaft_and_spacer_candidates_remain_separate_from_tooling_roles():
     assert len(result.rollers) == 2
 
 
+def test_manual_override_source_handles_suppress_expanded_auto_duplicates():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, 0, 80, 80), ("RAW1", "RAW2"))
+    profile = _profile(station, BBox(30, 25, 50, 35), ("P1",))
+    entities = (
+        _circle("EXP1", (40, 50), 10, source_handles=("RAW1",)),
+        _circle("EXP2", (40, 50), 4, source_handles=("RAW2",)),
+    )
+    overrides = ManualOverrides(roller_handles={"1": {"upper_centre": ("RAW1", "RAW2")}})
+
+    result = detect_rollers((station,), (profile,), entities, config, overrides=overrides)
+
+    assert len(result.rollers) == 1
+    assert result.rollers[0].method == "manual_override"
+
+
+def test_station_source_handles_include_owned_rollers_outside_station_bbox():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, 0, 20, 20), ("R1", "R2"))
+    profile = _profile(station, BBox(5, 5, 15, 10), ("P1",))
+    entities = (
+        _circle("R1", (40, 30), 10),
+        _circle("R2", (40, 30), 4),
+    )
+
+    result = detect_rollers((station,), (profile,), entities, config)
+
+    assert len(result.rollers) == 1
+    assert set(result.rollers[0].source_handles) == {"R1", "R2"}
+
+
+def test_arc_only_rotational_outlines_are_detected_as_rollers():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, 0, 80, 80), ("P1", "A1", "A2"))
+    profile = _profile(station, BBox(30, 25, 50, 35), ("P1",))
+    entities = (
+        _line("P1", (30, 30), (50, 30), layer="PROFILE"),
+        _arc("A1", (40, 50), 10, 0, 180),
+        _arc("A2", (40, 50), 4, 180, 360),
+    )
+
+    result = detect_rollers((station,), (profile,), entities, config)
+
+    assert len(result.rollers) == 1
+    assert result.rollers[0].evidence["outer_diameter_mm"] == 20.0
+    assert result.rollers[0].evidence["bore_diameter_mm"] == 8.0
+
+
 def _station(station_id, sequence, bbox, handles):
     return StationRecord(
         station_id=station_id,
@@ -151,7 +199,7 @@ def _profile(station, bbox, handles):
     )
 
 
-def _circle(handle, center, radius, *, layer="ROLLER"):
+def _circle(handle, center, radius, *, layer="ROLLER", source_handles=None):
     primitive = CadPrimitive(kind="CIRCLE", attributes={"center": (*center, 0.0), "radius": radius}, source_handle=handle)
     return CadEntityRecord(
         handle=handle,
@@ -163,6 +211,26 @@ def _circle(handle, center, radius, *, layer="ROLLER"):
         bbox=BBox(center[0] - radius, center[1] - radius, center[0] + radius, center[1] + radius),
         normalized_primitives=(primitive,),
         sampled_geometry=((center[0] + radius, center[1], 0.0),),
+        source_handles=source_handles or (handle,),
+    )
+
+
+def _arc(handle, center, radius, start_angle, end_angle, *, layer="ROLLER"):
+    primitive = CadPrimitive(
+        kind="ARC",
+        attributes={"center": (*center, 0.0), "radius": radius, "start_angle": start_angle, "end_angle": end_angle},
+        source_handle=handle,
+    )
+    return CadEntityRecord(
+        handle=handle,
+        entity_type="ARC",
+        layer=layer,
+        color=3,
+        line_type="CONTINUOUS",
+        layout="Model",
+        bbox=BBox(center[0] - radius, center[1] - radius, center[0] + radius, center[1] + radius),
+        normalized_primitives=(primitive,),
+        sampled_geometry=(),
         source_handles=(handle,),
     )
 

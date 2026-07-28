@@ -40,6 +40,7 @@ class RollerDetectionResult:
 @dataclass(frozen=True)
 class _Circle:
     entity: CadEntityRecord
+    handle: str
     center: tuple[float, float]
     radius: float
 
@@ -77,7 +78,7 @@ def detect_rollers(
         used_handles: set[str] = set()
         manual = _manual_candidates(station, entity_records, config_hash, overrides)
         for candidate in manual:
-            used_handles.update(candidate.handles)
+            used_handles.update(_expanded_handles(candidate.handles, entity_records))
             rollers.append(_roller(station, candidate, len(rollers) + 1, config_hash))
 
         profile = profile_by_station.get(station.station_id)
@@ -146,12 +147,18 @@ def _auto_candidates(
     used_handles: set[str],
     config,
 ) -> tuple[_Candidate, ...]:
-    station_entities = tuple(entity for entity in entities if entity.bbox and _contains(station.bbox, entity.bbox))
+    station_handles = set(station.source_handles)
+    station_entities = tuple(
+        entity
+        for entity in entities
+        if entity.bbox and (_contains(station.bbox, entity.bbox) or station_handles.intersection(_entity_handles(entity)))
+    )
     profile_handles = set(profile.source_handles if profile else ())
     circles = tuple(
         circle
         for circle in _circles(station_entities)
-        if circle.entity.handle not in used_handles and not profile_handles.intersection(circle.entity.source_handles or (circle.entity.handle,))
+        if not used_handles.intersection(_entity_handles(circle.entity))
+        and not profile_handles.intersection(_entity_handles(circle.entity))
     )
     groups = _circle_groups(circles, config.geometry.duplicate_tolerance_mm)
     lines = tuple(entity for entity in station_entities if entity.entity_type == "LINE" and entity.handle not in used_handles)
@@ -161,7 +168,7 @@ def _auto_candidates(
         radii = sorted({round(circle.radius, 6) for circle in group})
         outer = max(circle.radius for circle in group)
         center = _average(circle.center for circle in group)
-        handles = tuple(dict.fromkeys(circle.entity.handle for circle in group))
+        handles = tuple(dict.fromkeys(circle.handle for circle in group))
         nearby_text = tuple(_text(entity) for entity in texts if entity.handle not in used_handles and _distance(_center(entity.bbox), center) <= max(outer * 2.5, 15.0))
         role = _special_role(group) or _relative_role(center, profile, station)
         candidates.append(
@@ -231,7 +238,9 @@ def _circles(entities: Iterable[CadEntityRecord]) -> tuple[_Circle, ...]:
     for entity in entities:
         for primitive in entity.normalized_primitives:
             if primitive.kind == "CIRCLE":
-                result.append(_Circle(entity, _point2(primitive.attributes["center"]), float(primitive.attributes["radius"])))
+                result.append(_Circle(entity, entity.handle, _point2(primitive.attributes["center"]), float(primitive.attributes["radius"])))
+            elif primitive.kind == "ARC":
+                result.append(_Circle(entity, entity.handle, _point2(primitive.attributes["center"]), float(primitive.attributes["radius"])))
     return tuple(result)
 
 
@@ -328,3 +337,17 @@ def _distance(left: tuple[float, float], right: tuple[float, float]) -> float:
 
 def _point2(value) -> tuple[float, float]:
     return (float(value[0]), float(value[1]))
+
+
+def _entity_handles(entity: CadEntityRecord) -> tuple[str, ...]:
+    return (entity.handle, *(entity.source_handles or ()))
+
+
+def _expanded_handles(handles: tuple[str, ...], entities: tuple[CadEntityRecord, ...]) -> set[str]:
+    requested = set(handles)
+    expanded = set(handles)
+    for entity in entities:
+        entity_handles = set(_entity_handles(entity))
+        if requested.intersection(entity_handles):
+            expanded.update(entity_handles)
+    return expanded
