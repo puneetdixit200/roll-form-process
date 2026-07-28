@@ -6,6 +6,7 @@ import sqlite3
 
 from rollform_extractor.batch import BatchRequest, aggregate_master, batch_extract
 from rollform_extractor.cli import main
+from rollform_extractor.pipeline import ExtractionRequest, extract_project
 from tests.cad_factory import make_flower_dxf
 
 
@@ -38,6 +39,22 @@ def test_batch_reprocesses_changed_input_on_resume(tmp_path):
     assert second.projects_skipped == 0
 
 
+def test_failed_rerun_excludes_stale_project_database_from_master(tmp_path):
+    source_root = tmp_path / "inputs"
+    source_root.mkdir()
+    source = make_flower_dxf(source_root / "one.dxf", station_count=1, labels=True)
+    request = BatchRequest(source_root, tmp_path / "out")
+    first = batch_extract(request)
+    source.write_text("not a dxf", encoding="utf-8")
+
+    second = batch_extract(replace(request, resume=True, skip_unchanged=True))
+    master = sqlite3.connect(second.master_database)
+
+    assert first.projects_succeeded == 1
+    assert second.projects_failed == 1
+    assert master.execute("select count(*) from projects").fetchone()[0] == 0
+
+
 def test_batch_failure_isolated_per_file(tmp_path):
     source_root = tmp_path / "inputs"
     source_root.mkdir()
@@ -50,6 +67,23 @@ def test_batch_failure_isolated_per_file(tmp_path):
     assert summary.projects_succeeded == 1
     assert summary.projects_failed == 1
     assert {entry["status"] for entry in ledger["files"]} == {"success", "failed"}
+
+
+def test_same_stem_sources_write_distinct_project_outputs(tmp_path):
+    source_root = tmp_path / "inputs"
+    (source_root / "a").mkdir(parents=True)
+    (source_root / "b").mkdir(parents=True)
+    make_flower_dxf(source_root / "a" / "part.dxf", station_count=1, labels=True)
+    make_flower_dxf(source_root / "b" / "part.dxf", station_count=2, labels=True)
+
+    summary = batch_extract(BatchRequest(source_root, tmp_path / "out"))
+    ledger = json.loads(summary.ledger_path.read_text(encoding="utf-8"))
+    project_paths = {entry["project_path"] for entry in ledger["files"]}
+    master = sqlite3.connect(summary.master_database)
+
+    assert summary.projects_succeeded == 2
+    assert len(project_paths) == 2
+    assert master.execute("select count(*) from projects").fetchone()[0] == 2
 
 
 def test_master_database_keeps_project_provenance_and_is_idempotent(tmp_path):
@@ -119,3 +153,18 @@ def test_batch_cli_extract_validate_and_report(tmp_path, capsys):
     assert "files=1" in output
     assert "valid" in output
     assert "extraction_dashboard.html" in output
+
+
+def test_batch_report_refreshes_master_before_counting(tmp_path):
+    source_root = tmp_path / "inputs"
+    source_root.mkdir()
+    out = tmp_path / "out"
+    source = make_flower_dxf(source_root / "one.dxf", station_count=1, labels=True)
+    extract_project(ExtractionRequest(source, out))
+    aggregate_master(out)
+    source = make_flower_dxf(source_root / "two.dxf", station_count=1, labels=True)
+    extract_project(ExtractionRequest(source, out))
+
+    assert main(["batch-report", str(out)]) == 0
+
+    assert "projects=2" in (out / "master" / "extraction_dashboard.html").read_text(encoding="utf-8")

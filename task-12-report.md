@@ -23,3 +23,17 @@
 
 - The batch layer intentionally reuses the existing single-project pipeline and validation logic.
 - Master usage and transition tables keep source-local IDs instead of rebuilding every project-level relationship.
+
+## Review Finding Fixes
+
+- Excluded stale project databases from current batch master aggregation by rebuilding the master from successful current ledger entries.
+- Preserved fallback aggregation for non-batch project output roots without a ledger.
+- Added deterministic hash-qualified batch output roots when multiple input files share the same stem.
+- Changed `batch-report` to refresh master aggregation before reading dashboard counts.
+
+## Review Fix TDD Evidence
+
+- Red: `pytest tests/test_batch.py -q` failed on stale failed rerun master count, same-stem path collision, and stale `batch-report` counts.
+- Green focused: `pytest tests/test_batch.py -q` -> 9 passed.
+- Full suite: `pytest -q` -> 149 passed.
+- Whitespace: `git diff --check` -> clean.

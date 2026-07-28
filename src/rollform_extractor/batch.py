@@ -48,12 +48,14 @@ def batch_extract(request: BatchRequest) -> BatchSummary:
     entries: dict[str, dict[str, Any]] = {entry["source_path"]: entry for entry in ledger.get("files", ())}
     totals = {"success": 0, "failed": 0, "skipped": 0, "reprocessed": 0, "stations": 0, "profiles": 0, "rollers": 0, "warnings": 0}
     sources = _discover_sources(request)
+    collisions = _colliding_stems(sources)
 
     for source in sources:
         source_sha = _sha256(source)
         key = str(source.resolve())
         previous = entries.get(key)
-        project_path = request.output_root / source.stem
+        output_root = _project_output_root(request, source, collisions)
+        project_path = Path(previous["project_path"]) if previous else output_root / source.stem
         if _can_skip(request, previous, source_sha, config_hash, project_path):
             entry = dict(previous)
             entry["action"] = "skipped"
@@ -61,7 +63,7 @@ def batch_extract(request: BatchRequest) -> BatchSummary:
         else:
             if previous is not None and request.resume:
                 totals["reprocessed"] += 1
-            entry = _extract_one(source, request.output_root, source_sha, config_hash)
+            entry = _extract_one(source, output_root, source_sha, config_hash)
         entries[key] = entry
         _add_totals(totals, entry)
         _write_ledger(ledger_path, entries, config_hash)
@@ -88,10 +90,12 @@ def aggregate_master(output_root: Path) -> Path:
     master_dir = output_root / "master"
     master_dir.mkdir(parents=True, exist_ok=True)
     master_path = master_dir / "master_rollform.sqlite"
+    if master_path.exists():
+        master_path.unlink()
     with sqlite3.connect(master_path) as master:
         master.execute("pragma foreign_keys=on")
         _create_master_schema(master)
-        for project_db in sorted(output_root.glob("*/project.sqlite")):
+        for project_db in _current_project_databases(output_root):
             _aggregate_project(master, project_db)
         master.commit()
     _write_master_csvs(output_root, master_path)
@@ -109,9 +113,7 @@ def validate_batch(output_root: Path) -> ValidationReport:
 
 
 def write_batch_report(output_root: Path) -> Path:
-    master_path = output_root / "master" / "master_rollform.sqlite"
-    if not master_path.exists():
-        master_path = aggregate_master(output_root)
+    master_path = aggregate_master(output_root)
     with sqlite3.connect(master_path) as db:
         counts = {
             name: db.execute(f"select count(*) from {name}").fetchone()[0]
@@ -180,6 +182,37 @@ def _can_skip(request: BatchRequest, previous: dict[str, Any] | None, source_sha
 def _discover_sources(request: BatchRequest) -> list[Path]:
     seen = {path.resolve() for pattern in request.patterns for path in request.source_root.rglob(pattern) if path.is_file()}
     return sorted(seen)
+
+
+def _colliding_stems(sources: list[Path]) -> set[str]:
+    counts: dict[str, int] = {}
+    for source in sources:
+        counts[source.stem] = counts.get(source.stem, 0) + 1
+    return {stem for stem, count in counts.items() if count > 1}
+
+
+def _project_output_root(request: BatchRequest, source: Path, collisions: set[str]) -> Path:
+    if source.stem not in collisions:
+        return request.output_root
+    try:
+        relative = source.relative_to(request.source_root.resolve())
+    except ValueError:
+        relative = source.name
+    suffix = sha256(str(relative).encode("utf-8")).hexdigest()[:12]
+    return request.output_root / f"{source.stem}-{suffix}"
+
+
+def _current_project_databases(output_root: Path) -> list[Path]:
+    ledger_path = output_root / "batch_ledger.json"
+    if ledger_path.exists():
+        ledger = _read_ledger(ledger_path)
+        databases = [
+            Path(entry["project_database"])
+            for entry in ledger.get("files", ())
+            if entry.get("status") == "success" and entry.get("project_database")
+        ]
+        return sorted(path for path in databases if path.exists())
+    return sorted(path for path in output_root.rglob("project.sqlite") if "master" not in path.parts)
 
 
 def _add_totals(totals: dict[str, int], entry: dict[str, Any]) -> None:
