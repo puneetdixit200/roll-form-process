@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Iterable
 
@@ -43,7 +44,7 @@ def _draw_primitive(draw, primitive: CadPrimitive, sampled, bounds: BBox, scale:
     if primitive.kind == "LINE":
         draw.line((_pixel(attrs["start"], bounds, scale, height, antialias), _pixel(attrs["end"], bounds, scale, height, antialias)), fill=color, width=2 * antialias)
     elif primitive.kind in {"LWPOLYLINE", "POLYLINE"}:
-        points = tuple(vertex["point"] for vertex in attrs.get("vertices", ())) or tuple(attrs.get("points", ()))
+        points = _polyline_points(primitive, sampled)
         if len(points) > 1:
             draw.line([_pixel(point, bounds, scale, height, antialias) for point in points], fill=color, width=2 * antialias)
             if attrs.get("closed"):
@@ -87,6 +88,15 @@ def _content_points(entities: tuple[CadEntityRecord, ...]) -> list[tuple[float, 
     points = [
         point
         for entity in entities
+        if _likely_drawing_geometry(entity)
+        if len(entity.sampled_geometry) > 1
+        for point in entity.sampled_geometry
+    ]
+    if points:
+        return points
+    points = [
+        point
+        for entity in entities
         if len(entity.sampled_geometry) > 1
         for point in entity.sampled_geometry
     ]
@@ -118,3 +128,58 @@ def _color(entity: CadEntityRecord) -> tuple[int, int, int]:
     if "CENTER" in (entity.line_type or "").upper():
         return (160, 90, 30)
     return (20, 20, 20)
+
+
+def _likely_drawing_geometry(entity: CadEntityRecord) -> bool:
+    layer = entity.layer.upper()
+    if entity.layout.lower() != "model":
+        return False
+    if entity.entity_type in {"TEXT", "MTEXT", "DIMENSION"}:
+        return False
+    if any(token in layer for token in ("TITLE", "BORDER", "FRAME", "REV", "LOGO", "TABLE", "NOTE", "TEXT")):
+        return False
+    return True
+
+
+def _polyline_points(primitive: CadPrimitive, sampled) -> tuple:
+    attrs = primitive.attributes
+    vertices = tuple(attrs.get("vertices", ()))
+    if vertices and any(abs(float(vertex.get("bulge", 0.0) or 0.0)) > 1e-12 for vertex in vertices):
+        points: list[tuple[float, float, float]] = []
+        closed = bool(attrs.get("closed"))
+        pairs = zip(vertices, vertices[1:] + ((vertices[0],) if closed else ()))
+        for start, end in pairs:
+            segment = _bulge_segment(start["point"], end["point"], float(start.get("bulge", 0.0) or 0.0))
+            points.extend(segment if not points else segment[1:])
+        return tuple(points)
+    return tuple(vertex["point"] for vertex in vertices) or tuple(attrs.get("points", ())) or tuple(sampled)
+
+
+def _bulge_segment(start, end, bulge: float) -> tuple[tuple[float, float, float], ...]:
+    if abs(bulge) <= 1e-12:
+        return (start, end)
+    x1, y1, z1 = start
+    x2, y2, _z2 = end
+    chord = math.hypot(x2 - x1, y2 - y1)
+    if chord <= 1e-12:
+        return (start, end)
+    theta = 4.0 * math.atan(bulge)
+    radius = chord / (2.0 * math.sin(abs(theta) / 2.0))
+    mid_x = (x1 + x2) / 2.0
+    mid_y = (y1 + y2) / 2.0
+    normal_x = -(y2 - y1) / chord
+    normal_y = (x2 - x1) / chord
+    offset = chord / (2.0 * math.tan(abs(theta) / 2.0))
+    side = 1.0 if bulge > 0 else -1.0
+    center_x = mid_x + normal_x * offset * side
+    center_y = mid_y + normal_y * offset * side
+    start_angle = math.atan2(y1 - center_y, x1 - center_x)
+    steps = max(8, math.ceil(abs(theta) * abs(radius) / 2.0))
+    return tuple(
+        (
+            center_x + radius * math.cos(start_angle + theta * i / steps),
+            center_y + radius * math.sin(start_angle + theta * i / steps),
+            z1,
+        )
+        for i in range(steps + 1)
+    )

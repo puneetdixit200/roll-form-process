@@ -87,6 +87,25 @@ def test_support_marks_table_density_without_dropping_geometry(tmp_path):
     )
 
 
+def test_dense_normal_profile_linework_is_not_table_support(tmp_path):
+    dxf_path = tmp_path / "dense-profile.dxf"
+    doc = ezdxf.new("R2013", setup=True)
+    doc.layers.add("PART")
+    msp = doc.modelspace()
+    for x in range(6):
+        msp.add_line((x, 0), (x, 10), dxfattribs={"layer": "PART"})
+    for y in range(6):
+        msp.add_line((0, y * 2), (5, y * 2), dxfattribs={"layer": "PART"})
+    doc.saveas(dxf_path)
+
+    parsed = parse_entities(doc, ExtractionConfig.load())
+    inspection = inspect_drawing(dxf_path)
+
+    result = classify_support(parsed.entities, inspection, ExtractionConfig.load())
+
+    assert {entity.classification for entity in result.entities} == {"drawing_geometry"}
+
+
 def test_classification_is_reversible_entity_copy():
     doc = ezdxf.new("R2013", setup=True)
     dim = doc.modelspace().add_linear_dim(base=(0, 1), p1=(0, 0), p2=(4, 0), angle=0)

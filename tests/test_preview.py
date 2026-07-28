@@ -41,3 +41,35 @@ def test_preview_extents_use_actual_content_not_far_title_block(tmp_path):
     assert image.shape[0] >= 128
     assert image.shape[1] >= 128
     assert np.count_nonzero(np.any(image != image[0, 0], axis=2)) > 40
+
+
+def test_preview_extents_ignore_far_multiline_title_block(tmp_path):
+    doc = ezdxf.new("R2013", setup=True)
+    doc.layers.add("TITLE")
+    msp = doc.modelspace()
+    msp.add_circle((0, 0), 5)
+    for offset in range(4):
+        msp.add_line(
+            (100_000, 100_000 + offset * 4),
+            (100_030, 100_000 + offset * 4),
+            dxfattribs={"layer": "TITLE"},
+        )
+
+    parsed = parse_entities(doc, ExtractionConfig.load())
+
+    image_path = render_drawing_preview(parsed.entities, tmp_path / "far-title.png")
+    image = np.asarray(Image.open(image_path).convert("RGB"))
+
+    assert np.count_nonzero(np.any(image != image[0, 0], axis=2)) > 150
+
+
+def test_bulged_polyline_preview_uses_sampled_curve_geometry(tmp_path):
+    doc = ezdxf.new("R2013", setup=True)
+    doc.modelspace().add_lwpolyline([(0, 0, 1.0), (10, 0, 0.0)], format="xyb")
+    parsed = parse_entities(doc, ExtractionConfig.load())
+
+    image_path = render_drawing_preview(parsed.entities, tmp_path / "bulge.png")
+    image = np.asarray(Image.open(image_path).convert("RGB"))
+    ink_by_row = np.count_nonzero(np.any(image != image[0, 0], axis=2), axis=1)
+
+    assert np.count_nonzero(ink_by_row) > 8

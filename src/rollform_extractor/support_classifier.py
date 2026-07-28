@@ -49,7 +49,7 @@ def classify_support(
     return SupportClassification(
         entities=classified,
         method="support_classifier",
-        configuration_hash=config.hash_for("preview"),
+        configuration_hash=config.hash_for("support_classification"),
     )
 
 
@@ -135,7 +135,7 @@ def _is_border(entity: CadEntityRecord, drawing_bounds: BBox | None) -> bool:
 def _table_handles(entities: tuple[CadEntityRecord, ...]) -> set[str]:
     tableish = [
         entity for entity in entities
-        if "TABLE" in entity.layer.upper() or entity.entity_type in {"LINE", "LWPOLYLINE", "POLYLINE", "TEXT", "MTEXT"}
+        if _has_table_evidence(entity)
     ]
     if len(tableish) < 8:
         return set()
@@ -144,6 +144,17 @@ def _table_handles(entities: tuple[CadEntityRecord, ...]) -> set[str]:
         return set()
     area = max((bounds.max_x - bounds.min_x) * (bounds.max_y - bounds.min_y), 1.0)
     return {entity.handle for entity in tableish} if len(tableish) / area > 0.01 else set()
+
+
+def _has_table_evidence(entity: CadEntityRecord) -> bool:
+    layer = entity.layer.upper()
+    text = _entity_text(entity).upper()
+    return (
+        "TABLE" in layer
+        or "GRID" in layer
+        or "TITLE" in layer
+        or any(token in text for token in ("REV", "DRAWING", "SHEET", "CELL", "TABLE"))
+    )
 
 
 def _bounds(boxes: Iterable[BBox | None]) -> BBox | None:

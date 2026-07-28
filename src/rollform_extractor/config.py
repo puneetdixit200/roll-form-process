@@ -17,6 +17,7 @@ STAGE_CONFIG_KEYS = {
     "profile_detection": ("geometry", "profiles"),
     "roller_detection": ("geometry", "rollers"),
     "preview": ("geometry.curve_sampling_spacing_mm",),
+    "support_classification": ("geometry",),
 }
 
 
