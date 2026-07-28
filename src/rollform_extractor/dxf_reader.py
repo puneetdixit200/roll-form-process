@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import ezdxf
+from ezdxf import bbox
 from ezdxf import units
 
 from rollform_extractor.models import BBox
@@ -23,6 +24,7 @@ class BlockInspection:
     name: str
     entity_count: int
     is_xref: bool
+    xref_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -41,7 +43,7 @@ class DrawingInspection:
     linetypes: tuple[str, ...]
     blocks: dict[str, BlockInspection]
     layouts: dict[str, LayoutInspection]
-    xrefs: tuple[str, ...]
+    xrefs: tuple[dict[str, str], ...]
     extents: BBox | None
     created: str | None
     updated: str | None
@@ -71,6 +73,7 @@ def inspect_drawing(dxf_path: Path) -> DrawingInspection:
             block.name,
             len(block),
             bool(getattr(block.block_record.dxf, "xref_path", "")),
+            getattr(block.block_record.dxf, "xref_path", None),
         )
         for block in doc.blocks
         if not block.name.startswith("*")
@@ -92,7 +95,11 @@ def inspect_drawing(dxf_path: Path) -> DrawingInspection:
         linetypes=tuple(linetype.dxf.name for linetype in doc.linetypes),
         blocks=blocks,
         layouts=layouts,
-        xrefs=tuple(block.name for block in blocks.values() if block.is_xref),
+        xrefs=tuple(
+            {"name": block.name, "path": block.xref_path or ""}
+            for block in blocks.values()
+            if block.is_xref
+        ),
         extents=_extents(doc),
         created=_timestamp(doc, "$TDCREATE"),
         updated=_timestamp(doc, "$TDUPDATE"),
@@ -121,36 +128,14 @@ def _layer_counts(doc: ezdxf.EzDxf) -> dict[str, int]:
 
 
 def _extents(doc: ezdxf.EzDxf) -> BBox | None:
-    points: list[tuple[float, float]] = []
-    for entity in doc.modelspace():
-        points.extend(_entity_points(entity))
-    if not points:
-        return None
-    xs = [point[0] for point in points]
-    ys = [point[1] for point in points]
-    return BBox(min(xs), min(ys), max(xs), max(ys))
-
-
-def _entity_points(entity: Any) -> list[tuple[float, float]]:
-    dxftype = entity.dxftype()
-    if dxftype == "LINE":
-        return [_xy(entity.dxf.start), _xy(entity.dxf.end)]
-    if dxftype == "INSERT":
-        return [_xy(entity.dxf.insert)]
-    if dxftype == "CIRCLE":
-        center = _xy(entity.dxf.center)
-        radius = float(entity.dxf.radius)
-        return [
-            (center[0] - radius, center[1] - radius),
-            (center[0] + radius, center[1] + radius),
-        ]
-    if dxftype in {"TEXT", "MTEXT"}:
-        return [_xy(entity.dxf.insert)]
-    return []
-
-
-def _xy(value: Any) -> tuple[float, float]:
-    return (float(value[0]), float(value[1]))
+    box = bbox.extents(doc.modelspace())
+    if box.has_data:
+        return BBox(box.extmin[0], box.extmin[1], box.extmax[0], box.extmax[1])
+    extmin = doc.header.get("$EXTMIN")
+    extmax = doc.header.get("$EXTMAX")
+    if extmin is not None and extmax is not None:
+        return BBox(float(extmin[0]), float(extmin[1]), float(extmax[0]), float(extmax[1]))
+    return None
 
 
 def _timestamp(doc: ezdxf.EzDxf, key: str) -> str | None:
