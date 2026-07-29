@@ -15,6 +15,7 @@ dependencies = [
     "openpyxl",
     "pandas",
     "pillow",
+    "python-multipart",
     "pytest",
     "pyyaml",
     "scipy",
@@ -29,7 +30,7 @@ rollform-extractor = "rollform_extractor.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-rollform_extractor = ["config/*.yaml"]
+rollform_extractor = ["config/*.yaml", "report/templates/*.j2", "report/static/*.css", "report/static/*.js"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

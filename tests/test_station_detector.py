@@ -77,6 +77,25 @@ def test_unlabelled_multirow_layout_uses_unknown_labels_and_review(tmp_path):
     assert len(result.stations) == 12
     assert all(station.drawing_label.startswith("Station_Unknown_") for station in result.stations)
     assert all(station.manual_review_required for station in result.stations)
+    assert all(station.method == "station_candidate" for station in result.stations)
+
+
+def test_separate_flower_columns_are_detected_before_station_ordering(tmp_path):
+    doc = ezdxf.new("R2013", setup=True)
+    doc.header["$INSUNITS"] = 4
+    doc.layers.add("PROFILE", color=3)
+    msp = doc.modelspace()
+    for column, x0 in enumerate((0, 300)):
+        for row in range(4):
+            y = -row * 40
+            msp.add_lwpolyline([(x0, y), (x0 + 18, y), (x0 + 18, y + 10), (x0, y + 10)], close=True, dxfattribs={"layer": "PROFILE"})
+            msp.add_text(f"ST{row + 1:02d}", dxfattribs={"layer": "PROFILE", "height": 2}).set_placement((x0, y + 14))
+
+    result = _detect(tmp_path, doc)
+
+    assert len(result.stations) == 8
+    assert [station.evidence["sequence_id"] for station in result.stations] == [1, 1, 1, 1, 2, 2, 2, 2]
+    assert [station.sequence_index for station in result.stations] == [1, 2, 3, 4, 1, 2, 3, 4]
 
 
 def test_reversed_numeric_labels_drive_sequence_order(tmp_path):

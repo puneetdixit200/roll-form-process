@@ -66,7 +66,12 @@ def validate_project(project_path: Path) -> ValidationReport:
         if len(ids) != len(set(ids)):
             issues.append(ValidationIssue("duplicate_station", "station identifiers are not unique"))
 
-    expected_dirs = {f"station_{station['sequence_index']:02d}" for station in project.get("stations", ())}
+    stations = tuple(project.get("stations", ()))
+    multi_sequence = len({int((station.get("evidence") or {}).get("sequence_id") or 1) for station in stations}) > 1
+    expected_dirs = {
+        _station_dir_name(station, multi_sequence)
+        for station in stations
+    }
     actual_dirs = {path.name for path in (project_path / "stations").iterdir() if path.is_dir()} if (project_path / "stations").exists() else set()
     if expected_dirs != actual_dirs:
         issues.append(ValidationIssue("station_tree_mismatch", "station folders do not match project stations"))
@@ -75,3 +80,11 @@ def validate_project(project_path: Path) -> ValidationReport:
 
 def _sha256(path: Path) -> str:
     return sha256(path.read_bytes()).hexdigest()
+
+
+def _station_dir_name(station: dict, duplicated: bool) -> str:
+    sequence_index = int(station["sequence_index"])
+    if duplicated:
+        sequence_id = int((station.get("evidence") or {}).get("sequence_id") or 1)
+        return f"sequence_{sequence_id:02d}_station_{sequence_index:02d}"
+    return f"station_{sequence_index:02d}"

@@ -32,9 +32,11 @@ from rollform_extractor.models import (
     ProfileRecord,
     RollerOccurrenceRecord,
     StageResult,
+    StationTransitionRecord,
     StationRecord,
     WarningRecord,
 )
+from rollform_extractor.transition_analysis import bend_change_events, profile_step_changes, segment_change_events
 
 
 @dataclass(frozen=True)
@@ -51,6 +53,9 @@ class ExtractionBundle:
     stations: tuple[StationRecord, ...]
     profiles: tuple[ProfileRecord, ...]
     roller_occurrences: tuple[RollerOccurrenceRecord, ...]
+    assemblies: tuple[Any, ...] = ()
+    transitions: tuple[StationTransitionRecord, ...] = ()
+    composite_flowers: tuple[Any, ...] = ()
     warnings: tuple[WarningRecord, ...] = ()
 
 
@@ -104,6 +109,8 @@ class Station(Base):
     sequence_index: Mapped[int | None] = mapped_column(Integer)
     bbox_json: Mapped[dict[str, float] | None] = mapped_column(JSON)
     source_handles: Mapped[list[str]] = mapped_column(JSON, default=list)
+    region_type: Mapped[str | None] = mapped_column(String)
+    stage_type: Mapped[str | None] = mapped_column(String)
     method: Mapped[str | None] = mapped_column(String)
     configuration_hash: Mapped[str | None] = mapped_column(String)
     confidence: Mapped[float | None] = mapped_column(Float)
@@ -216,6 +223,163 @@ class StationTransition(Base):
     from_station_id: Mapped[int | None] = mapped_column(ForeignKey("stations.id", ondelete="SET NULL"))
     to_station_id: Mapped[int | None] = mapped_column(ForeignKey("stations.id", ondelete="SET NULL"))
     measurements_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class CompositeFlower(Base):
+    __tablename__ = "composite_flowers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    source_region_id: Mapped[str] = mapped_column(String)
+    pass_count: Mapped[int] = mapped_column(Integer)
+    sequence_confidence: Mapped[float | None] = mapped_column(Float)
+    confirmed: Mapped[bool] = mapped_column(Integer)
+    source_bbox_json: Mapped[dict[str, float] | None] = mapped_column(JSON)
+
+
+class CompositeFlowerPass(Base):
+    __tablename__ = "composite_flower_passes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    composite_flower_id: Mapped[int] = mapped_column(ForeignKey("composite_flowers.id", ondelete="CASCADE"))
+    inferred_order: Mapped[int] = mapped_column(Integer)
+    confirmed_order: Mapped[int | None] = mapped_column(Integer)
+    profile_id: Mapped[str] = mapped_column(String)
+    profile_type: Mapped[str] = mapped_column(String)
+    developed_length: Mapped[float] = mapped_column(Float)
+    width: Mapped[float] = mapped_column(Float)
+    height: Mapped[float] = mapped_column(Float)
+    bend_count: Mapped[int] = mapped_column(Integer)
+    total_bend_angle: Mapped[float] = mapped_column(Float)
+    raw_geometry_corner_count: Mapped[int | None] = mapped_column(Integer)
+    raw_total_turning_angle: Mapped[float | None] = mapped_column(Float)
+    physical_forming_bend_count: Mapped[int | None] = mapped_column(Integer)
+    physical_total_bend_angle: Mapped[float | None] = mapped_column(Float)
+    active_bend_count: Mapped[int | None] = mapped_column(Integer)
+    bend_signature: Mapped[str | None] = mapped_column(String)
+    vertex_turn_count: Mapped[int | None] = mapped_column(Integer)
+    neutral_line_developed_length: Mapped[float | None] = mapped_column(Float)
+    expected_neutral_length: Mapped[float | None] = mapped_column(Float)
+    neutral_length_error: Mapped[float | None] = mapped_column(Float)
+    neutral_length_error_percent: Mapped[float | None] = mapped_column(Float)
+    sheet_thickness: Mapped[float | None] = mapped_column(Float)
+    thickness_method: Mapped[str | None] = mapped_column(String)
+    thickness_sampling_count: Mapped[int | None] = mapped_column(Integer)
+    thickness_variation: Mapped[float | None] = mapped_column(Float)
+    thickness_confidence: Mapped[float | None] = mapped_column(Float)
+    engineer_confirmed_thickness: Mapped[float | None] = mapped_column(Float)
+    confidence: Mapped[float] = mapped_column(Float)
+    requires_review: Mapped[bool] = mapped_column(Integer)
+
+
+class CompositePassEntity(Base):
+    __tablename__ = "composite_pass_entities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    pass_id: Mapped[int] = mapped_column(ForeignKey("composite_flower_passes.id", ondelete="CASCADE"))
+    cad_entity_id: Mapped[int | None] = mapped_column(ForeignKey("cad_entities.id", ondelete="SET NULL"))
+    entity_handle: Mapped[str] = mapped_column(String)
+    source_layer: Mapped[str | None] = mapped_column(String)
+    sequence_in_contour: Mapped[int] = mapped_column(Integer)
+
+
+class CompositePassDuplicate(Base):
+    __tablename__ = "composite_pass_duplicates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    canonical_pass_id: Mapped[int] = mapped_column(ForeignKey("composite_flower_passes.id", ondelete="CASCADE"))
+    duplicate_pass_id: Mapped[int] = mapped_column(ForeignKey("composite_flower_passes.id", ondelete="CASCADE"))
+    similarity_score: Mapped[float] = mapped_column(Float)
+    duplicate_type: Mapped[str] = mapped_column(String)
+
+
+class CompositePassProfileLink(Base):
+    __tablename__ = "composite_pass_profile_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    composite_pass_id: Mapped[int] = mapped_column(ForeignKey("composite_flower_passes.id", ondelete="CASCADE"))
+    individual_profile_id: Mapped[str] = mapped_column(String)
+    similarity_score: Mapped[float] = mapped_column(Float)
+    exact_match: Mapped[bool] = mapped_column(Integer)
+    mirrored_match: Mapped[bool] = mapped_column(Integer)
+    geometric_difference: Mapped[float] = mapped_column(Float)
+    confirmed_link: Mapped[bool] = mapped_column(Integer)
+
+
+class FlowerBendProgression(Base):
+    __tablename__ = "flower_bend_progression"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    composite_flower_id: Mapped[int] = mapped_column(ForeignKey("composite_flowers.id", ondelete="CASCADE"))
+    bend_id: Mapped[str] = mapped_column(String)
+    pass_id: Mapped[str] = mapped_column(String)
+    pass_order: Mapped[int] = mapped_column(Integer)
+    developed_position: Mapped[float | None] = mapped_column(Float)
+    signed_angle: Mapped[float | None] = mapped_column(Float)
+    radius: Mapped[float | None] = mapped_column(Float)
+    activation_status: Mapped[str] = mapped_column(String)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    engineer_confirmed: Mapped[bool] = mapped_column(Integer)
+
+
+class CompositeStationLink(Base):
+    __tablename__ = "composite_station_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    composite_flower_id: Mapped[int] = mapped_column(ForeignKey("composite_flowers.id", ondelete="CASCADE"))
+    composite_pass_id: Mapped[str] = mapped_column(String)
+    individual_profile_id: Mapped[str | None] = mapped_column(String)
+    sequence_id: Mapped[str | None] = mapped_column(String)
+    drawing_stage_id: Mapped[str | None] = mapped_column(String)
+    inferred_station_order: Mapped[int | None] = mapped_column(Integer)
+    similarity_score: Mapped[float | None] = mapped_column(Float)
+    contour_difference: Mapped[float | None] = mapped_column(Float)
+    bend_signature_difference: Mapped[float | None] = mapped_column(Float)
+    developed_length_difference: Mapped[float | None] = mapped_column(Float)
+    link_status: Mapped[str] = mapped_column(String)
+    engineer_confirmed: Mapped[bool] = mapped_column(Integer)
+
+
+class ProfileStepChange(Base):
+    __tablename__ = "profile_step_changes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    composite_flower_id: Mapped[int] = mapped_column(ForeignKey("composite_flowers.id", ondelete="CASCADE"))
+    from_pass_id: Mapped[str] = mapped_column(String)
+    to_pass_id: Mapped[str] = mapped_column(String)
+    measurements_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    classifications_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    summary: Mapped[str | None] = mapped_column(Text)
+    engineer_confirmed: Mapped[bool] = mapped_column(Integer)
+
+
+class BendChangeEvent(Base):
+    __tablename__ = "bend_change_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    composite_flower_id: Mapped[int] = mapped_column(ForeignKey("composite_flowers.id", ondelete="CASCADE"))
+    from_pass_id: Mapped[str] = mapped_column(String)
+    to_pass_id: Mapped[str] = mapped_column(String)
+    bend_id: Mapped[str] = mapped_column(String)
+    change_classification: Mapped[str] = mapped_column(String)
+    event_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    engineer_confirmed: Mapped[bool] = mapped_column(Integer)
+
+
+class SegmentChangeEvent(Base):
+    __tablename__ = "segment_change_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    composite_flower_id: Mapped[int] = mapped_column(ForeignKey("composite_flowers.id", ondelete="CASCADE"))
+    from_pass_id: Mapped[str] = mapped_column(String)
+    to_pass_id: Mapped[str] = mapped_column(String)
+    segment_index: Mapped[int] = mapped_column(Integer)
+    change_classification: Mapped[str] = mapped_column(String)
+    event_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    engineer_confirmed: Mapped[bool] = mapped_column(Integer)
 
 
 class ExtractionWarning(Base):
@@ -356,7 +520,38 @@ def create_project_database(path: Path) -> Engine:
         dbapi_connection.execute("PRAGMA foreign_keys=ON")
 
     Base.metadata.create_all(engine)
+    _upgrade_schema(engine)
     return engine
+
+
+def _upgrade_schema(engine: Engine) -> None:
+    composite_pass_columns = {
+        "raw_geometry_corner_count": "INTEGER",
+        "raw_total_turning_angle": "FLOAT",
+        "physical_forming_bend_count": "INTEGER",
+        "physical_total_bend_angle": "FLOAT",
+        "active_bend_count": "INTEGER",
+        "bend_signature": "VARCHAR",
+        "vertex_turn_count": "INTEGER",
+        "neutral_line_developed_length": "FLOAT",
+        "expected_neutral_length": "FLOAT",
+        "neutral_length_error": "FLOAT",
+        "neutral_length_error_percent": "FLOAT",
+        "sheet_thickness": "FLOAT",
+        "thickness_method": "VARCHAR",
+        "thickness_sampling_count": "INTEGER",
+        "thickness_variation": "FLOAT",
+        "thickness_confidence": "FLOAT",
+        "engineer_confirmed_thickness": "FLOAT",
+    }
+    with engine.begin() as connection:
+        table_names = {row[0] for row in connection.exec_driver_sql("select name from sqlite_master where type='table'")}
+        if "composite_flower_passes" not in table_names:
+            return
+        existing = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(composite_flower_passes)")}
+        for name, sql_type in composite_pass_columns.items():
+            if name not in existing:
+                connection.exec_driver_sql(f"ALTER TABLE composite_flower_passes ADD COLUMN {name} {sql_type}")
 
 
 def persist_extraction(engine: Engine, bundle: ExtractionBundle) -> int:
@@ -379,6 +574,19 @@ def persist_extraction(engine: Engine, bundle: ExtractionBundle) -> int:
             for occurrence in bundle.roller_occurrences:
                 session.add(_roller_occurrence(project_id, occurrence))
                 _add_provenance(session, project_id, "roller_occurrences", occurrence.occurrence_id, None, occurrence)
+            session.flush()
+            station_rows = {row.station_id: row for row in session.scalars(select(Station).where(Station.project_id == project_id))}
+            for assembly in bundle.assemblies:
+                session.add(_assembly(project_id, assembly))
+            for transition in bundle.transitions:
+                from_row = station_rows.get(transition.from_station_id)
+                to_row = station_rows.get(transition.to_station_id)
+                if from_row is not None and to_row is not None:
+                    session.add(_transition(project_id, transition, from_row.id, to_row.id))
+            session.flush()
+            entity_rows = {row.handle: row for row in session.scalars(select(CadEntity).where(CadEntity.project_id == project_id))}
+            for composite in bundle.composite_flowers:
+                _add_composite_flower(session, project_id, composite, entity_rows)
             for warning in bundle.warnings:
                 session.add(_warning(project_id, warning))
     except Exception as exc:
@@ -411,6 +619,19 @@ def _record_run_header(engine: Engine, bundle: ExtractionBundle) -> tuple[int, i
 
 def _clear_current_project_results(session: Session, project_id: int) -> None:
     for model in (
+        SegmentChangeEvent,
+        BendChangeEvent,
+        ProfileStepChange,
+        CompositeStationLink,
+        FlowerBendProgression,
+        CompositePassProfileLink,
+        CompositePassDuplicate,
+        CompositePassEntity,
+        CompositeFlowerPass,
+    ):
+        session.execute(delete(model))
+    session.execute(delete(CompositeFlower).where(CompositeFlower.project_id == project_id))
+    for model in (
         ProjectRollUsage,
         RollerOccurrence,
         Profile,
@@ -421,6 +642,7 @@ def _clear_current_project_results(session: Session, project_id: int) -> None:
         Layer,
         GeometryFingerprint,
         ResultProvenance,
+        ExtractionWarning,
     ):
         session.execute(delete(model).where(model.project_id == project_id))
 
@@ -463,8 +685,6 @@ def record_stage(engine: Engine, project_id: int, result: StageResult) -> None:
                 diagnostics_json={"warnings": warnings},
             )
         )
-        for warning in result.warnings:
-            session.add(_warning(project_id, warning))
 
 
 def _stage_status(result: StageResult) -> str:
@@ -517,6 +737,8 @@ def _station(project_id: int, station: StationRecord) -> Station:
         sequence_index=station.sequence_index,
         bbox_json=_bbox(station.bbox),
         source_handles=list(station.source_handles),
+        region_type=str(station.evidence.get("region_type") or station.evidence.get("stage_type") or "UNKNOWN"),
+        stage_type=str(station.evidence.get("stage_type") or station.evidence.get("region_type") or "UNKNOWN"),
         method=station.method,
         configuration_hash=station.configuration_hash,
         confidence=station.confidence,
@@ -549,6 +771,190 @@ def _roller_occurrence(project_id: int, occurrence: RollerOccurrenceRecord) -> R
         confidence=occurrence.confidence,
         evidence_json=_jsonable(occurrence.evidence),
     )
+
+
+def _assembly(project_id: int, assembly: Any) -> Assembly:
+    return Assembly(
+        assembly_id=assembly.assembly_id,
+        project_id=project_id,
+        station_id=assembly.station_id,
+        template_id=None,
+    )
+
+
+def _transition(project_id: int, transition: StationTransitionRecord, from_station_pk: int, to_station_pk: int) -> StationTransition:
+    return StationTransition(
+        project_id=project_id,
+        from_station_id=from_station_pk,
+        to_station_id=to_station_pk,
+        measurements_json=_jsonable(
+            {
+                **dict(transition.measurements),
+                "sequence_id": transition.sequence_id,
+                "source_handles": transition.source_handles,
+                "method": transition.method,
+                "confidence": transition.confidence,
+            }
+        ),
+    )
+
+
+def _add_composite_flower(session: Session, project_id: int, composite: Any, entity_rows: dict[str, CadEntity]) -> None:
+    row = CompositeFlower(
+        project_id=project_id,
+        source_region_id=composite.source_region_id,
+        pass_count=composite.pass_count,
+        sequence_confidence=composite.sequence_confidence,
+        confirmed=bool(composite.confirmed),
+        source_bbox_json=_bbox(composite.source_bbox),
+    )
+    session.add(row)
+    session.flush()
+    pass_rows: dict[str, CompositeFlowerPass] = {}
+    for item in composite.passes:
+        pass_row = CompositeFlowerPass(
+            composite_flower_id=row.id,
+            inferred_order=item.inferred_order,
+            confirmed_order=item.confirmed_order,
+            profile_id=item.profile_id,
+            profile_type=item.profile_type,
+            developed_length=item.developed_length,
+            width=item.width,
+            height=item.height,
+            bend_count=item.bend_count,
+            total_bend_angle=item.total_bend_angle,
+            raw_geometry_corner_count=item.raw_geometry_corner_count,
+            raw_total_turning_angle=item.raw_total_turning_angle,
+            physical_forming_bend_count=item.physical_forming_bend_count,
+            physical_total_bend_angle=item.physical_total_bend_angle,
+            active_bend_count=item.active_bend_count,
+            bend_signature=item.bend_signature,
+            vertex_turn_count=item.vertex_turn_count,
+            neutral_line_developed_length=item.neutral_line_developed_length,
+            expected_neutral_length=item.expected_neutral_length,
+            neutral_length_error=item.neutral_length_error,
+            neutral_length_error_percent=item.neutral_length_error_percent,
+            sheet_thickness=item.sheet_thickness,
+            thickness_method=item.thickness_method,
+            thickness_sampling_count=item.thickness_sampling_count,
+            thickness_variation=item.thickness_variation,
+            thickness_confidence=item.thickness_confidence,
+            engineer_confirmed_thickness=item.engineer_confirmed_thickness,
+            confidence=item.confidence,
+            requires_review=bool(item.requires_review),
+        )
+        session.add(pass_row)
+        session.flush()
+        pass_rows[item.profile_id] = pass_row
+        for sequence, handle in enumerate(item.source_handles):
+            entity = entity_rows.get(handle)
+            session.add(
+                CompositePassEntity(
+                    pass_id=pass_row.id,
+                    cad_entity_id=entity.id if entity is not None else None,
+                    entity_handle=handle,
+                    source_layer=(entity.layer if entity is not None else None),
+                    sequence_in_contour=sequence,
+                )
+            )
+        for match in item.individual_profile_matches:
+            session.add(
+                CompositePassProfileLink(
+                    composite_pass_id=pass_row.id,
+                    individual_profile_id=str(match["individual_profile_id"]),
+                    similarity_score=float(match["similarity_score"]),
+                    exact_match=bool(match["exact_match"]),
+                    mirrored_match=bool(match["mirrored_match"]),
+                    geometric_difference=float(match["geometric_difference"]),
+                    confirmed_link=bool(match["confirmed_link"]),
+                )
+            )
+        first_match = next(iter(item.individual_profile_matches), None)
+        session.add(
+            CompositeStationLink(
+                composite_flower_id=row.id,
+                composite_pass_id=item.pass_id,
+                individual_profile_id=(str(first_match["individual_profile_id"]) if first_match else None),
+                sequence_id=item.composite_flower_id,
+                drawing_stage_id=(str(first_match["individual_profile_id"]) if first_match else None),
+                inferred_station_order=item.inferred_order if first_match else None,
+                similarity_score=(float(first_match["similarity_score"]) if first_match else None),
+                contour_difference=(float(first_match["geometric_difference"]) if first_match else None),
+                bend_signature_difference=None,
+                developed_length_difference=None,
+                link_status=("EXACT_CANDIDATE" if first_match and first_match.get("exact_match") else "SIMILAR_CANDIDATE" if first_match else "UNMATCHED"),
+                engineer_confirmed=False,
+            )
+        )
+    bend_ids = sorted({str(bend["bend_id"]) for item in composite.passes for bend in item.physical_bends})
+    for item in composite.passes:
+        bends_by_id = {str(bend["bend_id"]): bend for bend in item.physical_bends}
+        for bend_id in bend_ids:
+            bend = bends_by_id.get(bend_id, {})
+            session.add(
+                FlowerBendProgression(
+                    composite_flower_id=row.id,
+                    bend_id=bend_id,
+                    pass_id=item.pass_id,
+                    pass_order=item.inferred_order,
+                    developed_position=bend.get("developed_length_position"),
+                    signed_angle=bend.get("signed_bend_angle", 0.0),
+                    radius=bend.get("neutral_line_radius"),
+                    activation_status=str(bend.get("activation_status", "inactive")),
+                    confidence=bend.get("confidence", 0.0),
+                    engineer_confirmed=False,
+                )
+            )
+    for change in profile_step_changes(composite.passes):
+        session.add(
+            ProfileStepChange(
+                composite_flower_id=row.id,
+                from_pass_id=str(change["from_pass_id"]),
+                to_pass_id=str(change["to_pass_id"]),
+                measurements_json=_jsonable(change),
+                classifications_json=list(change.get("classifications", ())),
+                confidence=change.get("confidence"),
+                summary=change.get("summary"),
+                engineer_confirmed=bool(change.get("engineer_confirmed")),
+            )
+        )
+    for event_row in bend_change_events(composite.passes):
+        session.add(
+            BendChangeEvent(
+                composite_flower_id=row.id,
+                from_pass_id=str(event_row["from_pass_id"]),
+                to_pass_id=str(event_row["to_pass_id"]),
+                bend_id=str(event_row["bend_id"]),
+                change_classification=str(event_row["change_classification"]),
+                event_json=_jsonable(event_row),
+                confidence=event_row.get("confidence"),
+                engineer_confirmed=bool(event_row.get("engineer_confirmed")),
+            )
+        )
+    for event_row in segment_change_events(composite.passes):
+        session.add(
+            SegmentChangeEvent(
+                composite_flower_id=row.id,
+                from_pass_id=str(event_row["from_pass_id"]),
+                to_pass_id=str(event_row["to_pass_id"]),
+                segment_index=int(event_row["segment_index"]),
+                change_classification=str(event_row["change_classification"]),
+                event_json=_jsonable(event_row),
+                confidence=event_row.get("confidence"),
+                engineer_confirmed=bool(event_row.get("engineer_confirmed")),
+            )
+        )
+    session.flush()
+    for item in composite.passes:
+        if item.duplicate_of and item.profile_id in pass_rows and item.duplicate_of in pass_rows:
+            session.add(
+                CompositePassDuplicate(
+                    canonical_pass_id=pass_rows[item.duplicate_of].id,
+                    duplicate_pass_id=pass_rows[item.profile_id].id,
+                    similarity_score=float(item.similarity_score or 0.0),
+                    duplicate_type="near_duplicate",
+                )
+            )
 
 
 def _warning(project_id: int, warning: WarningRecord) -> ExtractionWarning:

@@ -12,6 +12,7 @@ from rollform_extractor.converter import stage_input
 from rollform_extractor.dxf_reader import inspect_drawing
 from rollform_extractor.metadata_import import import_metadata
 from rollform_extractor.pipeline import ExtractionRequest, extract_project, reprocess_project
+from rollform_extractor.review_apply import ReviewApplyError, apply_review_decisions
 from rollform_extractor.validation import validate_project
 
 
@@ -44,6 +45,9 @@ def main(argv: list[str] | None = None) -> int:
     import_metadata_cmd = sub.add_parser("import-metadata")
     import_metadata_cmd.add_argument("metadata", type=Path)
     import_metadata_cmd.add_argument("--master", type=Path, default=Path("master.sqlite"))
+    apply_review_cmd = sub.add_parser("apply-review")
+    apply_review_cmd.add_argument("project", type=Path)
+    apply_review_cmd.add_argument("decisions", type=Path)
     args = parser.parse_args(argv)
 
     if args.command == "inspect":
@@ -64,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, RuntimeError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 2
-        print(f"{summary.project_path} stations={summary.station_count} warnings={summary.warning_count}")
+        print(f"{summary.project_path} drawing_stages={summary.station_count} warnings={summary.warning_count}")
         return 0
     if args.command == "review":
         path = args.project / "review" / "review_queue.json"
@@ -72,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "reprocess":
         summary = reprocess_project(args.project, args.config)
-        print(f"{summary.project_path} stations={summary.station_count} warnings={summary.warning_count}")
+        print(f"{summary.project_path} drawing_stages={summary.station_count} warnings={summary.warning_count}")
         return 0
     if args.command == "validate":
         report = validate_project(args.project)
@@ -101,4 +105,12 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(f"imported={summary.imported} unmatched={len(summary.unmatched)} conflicts={len(summary.conflicts)}")
         return 0 if not summary.unmatched and not summary.conflicts else 1
+    if args.command == "apply-review":
+        try:
+            path = apply_review_decisions(args.project, args.decisions)
+        except (OSError, json.JSONDecodeError, ReviewApplyError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(path)
+        return 0
     return 2

@@ -7,7 +7,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from rollform_extractor.models import BBox, CadEntityRecord, StationRecord, WarningRecord
+from rollform_extractor.models import BBox, CadEntityRecord, STAGE_TYPES, StationRecord, WarningRecord
 
 
 SCHEMA_VERSION = 1
@@ -28,6 +28,7 @@ VALID_ROLLER_ROLES = {
     "distance-ring",
     "unidentified",
 }
+VALID_STAGE_TYPES = STAGE_TYPES
 
 
 class OverrideValidationError(ValueError):
@@ -39,6 +40,9 @@ class StationOverride:
     sequence_index: int
     bbox: BBox
     station_id: str | None = None
+    sequence_id: int = 1
+    stage_type: str = "UNCLASSIFIED"
+    confirmed: bool = False
     source_handles: tuple[str, ...] = ()
 
 
@@ -46,6 +50,7 @@ class StationOverride:
 class ManualOverrides:
     schema_version: int = SCHEMA_VERSION
     units: str | None = None
+    drawing_units: Mapping[str, Any] = field(default_factory=dict)
     station_boxes: tuple[StationOverride, ...] = ()
     profile_handles: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     roller_handles: Mapping[str, Mapping[str, tuple[str, ...]]] = field(default_factory=dict)
@@ -61,6 +66,16 @@ def load_overrides(path: Path, known_handles: set[str]) -> ManualOverrides:
     if data.get("schema_version") != SCHEMA_VERSION:
         raise OverrideValidationError(f"schema_version must be {SCHEMA_VERSION}")
     units = data.get("units")
+    drawing_units = data.get("drawing_units", {})
+    if drawing_units:
+        if not isinstance(drawing_units, Mapping):
+            raise OverrideValidationError("drawing_units must be an object")
+        engineer_unit = drawing_units.get("engineer_confirmed_unit")
+        if engineer_unit is not None and str(engineer_unit).lower() not in VALID_UNITS:
+            raise OverrideValidationError(f"invalid engineer_confirmed_unit: {engineer_unit}")
+        if drawing_units.get("confirmed") and engineer_unit is None:
+            raise OverrideValidationError("confirmed drawing_units requires engineer_confirmed_unit")
+        units = engineer_unit or units
     if units is not None and str(units).lower() not in VALID_UNITS:
         raise OverrideValidationError(f"invalid units: {units}")
     configuration_snapshot = data.get("configuration_snapshot", {})
@@ -69,7 +84,12 @@ def load_overrides(path: Path, known_handles: set[str]) -> ManualOverrides:
 
     stations = tuple(_station_override(item, known_handles) for item in _list(data, "stations"))
     _validate_station_order(stations)
-    station_keys = {str(station.sequence_index) for station in stations}
+    station_keys = {
+        key
+        for station in stations
+        for key in {str(station.sequence_index), _stage_key(station.sequence_id, station.sequence_index), station.station_id or ""}
+        if key
+    }
     profile_handles = _handle_map(data.get("profile_handles", {}), known_handles, station_keys)
     roller_handles = _roller_map(data.get("roller_handles", {}), known_handles, station_keys)
     _validate_ownership(stations, profile_handles, roller_handles)
@@ -77,6 +97,7 @@ def load_overrides(path: Path, known_handles: set[str]) -> ManualOverrides:
     return ManualOverrides(
         schema_version=SCHEMA_VERSION,
         units=units,
+        drawing_units=drawing_units,
         station_boxes=stations,
         profile_handles=profile_handles,
         roller_handles=roller_handles,
@@ -91,9 +112,10 @@ def apply_station_overrides(
     records = tuple(entities)
     stations: list[StationRecord] = []
     bbox_owners: dict[str, str] = {}
-    for override in sorted(overrides.station_boxes, key=lambda station: station.sequence_index):
+    multi_sequence = len({station.sequence_id for station in overrides.station_boxes}) > 1
+    for override in sorted(overrides.station_boxes, key=lambda station: (station.sequence_id, station.sequence_index)):
         handles = set(override.source_handles)
-        station_key = str(override.sequence_index)
+        station_key = _stage_key(override.sequence_id, override.sequence_index)
         for entity in records:
             if entity.bbox is not None and _intersects(entity.bbox, override.bbox):
                 owner = bbox_owners.setdefault(entity.handle, station_key)
@@ -102,12 +124,12 @@ def apply_station_overrides(
                         f"entity handle assigned to multiple stations: {entity.handle}"
                     )
                 handles.add(entity.handle)
-        handles.update(overrides.profile_handles.get(station_key, ()))
-        for role_handles in overrides.roller_handles.get(station_key, {}).values():
+        handles.update(_profile_override_handles(overrides, override))
+        for role_handles in _roller_override_handles(overrides, override).values():
             handles.update(role_handles)
         stations.append(
             StationRecord(
-                station_id=override.station_id or f"S{override.sequence_index}",
+                station_id=override.station_id or (f"Q{override.sequence_id}_S{override.sequence_index}" if multi_sequence else f"S{override.sequence_index}"),
                 sequence_index=override.sequence_index,
                 bbox=override.bbox,
                 source_handles=tuple(sorted(handles)),
@@ -117,6 +139,13 @@ def apply_station_overrides(
                 evidence={
                     "schema_version": overrides.schema_version,
                     "units": overrides.units,
+                    "drawing_units": dict(overrides.drawing_units),
+                    "sequence_id": override.sequence_id,
+                    "region_type": override.stage_type,
+                    "stage_type": override.stage_type,
+                    "confirmed": override.confirmed,
+                    "confirmation_status": "confirmed" if override.confirmed else "candidate",
+                    "machine_tooling_station": override.confirmed and override.stage_type in {"FORMING_STATION", "CALIBRATION_STATION"},
                     "configuration_snapshot": dict(overrides.configuration_snapshot),
                 },
             )
@@ -174,17 +203,27 @@ def _station_override(data: Any, known_handles: set[str]) -> StationOverride:
         raise OverrideValidationError("station sequence_index must be an integer")
     if sequence_index <= 0:
         raise OverrideValidationError("station sequence_index must be positive")
-    bbox = _bbox(data.get("bbox"))
+    sequence_id = int(data.get("sequence_id", 1))
+    if sequence_id <= 0:
+        raise OverrideValidationError("station sequence_id must be positive")
+    stage_type = str(data.get("stage_type", "UNCLASSIFIED")).upper()
+    if stage_type not in VALID_STAGE_TYPES:
+        raise OverrideValidationError(f"invalid stage_type: {stage_type}")
+    confirmed = bool(data.get("confirmed", True))
+    bbox = _bbox(data.get("bbox"), require_positive=confirmed)
     handles = _known_handles(data.get("source_handles", []), known_handles)
     return StationOverride(
         sequence_index=sequence_index,
         bbox=bbox,
         station_id=str(data["station_id"]) if data.get("station_id") else None,
+        sequence_id=sequence_id,
+        stage_type=stage_type,
+        confirmed=confirmed,
         source_handles=handles,
     )
 
 
-def _bbox(data: Any) -> BBox:
+def _bbox(data: Any, require_positive: bool = True) -> BBox:
     if not isinstance(data, dict):
         raise OverrideValidationError("station bbox must be an object")
     try:
@@ -196,7 +235,7 @@ def _bbox(data: Any) -> BBox:
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise OverrideValidationError("station bbox coordinates must be numeric") from exc
-    if box.max_x <= box.min_x or box.max_y <= box.min_y:
+    if require_positive and (box.max_x <= box.min_x or box.max_y <= box.min_y):
         raise OverrideValidationError("station bbox must have positive area")
     return box
 
@@ -209,11 +248,12 @@ def _list(data: Mapping[str, Any], key: str) -> list[Any]:
 
 
 def _validate_station_order(stations: tuple[StationOverride, ...]) -> None:
-    seen: set[int] = set()
+    seen: set[tuple[int, int]] = set()
     for station in stations:
-        if station.sequence_index in seen:
-            raise OverrideValidationError(f"duplicate station sequence: {station.sequence_index}")
-        seen.add(station.sequence_index)
+        key = (station.sequence_id, station.sequence_index)
+        if key in seen:
+            raise OverrideValidationError(f"duplicate station sequence: {station.sequence_id}.{station.sequence_index}")
+        seen.add(key)
 
 
 def _handle_map(
@@ -253,6 +293,24 @@ def _validate_station_key(station_key: str, station_keys: set[str]) -> None:
         raise OverrideValidationError(f"unknown station reference: {station_key}")
 
 
+def _stage_key(sequence_id: int, sequence_index: int) -> str:
+    return f"sequence_{sequence_id:02d}_stage_{sequence_index:02d}"
+
+
+def _profile_override_handles(overrides: ManualOverrides, station: StationOverride) -> tuple[str, ...]:
+    for key in (_stage_key(station.sequence_id, station.sequence_index), station.station_id or "", str(station.sequence_index)):
+        if key and key in overrides.profile_handles:
+            return tuple(overrides.profile_handles[key])
+    return ()
+
+
+def _roller_override_handles(overrides: ManualOverrides, station: StationOverride) -> Mapping[str, tuple[str, ...]]:
+    for key in (_stage_key(station.sequence_id, station.sequence_index), station.station_id or "", str(station.sequence_index)):
+        if key and key in overrides.roller_handles:
+            return overrides.roller_handles[key]
+    return {}
+
+
 def _known_handles(handles: Any, known_handles: set[str]) -> tuple[str, ...]:
     if not isinstance(handles, list):
         raise OverrideValidationError("handle assignments must be lists")
@@ -270,7 +328,7 @@ def _validate_ownership(
 ) -> None:
     owners: dict[str, str] = {}
     for station in stations:
-        _claim(owners, station.source_handles, str(station.sequence_index))
+        _claim(owners, station.source_handles, _stage_key(station.sequence_id, station.sequence_index))
     for station, handles in profile_handles.items():
         _claim(owners, handles, station)
     for station, roles in roller_handles.items():

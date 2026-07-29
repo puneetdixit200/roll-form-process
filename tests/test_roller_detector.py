@@ -51,8 +51,7 @@ def test_subrollers_remain_separate_and_receive_profile_relative_roles(profile_a
 def test_profile_only_station_still_creates_empty_assembly(profile_only_station):
     result = detect_rollers(*profile_only_station, overrides=None)
 
-    assert len(result.assemblies) == 1
-    assert result.assemblies[0].tooling_status == "unavailable"
+    assert result.assemblies == ()
 
 
 def test_concentric_circles_capture_outer_bore_keyway_and_annotation():
@@ -175,6 +174,24 @@ def test_arc_only_rotational_outlines_are_detected_as_rollers():
     assert result.rollers[0].evidence["bore_diameter_mm"] == 8.0
 
 
+def test_polyline_tooling_outline_becomes_low_confidence_review_candidate():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, 0, 100, 80), ("P1", "RBOX"))
+    profile = _profile(station, BBox(30, 30, 70, 35), ("P1",))
+    entities = (
+        _line("P1", (30, 32), (70, 32), layer="PROFILE"),
+        _polyline("RBOX", ((25, 45), (75, 45), (75, 65), (25, 65)), layer="0-CAD-polyline"),
+    )
+
+    result = detect_rollers((station,), (profile,), entities, config)
+
+    assert len(result.rollers) == 1
+    assert result.rollers[0].method == "roller_polyline_candidate"
+    assert result.rollers[0].role is None
+    assert result.rollers[0].evidence["candidate_role"] == "upper_centre"
+    assert result.manual_review_required is True
+
+
 def _station(station_id, sequence, bbox, handles):
     return StationRecord(
         station_id=station_id,
@@ -263,5 +280,24 @@ def _text(handle, text, insert, *, layer="ROLLER"):
         bbox=BBox(insert[0], insert[1], insert[0], insert[1]),
         normalized_primitives=(primitive,),
         sampled_geometry=((*insert, 0.0),),
+        source_handles=(handle,),
+    )
+
+
+def _polyline(handle, points, *, layer="0"):
+    vertices = tuple({"point": (*point, 0.0), "bulge": 0.0, "start_width": 0.0, "end_width": 0.0} for point in points)
+    primitive = CadPrimitive(kind="LWPOLYLINE", attributes={"vertices": vertices, "closed": True}, source_handle=handle)
+    xs = [point[0] for point in points]
+    ys = [point[1] for point in points]
+    return CadEntityRecord(
+        handle=handle,
+        entity_type="LWPOLYLINE",
+        layer=layer,
+        color=3,
+        line_type="CONTINUOUS",
+        layout="Model",
+        bbox=BBox(min(xs), min(ys), max(xs), max(ys)),
+        normalized_primitives=(primitive,),
+        sampled_geometry=tuple((*point, 0.0) for point in points),
         source_handles=(handle,),
     )

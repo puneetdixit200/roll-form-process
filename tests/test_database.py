@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from sqlalchemy import func, inspect, select
+from sqlalchemy import func, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -22,6 +23,7 @@ from rollform_extractor.database import (
     persist_extraction,
     record_stage,
 )
+from rollform_extractor.composite_flower import build_composite_flowers
 from rollform_extractor.models import (
     BBox,
     CadEntityRecord,
@@ -56,6 +58,16 @@ REQUIRED_PROJECT_TABLES = {
     "result_provenance",
     "project_codes",
     "project_metadata",
+    "composite_flowers",
+    "composite_flower_passes",
+    "composite_pass_entities",
+    "composite_pass_duplicates",
+    "composite_pass_profile_links",
+    "flower_bend_progression",
+    "composite_station_links",
+    "profile_step_changes",
+    "bend_change_events",
+    "segment_change_events",
 }
 
 
@@ -149,6 +161,45 @@ def test_persist_extraction_separates_geometry_and_records_provenance(tmp_path):
     }
 
 
+def test_persist_extraction_stores_composite_flower_passes_and_entities(tmp_path):
+    engine = create_project_database(tmp_path / "project.sqlite")
+    bundle = _bundle(
+        profiles=(
+            ProfileRecord(
+                "S1-CF01",
+                "S1",
+                ("10",),
+                "composite_flower_detector",
+                "profile-hash",
+                0.82,
+                {
+                    "exact_length": 25.4,
+                    "bbox": BBox(0, 0, 25.4, 0),
+                    "profile_state": "CENTERLINE_PROFILE",
+                    "composite_pass_index": 0,
+                    "composite_pass_count": 1,
+                },
+            ),
+        )
+    )
+    composite_flowers = build_composite_flowers(bundle.stations, bundle.profiles, bundle.entities)
+
+    persist_extraction(engine, replace(bundle, composite_flowers=composite_flowers))
+
+    with engine.connect() as connection:
+        flower_count = connection.scalar(text("select count(*) from composite_flowers"))
+        pass_count = connection.scalar(text("select count(*) from composite_flower_passes"))
+        entity_count = connection.scalar(text("select count(*) from composite_pass_entities"))
+        step_change_count = connection.scalar(text("select count(*) from profile_step_changes"))
+        thickness_method = connection.scalar(text("select thickness_method from composite_flower_passes limit 1"))
+
+    assert flower_count == 1
+    assert pass_count == 1
+    assert entity_count == 1
+    assert step_change_count == 0
+    assert thickness_method is not None
+
+
 def test_failed_child_insert_keeps_failed_run_diagnostic(tmp_path):
     engine = create_project_database(tmp_path / "project.sqlite")
 
@@ -230,7 +281,6 @@ def test_failed_stage_and_run_keep_diagnostics(tmp_path):
     assert stage.configuration_hash == "conversion-hash"
     assert stage.diagnostics_json == {"warnings": [{"code": "conversion_failed", "message": "converter exited 1"}]}
     assert [(warning.code, warning.message) for warning in warnings] == [
-        ("conversion_failed", "converter exited 1"),
         ("conversion_failed", "converter exited 1"),
     ]
 

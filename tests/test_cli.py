@@ -37,6 +37,7 @@ def test_documented_commands_have_help(capsys):
         "batch-validate",
         "batch-report",
         "import-metadata",
+        "apply-review",
     )
 
     for command in commands:
@@ -55,7 +56,7 @@ def test_cli_extract_and_validate_return_zero(tmp_path, capsys):
     assert main(["validate", str(out / "flower")]) == 0
 
     output = capsys.readouterr().out
-    assert "stations=3" in output
+    assert "drawing_stages=3" in output
     assert "valid" in output
 
 
@@ -97,6 +98,39 @@ def test_cli_reprocess_accepts_config_path(tmp_path):
     assert main(["reprocess", str(out / "flower"), "--config", str(config)]) == 0
     data = json.loads((out / "flower" / "project.json").read_text(encoding="utf-8"))
     assert data["configuration_snapshot"]["stations"]["minimum_confidence"] == 0.95
+
+
+def test_cli_apply_review_stores_decisions_and_regenerates_report(tmp_path):
+    source = make_flower_dxf(tmp_path / "flower.dxf", station_count=2, labels=True)
+    out = tmp_path / "out"
+    main(["extract", str(source), str(out)])
+    decisions = tmp_path / "manual_review_decisions.json"
+    decisions.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "drawing_units": {
+                    "detected_unit": "Unitless",
+                    "engineer_confirmed_unit": "Millimetres",
+                    "conversion_factor_to_mm": 1.0,
+                    "confirmed_by": "test_engineer",
+                    "confirmed_at": "2026-07-29T00:00:00Z",
+                    "notes": "test confirmation",
+                },
+                "composite_passes": [
+                    {"pass_id": "pass_00_flat", "confirmed": True, "confirmed_order": 0, "notes": "flat ok"},
+                    {"pass_id": "pass_01", "confirmed": True, "confirmed_order": 1, "notes": "pass ok"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert main(["apply-review", str(out / "flower"), str(decisions)]) == 0
+    applied = json.loads((out / "flower" / "review" / "applied_review.json").read_text(encoding="utf-8"))
+
+    assert applied["drawing_units"]["engineer_confirmed_unit"] == "Millimetres"
+    assert "manual_review_decisions" in (out / "flower" / "report_data.json").read_text(encoding="utf-8")
 
 
 def test_cli_import_metadata_uses_master_database(tmp_path, capsys):

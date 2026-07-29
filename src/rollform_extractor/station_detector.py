@@ -54,10 +54,11 @@ def detect_stations(
     overrides=None,
 ) -> StationDetectionResult:
     config_hash = config.hash_for("station_detection")
-    if overrides is not None and getattr(overrides, "station_boxes", ()):
+    if overrides is not None and any(station.confirmed for station in getattr(overrides, "station_boxes", ())):
         stations = tuple(
             DetectedStation(station, station.station_id, False)
             for station in apply_station_overrides(entities, overrides)
+            if station.evidence.get("confirmed")
         )
         return StationDetectionResult(stations, (), "station_detector", config_hash, False)
 
@@ -66,16 +67,22 @@ def detect_stations(
     geometry_candidates = _geometry_candidates(records, config.stations.cluster_gap_factor)
     block_candidates = _block_candidates(records)
     candidates = _choose_candidates(labels, block_candidates, geometry_candidates, config.stations.label_search_radius_mm)
-    labelled, warnings = _attach_labels(candidates, labels, config.stations.label_search_radius_mm, config_hash)
-    ordered = _order(labelled)
-    sequences = _sequences(ordered)
-    stations = tuple(
-        _station(sequence, fallback, candidate, label, conflict, config, config_hash)
-        for fallback, (sequence, (candidate, label, conflict)) in enumerate(zip(sequences, ordered), start=1)
-    )
+    stations: list[DetectedStation] = []
+    warnings: list[WarningRecord] = []
+    groups = _sequence_groups(candidates)
+    fallback = 1
+    for sequence_id, group in enumerate(groups, start=1):
+        group_labels = tuple(label for label in labels if _box_distance(_union(candidate.bbox for candidate in group), label.bbox) <= config.stations.label_search_radius_mm)
+        labelled, group_warnings = _attach_labels(group, group_labels, config.stations.label_search_radius_mm, config_hash)
+        ordered = _order(labelled)
+        sequences = _sequences(ordered)
+        for sequence, (candidate, label, conflict) in zip(sequences, ordered):
+            stations.append(_station(sequence_id, len(groups), sequence, fallback, candidate, label, conflict, config, config_hash))
+            fallback += 1
+        warnings.extend(group_warnings)
     return StationDetectionResult(
-        stations=stations,
-        warnings=warnings,
+        stations=tuple(stations),
+        warnings=tuple(warnings),
         method="station_detector",
         configuration_hash=config_hash,
         manual_review_required=any(station.manual_review_required for station in stations) or bool(warnings),
@@ -161,6 +168,26 @@ def _geometry_candidates(entities: tuple[CadEntityRecord, ...], gap_factor: floa
     return tuple(candidates)
 
 
+def _sequence_groups(candidates: tuple[_Candidate, ...]) -> tuple[tuple[_Candidate, ...], ...]:
+    if len(candidates) <= 2:
+        return (candidates,) if candidates else ()
+    ordered = sorted(candidates, key=lambda candidate: _center(candidate.bbox)[0])
+    centers_x = [_center(candidate.bbox)[0] for candidate in ordered]
+    positive_gaps = sorted(
+        gap for left, right in zip(centers_x, centers_x[1:]) if (gap := right - left) > 1e-6
+    )
+    typical_gap = positive_gaps[0] if len(positive_gaps) > 1 else 0.0
+    threshold = max(typical_gap * 2.5, 120.0)
+    groups: list[list[_Candidate]] = [[ordered[0]]]
+    previous_x = centers_x[0]
+    for candidate, x in zip(ordered[1:], centers_x[1:]):
+        if x - previous_x > threshold:
+            groups.append([])
+        groups[-1].append(candidate)
+        previous_x = x
+    return tuple(tuple(group) for group in groups)
+
+
 def _adaptive_gap(boxes: tuple[BBox, ...], gap_factor: float) -> float:
     sizes = sorted(max(box.max_x - box.min_x, box.max_y - box.min_y) for box in boxes)
     if not sizes:
@@ -244,6 +271,8 @@ def _next_free_sequence(used: set[int]) -> int:
 
 
 def _station(
+    sequence_id: int,
+    sequence_count: int,
     sequence: int,
     fallback: int,
     candidate: _Candidate,
@@ -255,21 +284,25 @@ def _station(
     unlabelled = label is None
     review = unlabelled or conflict
     confidence = 0.9 if label is not None and not conflict else 0.55
+    method = "station_detector"
     if confidence < config.stations.minimum_confidence:
         review = True
+        method = "station_candidate"
     drawing_label = label.text if label is not None else f"Station_Unknown_{fallback}"
     record = StationRecord(
-        station_id=f"S{sequence}",
+        station_id=f"S{sequence}" if sequence_count == 1 else f"Q{sequence_id}_S{sequence}",
         sequence_index=sequence,
         bbox=candidate.bbox,
         source_handles=candidate.source_handles,
-        method="station_detector",
+        method=method,
         configuration_hash=config_hash,
         confidence=confidence,
         evidence={
             "candidate_method": candidate.method,
             "drawing_label": drawing_label,
             "manual_review_required": review,
+            "sequence_id": sequence_id,
+            "confirmed": method == "station_detector",
         },
     )
     return DetectedStation(record, drawing_label, review)

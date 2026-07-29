@@ -94,11 +94,23 @@ def test_non_integer_station_sequence_is_rejected(parsed_flower, tmp_path, seque
 def test_invalid_station_box_is_rejected(parsed_flower, tmp_path):
     path = write_overrides(
         tmp_path,
-        raw_station_boxes=[{"sequence_index": 1, "bbox": _box_json(BBox(0, 0, 0, 1))}],
+        raw_station_boxes=[{"sequence_index": 1, "bbox": _box_json(BBox(0, 0, 0, 1)), "confirmed": True}],
     )
 
     with pytest.raises(OverrideValidationError, match="positive area"):
         load_overrides(path, parsed_flower.handles)
+
+
+def test_unconfirmed_review_template_can_contain_zero_area_candidate_bbox(parsed_flower, tmp_path):
+    path = write_overrides(
+        tmp_path,
+        raw_station_boxes=[{"sequence_index": 1, "bbox": _box_json(BBox(0, 0, 0, 1)), "confirmed": False}],
+    )
+
+    overrides = load_overrides(path, parsed_flower.handles)
+
+    assert overrides.station_boxes[0].bbox == BBox(0, 0, 0, 1)
+    assert not overrides.station_boxes[0].confirmed
 
 
 def test_conflicting_handle_ownership_is_rejected(parsed_flower, tmp_path):

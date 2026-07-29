@@ -108,6 +108,32 @@ def test_profile_only_station_can_extract_profile_without_rollers(station_with_t
     assert result.profiles[0].source_handles == ("A1", "A2", "A3")
 
 
+def test_single_long_horizontal_reference_line_is_not_confirmed_profile():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, -20, 200, 20), ("SHAFT", "P1", "P2", "P3"))
+    entities = (
+        _line("SHAFT", (0, 12), (200, 12), layer="0"),
+        _line("P1", (40, 0), (50, 2), layer="PROFILE"),
+        _line("P2", (50, 2), (60, 0), layer="PROFILE"),
+        _line("P3", (60, 0), (70, 1), layer="PROFILE"),
+    )
+
+    result = detect_profiles((station,), entities, config)
+
+    assert result.profiles[0].source_handles == ("P1", "P2", "P3")
+    assert "SHAFT" not in result.profiles[0].source_handles
+
+
+def test_only_single_horizontal_line_becomes_review_candidate_not_profile():
+    config = ExtractionConfig.load()
+    station = _station("S1", 1, BBox(0, 0, 200, 10), ("H1",))
+    result = detect_profiles((station,), (_line("H1", (0, 0), (200, 0), layer="0"),), config)
+
+    assert result.profiles == ()
+    assert result.manual_review_required is True
+    assert result.warnings[0].code == "profile_candidate_requires_review"
+
+
 def test_arc_connected_to_line_stays_in_same_profile_chain():
     config = ExtractionConfig.load()
     station = _station("S1", 1, BBox(0, 0, 15, 5), ("L1", "A1"))

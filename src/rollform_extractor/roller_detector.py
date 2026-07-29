@@ -75,6 +75,8 @@ def detect_rollers(
     rollers: list[RollerOccurrenceRecord] = []
 
     for station in station_records:
+        if station.evidence.get("region_type") == "COMPOSITE_FLOWER" or station.evidence.get("stage_type") == "COMPOSITE_FLOWER":
+            continue
         used_handles: set[str] = set()
         manual = _manual_candidates(station, entity_records, config_hash, overrides)
         for candidate in manual:
@@ -97,7 +99,11 @@ def detect_rollers(
         handles = tuple(handle for roller in rollers if roller.evidence.get("identifier") in duplicate_ids for handle in roller.source_handles)
         warnings.append(_warning("duplicate_roller_identifier", "duplicate roller identifiers were detected", handles, config_hash, 0.5))
 
-    assemblies = tuple(_assembly(station, tuple(roller for roller in rollers if roller.station_id == station.station_id), config_hash) for station in station_records)
+    assemblies = tuple(
+        _assembly(station, tuple(roller for roller in rollers if roller.station_id == station.station_id and roller.role), config_hash)
+        for station in station_records
+        if _confirmed_tooling_stage(station)
+    )
     review_warnings = tuple(warning for warning in warnings if warning.code != "rollers_missing")
     return RollerDetectionResult(
         rollers=tuple(rollers),
@@ -112,8 +118,7 @@ def detect_rollers(
 def _manual_candidates(station: StationRecord, entities: tuple[CadEntityRecord, ...], config_hash: str, overrides) -> tuple[_Candidate, ...]:
     if overrides is None:
         return ()
-    key = str(station.sequence_index or station.station_id.removeprefix("S"))
-    role_map = getattr(overrides, "roller_handles", {}).get(key, {})
+    role_map = _manual_role_map(station, getattr(overrides, "roller_handles", {}))
     by_handle = {handle: entity for entity in entities for handle in (entity.source_handles or (entity.handle,))}
     candidates = []
     for role, handles in role_map.items():
@@ -186,23 +191,76 @@ def _auto_candidates(
                 "roller_detector",
             )
         )
+    used_candidate_handles = {handle for candidate in candidates for handle in candidate.handles}
+    candidates.extend(_polyline_tooling_candidates(station, profile, station_entities, profile_handles | used_candidate_handles, texts))
     return tuple(candidates)
 
 
+def _polyline_tooling_candidates(
+    station: StationRecord,
+    profile: ProfileRecord | None,
+    entities: tuple[CadEntityRecord, ...],
+    used_handles: set[str],
+    texts: tuple[CadEntityRecord, ...],
+) -> list[_Candidate]:
+    result: list[_Candidate] = []
+    for entity in entities:
+        handles = set(_entity_handles(entity))
+        if entity.entity_type not in {"LWPOLYLINE", "POLYLINE"} or used_handles.intersection(handles):
+            continue
+        if not entity.bbox or not _tooling_outline(entity):
+            continue
+        center = _center(entity.bbox)
+        diameter = max(entity.bbox.max_x - entity.bbox.min_x, entity.bbox.max_y - entity.bbox.min_y)
+        nearby_text = tuple(_text(text) for text in texts if _distance(_center(text.bbox), center) <= max(diameter, 15.0))
+        result.append(
+            _Candidate(
+                station,
+                _relative_role(center, profile, station),
+                tuple(dict.fromkeys(_entity_handles(entity))),
+                center,
+                round(diameter, 6),
+                None,
+                False,
+                nearby_text,
+                _identifier(nearby_text),
+                0.6,
+                "roller_polyline_candidate",
+            )
+        )
+    return result
+
+
+def _tooling_outline(entity: CadEntityRecord) -> bool:
+    if entity.bbox is None:
+        return False
+    width = entity.bbox.max_x - entity.bbox.min_x
+    height = entity.bbox.max_y - entity.bbox.min_y
+    if width < 5.0 or height < 5.0:
+        return False
+    text = f"{entity.layer} {entity.line_type or ''}".lower()
+    if any(token in text for token in ("profile", "strip", "material", "flower")):
+        return False
+    return True
+
+
 def _roller(station: StationRecord, candidate: _Candidate, index: int, config_hash: str) -> RollerOccurrenceRecord:
+    accepted_role = candidate.role if candidate.confidence >= 0.65 or candidate.method == "manual_override" else None
     evidence = {
         "center": candidate.center,
         "outer_diameter_mm": candidate.outer_diameter,
         "bore_diameter_mm": candidate.bore_diameter,
         "keyway": candidate.keyway,
         "annotations": candidate.annotations,
+        "candidate_role": candidate.role,
+        "confirmation_status": "confirmed" if candidate.method == "manual_override" else "candidate",
     }
     if candidate.identifier:
         evidence["identifier"] = candidate.identifier
     return RollerOccurrenceRecord(
         occurrence_id=f"{station.station_id}-R{index}",
         station_id=station.station_id,
-        role=candidate.role,
+        role=accepted_role,
         source_handles=candidate.handles,
         method=candidate.method,
         configuration_hash=config_hash,
@@ -225,6 +283,23 @@ def _assembly(station: StationRecord, rollers: tuple[RollerOccurrenceRecord, ...
         confidence=min((roller.confidence for roller in rollers), default=0.0),
         evidence={"roller_count": len(rollers)},
     )
+
+
+def _confirmed_tooling_stage(station: StationRecord) -> bool:
+    return bool(station.evidence.get("confirmed")) and station.evidence.get("region_type", station.evidence.get("stage_type")) in {"FORMING_STATION", "CALIBRATION_STATION"}
+
+
+def _manual_role_map(station: StationRecord, mapping) -> Mapping[str, tuple[str, ...]]:
+    sequence_id = int(station.evidence.get("sequence_id") or 1)
+    keys = (
+        f"sequence_{sequence_id:02d}_stage_{station.sequence_index:02d}" if station.sequence_index else "",
+        station.station_id,
+        str(station.sequence_index or station.station_id.removeprefix("S")),
+    )
+    for key in keys:
+        if key and key in mapping:
+            return mapping[key]
+    return {}
 
 
 def _drawing_entities(entities: Iterable[CadEntityRecord]):

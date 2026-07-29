@@ -6,7 +6,7 @@ from PIL import Image
 
 from rollform_extractor.config import ExtractionConfig
 from rollform_extractor.entity_parser import parse_entities
-from rollform_extractor.preview import render_drawing_preview
+from rollform_extractor.preview import render_drawing_preview, render_manual_review_preview
 
 
 def test_full_drawing_preview_contains_non_background_pixels(tmp_path):
@@ -73,3 +73,15 @@ def test_bulged_polyline_preview_uses_sampled_curve_geometry(tmp_path):
     ink_by_row = np.count_nonzero(np.any(image != image[0, 0], axis=2), axis=1)
 
     assert np.count_nonzero(ink_by_row) > 8
+
+
+def test_manual_review_preview_draws_entity_handles(tmp_path):
+    doc = ezdxf.new("R2013", setup=True)
+    doc.modelspace().add_line((0, 0), (10, 0), dxfattribs={"layer": "PROFILE"})
+    parsed = parse_entities(doc, ExtractionConfig.load())
+
+    image_path = render_manual_review_preview(parsed.entities, tmp_path / "handles.png")
+    image = np.asarray(Image.open(image_path).convert("RGB"))
+
+    assert image_path.exists()
+    assert np.unique(image.reshape(-1, 3), axis=0).shape[0] > 4

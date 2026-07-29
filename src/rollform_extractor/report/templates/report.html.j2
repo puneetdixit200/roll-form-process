@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rollform Engineering Report - {{ title }}</title>
+  <style>{{ css }}</style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>{{ title }}</h1>
+      <p id="engineering-status">Candidate extraction - not approved for production use</p>
+    </div>
+    <nav>
+      <a href="#summary">Project Summary</a>
+      <a href="#flower-sequences">Flower Sequences</a>
+      <a href="#warnings">Warnings</a>
+    </nav>
+  </header>
+  <main>
+    <section id="summary" class="panel"></section>
+    <section id="flower-sequences" class="panel">
+      <h2>Flower Sequences</h2>
+      <div id="sequence-tabs" class="tabs"></div>
+      <div class="viewer-grid">
+        <aside id="sequence-navigator" class="navigator"></aside>
+        <section class="viewer-main">
+          <div class="controls">
+            <button data-action="first">First</button>
+            <button data-action="prev">Previous</button>
+            <strong id="step-label">Pass 00 of 00</strong>
+            <button data-action="next">Next</button>
+            <button data-action="last">Last</button>
+            <input id="sequence-slider" type="range" min="0" max="0" value="0">
+            <select id="pass-selector"></select>
+            <button data-action="play">Autoplay</button>
+            <select id="speed-selector">
+              <option value="1600">Slow</option>
+              <option value="900" selected>Normal</option>
+              <option value="450">Fast</option>
+            </select>
+            <button data-action="reset">Reset view</button>
+          </div>
+          <div class="mode-controls">
+            <button data-mode="single">Single-pass</button>
+            <button data-mode="previous-current">Previous-versus-current</button>
+            <button data-mode="overlay">Overlay</button>
+            <button data-mode="cumulative">Cumulative</button>
+            <button data-mode="complete">Complete-flower</button>
+            <button data-mode="original-normalized">Original-versus-normalized</button>
+            <button data-mode="strip-outline">Strip outline</button>
+            <button data-mode="neutral-line">Neutral line</button>
+            <button data-mode="bend-zones">Bend Zones</button>
+            <button data-mode="outline-neutral">Both overlaid</button>
+            <button data-action="export-review">Export Review Decisions</button>
+          </div>
+          <div class="zoom-controls">
+            <button data-action="zoom-in">Zoom in</button>
+            <button data-action="zoom-out">Zoom out</button>
+            <button data-action="fit">Fit to screen</button>
+            <span id="zoom-label">100%</span>
+          </div>
+          <div id="preview-panel" class="preview-panel"></div>
+          <div id="pass-cards" class="cards"></div>
+          <div id="comparison-panel" class="comparison"></div>
+          <div id="progression-panel" class="comparison"></div>
+        </section>
+        <aside id="engineering-panel" class="engineering-panel"></aside>
+      </div>
+    </section>
+    <section id="warnings" class="panel"></section>
+  </main>
+  <script id="report-data" type="application/json">{{ report_data_json }}</script>
+  <script>{{ js }}</script>
+</body>
+</html>

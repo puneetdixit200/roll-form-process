@@ -8,6 +8,7 @@ from pathlib import Path
 import ezdxf
 
 from rollform_extractor.config import ExtractionConfig
+from rollform_extractor.composite_flower import build_composite_flowers
 from rollform_extractor.converter import stage_input
 from rollform_extractor.database import ExtractionBundle, create_project_database, persist_extraction, record_stage
 from rollform_extractor.dxf_reader import inspect_drawing
@@ -17,6 +18,7 @@ from rollform_extractor.models import StageResult
 from rollform_extractor.profile_detector import detect_profiles
 from rollform_extractor.review import load_overrides
 from rollform_extractor.roller_detector import detect_rollers
+from rollform_extractor.stage_classifier import assign_stage_types, confirmed_transitions
 from rollform_extractor.station_detector import detect_stations
 from rollform_extractor.support_classifier import classify_support
 
@@ -48,10 +50,20 @@ def extract_project(request: ExtractionRequest) -> ExtractionSummary:
     overrides = _load_project_overrides(project_path, classified.entities)
     stations = detect_stations(classified.entities, inspection, config, overrides)
     profiles = detect_profiles(tuple(station.record for station in stations.stations), classified.entities, config, overrides)
-    rollers = detect_rollers(tuple(station.record for station in stations.stations), profiles.profiles, classified.entities, config, overrides)
-    warnings = parsed.warnings + stations.warnings + profiles.warnings + rollers.warnings
+    typed_for_rollers = assign_stage_types((station.record for station in stations.stations), profiles.profiles)
+    rollers = detect_rollers(typed_for_rollers, profiles.profiles, classified.entities, config, overrides)
+    typed_stations = assign_stage_types(typed_for_rollers, profiles.profiles, rollers.rollers)
+    warnings = _unique_warnings(parsed.warnings + stations.warnings + profiles.warnings + rollers.warnings)
     snapshot = config.snapshot()
-    snapshot["units"]["default"] = inspection.units
+    drawing_units = getattr(overrides, "drawing_units", {}) if overrides is not None else {}
+    confirmed_units = getattr(overrides, "units", None) if overrides is not None and drawing_units.get("confirmed") else None
+    snapshot["units"]["detected"] = inspection.units
+    snapshot["units"]["drawing_units"] = dict(drawing_units)
+    snapshot["units"]["confirmed"] = bool(drawing_units.get("confirmed"))
+    snapshot["units"]["default"] = confirmed_units if drawing_units.get("confirmed") else None
+    snapshot["units"]["conversion_factor_to_mm"] = drawing_units.get("conversion_factor_to_mm")
+    transitions = confirmed_transitions(typed_stations, profiles.profiles, config.hash_for("profile_detection"), bool(snapshot["units"]["confirmed"]))
+    composite_flowers = build_composite_flowers(typed_stations, profiles.profiles, classified.entities)
     bundle = ExtractionBundle(
         drawing_id=request.source.stem,
         source_path=request.source.resolve(),
@@ -62,9 +74,12 @@ def extract_project(request: ExtractionRequest) -> ExtractionSummary:
         configuration_hash=sha256(repr(snapshot).encode("utf-8")).hexdigest(),
         status="success",
         entities=classified.entities,
-        stations=tuple(station.record for station in stations.stations),
+        stations=typed_stations,
         profiles=profiles.profiles,
         roller_occurrences=rollers.rollers,
+        assemblies=rollers.assemblies,
+        transitions=transitions,
+        composite_flowers=composite_flowers,
         warnings=warnings,
     )
     manifest = export_project(bundle, request.output_root)
@@ -99,6 +114,17 @@ def _record_stages(engine, project_id: int, parsed, classified, stations, profil
     ):
         handles = tuple(handle for record in records for handle in getattr(record, "source_handles", ()))
         record_stage(engine, project_id, StageResult(stage, tuple(records), tuple(warnings), handles, method, config_hash, confidence))
+
+
+def _unique_warnings(warnings):
+    seen = set()
+    result = []
+    for warning in warnings:
+        key = (warning.code, tuple(sorted(warning.source_handles)), warning.method, warning.configuration_hash)
+        if key not in seen:
+            seen.add(key)
+            result.append(warning)
+    return tuple(result)
 
 
 def _sha256(path: Path) -> str:

@@ -143,3 +143,91 @@ Gold-standard benchmark fixtures are described in `benchmarks/README.md` and
 validated against `benchmarks/schema.json`. Use benchmark output as an accuracy
 report; provisional dimensional limits require roll-forming engineer approval
 before becoming release gates.
+
+## Offline Web Application
+
+The local web app keeps the deterministic Python extraction engine as the source
+of truth. The React frontend calls the FastAPI backend; CAD and geometry
+algorithms are not reimplemented in JavaScript.
+
+Install backend dependencies:
+
+```bash
+python -m pip install -e .
+python -m pip install fastapi uvicorn python-multipart
+```
+
+Install frontend dependencies:
+
+```bash
+cd frontend
+npm install
+```
+
+Start backend:
+
+```bash
+PYTHONPATH=src uvicorn backend.api.main:app --host 127.0.0.1 --port 8000
+```
+
+Start frontend:
+
+```bash
+cd frontend
+VITE_API_ROOT=http://127.0.0.1:8000 npm run dev
+```
+
+Open `http://127.0.0.1:5173`. Normal use has no internet dependency after
+dependencies are installed.
+
+Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+The web workflow accepts one `.dwg` or `.dxf`, copies the original to immutable
+project source storage, starts an asynchronous analysis job, streams job status
+with Server-Sent Events, writes SQLite/project artifacts, and displays the
+generated report data in the frontend.
+
+Required web screens are implemented as dashboard sections:
+
+```text
+Dashboard
+New Project / Upload
+Processing Progress
+Project Summary
+Flower Viewer
+Pass Detail
+What Changed
+Bend-Zone Progression
+Warnings
+Engineer Review
+Exports
+```
+
+Engineer review decisions are exported as versioned
+`manual_review_decisions.json` files and applied through the backend without
+marking unrelated candidate records as confirmed.
+
+ZIP export is available from:
+
+```text
+GET /api/projects/{project_id}/exports/package.zip
+```
+
+Pilot acceptance for `D0064-D0065-FlowerSequence` currently shows:
+
+```text
+Composite flowers:        1 candidate
+Candidate passes:        12
+Canonical bend zones:     4
+Profile step changes:    11
+Bend change events:      36
+Segment change events:   47
+Confirmed transitions:    0
+Units:                    unconfirmed
+Neutral length error:     0.0 percent for every pass
+Review item:              Pass 03 -> Pass 04 unresolved
+```

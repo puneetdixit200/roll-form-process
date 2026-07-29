@@ -6,6 +6,22 @@ from types import MappingProxyType
 from typing import Any, Mapping
 
 
+STAGE_TYPES = {
+    "REFERENCE_GEOMETRY",
+    "FLAT_STRIP",
+    "FLOWER_PROFILE",
+    "FORMING_STATION",
+    "CALIBRATION_STATION",
+    "FINAL_PROFILE",
+    "ROLLER_DETAIL",
+    "TOOLING_ASSEMBLY_DETAIL",
+    "COMPOSITE_FLOWER",
+    "MACHINE_LAYOUT",
+    "UNKNOWN",
+    "UNCLASSIFIED",
+}
+
+
 @dataclass(frozen=True)
 class BBox:
     min_x: float
@@ -120,6 +136,21 @@ class RollerOccurrenceRecord:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "evidence", _freeze(self.evidence))
+
+
+@dataclass(frozen=True)
+class StationTransitionRecord:
+    from_station_id: str
+    to_station_id: str
+    sequence_id: int
+    measurements: Mapping[str, Any]
+    source_handles: tuple[str, ...]
+    method: str
+    configuration_hash: str
+    confidence: float
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "measurements", _freeze(self.measurements))
 
 
 @dataclass(frozen=True)

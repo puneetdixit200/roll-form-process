@@ -37,6 +37,7 @@ SUPPORTED_TYPES = {
 def parse_entities(doc, config: ExtractionConfig) -> ParseResult:
     config_hash = config.hash_for("parsing")
     warnings: list[WarningRecord] = []
+    missing_blocks: set[str] = set()
     entities = [
         _record_entity(
             entity,
@@ -55,7 +56,7 @@ def parse_entities(doc, config: ExtractionConfig) -> ParseResult:
         for entity in layout:
             if entity.dxftype() == "INSERT":
                 expanded.extend(
-                    _expand_insert(entity, doc, layout.name, np.identity(4), (), (), config, config_hash, warnings)
+                    _expand_insert(entity, doc, layout.name, np.identity(4), (), (), config, config_hash, warnings, missing_blocks)
                 )
     return ParseResult(
         entities=tuple(entities),
@@ -76,6 +77,7 @@ def _expand_insert(
     config: ExtractionConfig,
     config_hash: str,
     warnings: list[WarningRecord],
+    missing_blocks: set[str],
 ) -> tuple[CadEntityRecord, ...]:
     matrix = compose_insert_matrix(insert, parent_matrix)
     name = str(insert.dxf.name)
@@ -84,12 +86,14 @@ def _expand_insert(
     try:
         block = doc.blocks[name]
     except Exception as exc:
-        warnings.append(_warning("missing_block", str(exc), (insert.dxf.handle,), config_hash))
+        if name not in missing_blocks:
+            missing_blocks.add(name)
+            warnings.append(_warning("missing_block", f"missing block definition {name}; preserved INSERT {insert.dxf.handle} with insertion-point/proxy extents", (insert.dxf.handle,), config_hash))
         return ()
     records: list[CadEntityRecord] = []
     for entity in block:
         if entity.dxftype() == "INSERT":
-            records.extend(_expand_insert(entity, doc, layout, matrix, path, occurrence_path, config, config_hash, warnings))
+            records.extend(_expand_insert(entity, doc, layout, matrix, path, occurrence_path, config, config_hash, warnings, missing_blocks))
         else:
             records.append(_record_entity(entity, layout, matrix, path, config, config_hash, warnings, occurrence_path))
     return tuple(records)

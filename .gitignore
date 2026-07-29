@@ -5,3 +5,7 @@ __pycache__/
 *.py[cod]
 .venv/
 output/
+web-workspace*/
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo

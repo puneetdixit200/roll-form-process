@@ -5,6 +5,7 @@ numpy
 openpyxl
 pandas
 pillow
+python-multipart
 pytest
 pyyaml
 scipy
