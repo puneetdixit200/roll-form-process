@@ -4,8 +4,46 @@ import csv
 import sqlite3
 
 from rollform_extractor.batch import _create_master_schema
+from rollform_extractor.converter import ConversionResult
+import rollform_extractor.cli as cli
 from rollform_extractor.cli import main
 from tests.cad_factory import make_flower_dxf
+
+
+def test_cli_inspect_stages_source_before_reading(tmp_path, monkeypatch, capsys):
+    converted = make_flower_dxf(tmp_path / "converted.dxf", station_count=1, labels=True)
+    source = tmp_path / "source.dwg"
+    source.write_bytes(b"AC1027")
+
+    monkeypatch.setattr(
+        cli,
+        "stage_input",
+        lambda source_path, destination: ConversionResult(source_path, converted, "stub"),
+    )
+
+    assert main(["inspect", str(source)]) == 0
+    assert '"layouts"' in capsys.readouterr().out
+
+
+def test_documented_commands_have_help(capsys):
+    commands = (
+        "inspect",
+        "extract",
+        "review",
+        "reprocess",
+        "validate",
+        "batch-extract",
+        "batch-validate",
+        "batch-report",
+        "import-metadata",
+    )
+
+    for command in commands:
+        try:
+            main([command, "--help"])
+        except SystemExit as exc:
+            assert exc.code == 0
+        assert f"usage: rollform-extractor {command}" in capsys.readouterr().out
 
 
 def test_cli_extract_and_validate_return_zero(tmp_path, capsys):
@@ -18,6 +56,19 @@ def test_cli_extract_and_validate_return_zero(tmp_path, capsys):
     output = capsys.readouterr().out
     assert "stations=3" in output
     assert "valid" in output
+
+
+def test_cli_extract_accepts_documented_output_option(tmp_path):
+    source = make_flower_dxf(tmp_path / "flower.dxf", station_count=1, labels=True)
+
+    assert main(["extract", str(source), "--output", str(tmp_path / "out")]) == 0
+
+
+def test_cli_extract_reports_conversion_failure(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "extract_project", lambda request: (_ for _ in ()).throw(RuntimeError("converter failed")))
+
+    assert main(["extract", str(tmp_path / "source.dwg"), str(tmp_path / "out")]) == 2
+    assert "converter failed" in capsys.readouterr().err
 
 
 def test_cli_inspect_review_and_reprocess_return_zero(tmp_path):
