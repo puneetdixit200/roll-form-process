@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+import json
 from pathlib import Path
 
 import ezdxf
@@ -14,6 +15,7 @@ from rollform_extractor.entity_parser import parse_entities
 from rollform_extractor.exporters import Manifest, export_project
 from rollform_extractor.models import StageResult
 from rollform_extractor.profile_detector import detect_profiles
+from rollform_extractor.review import load_overrides
 from rollform_extractor.roller_detector import detect_rollers
 from rollform_extractor.station_detector import detect_stations
 from rollform_extractor.support_classifier import classify_support
@@ -23,7 +25,7 @@ from rollform_extractor.support_classifier import classify_support
 class ExtractionRequest:
     source: Path
     output_root: Path
-    stage: str | None = None
+    config_path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -35,9 +37,7 @@ class ExtractionSummary:
 
 
 def extract_project(request: ExtractionRequest) -> ExtractionSummary:
-    if request.stage is not None:
-        raise ValueError(f"stage-limited extraction is not supported: {request.stage}")
-    config = ExtractionConfig.load()
+    config = ExtractionConfig.load(request.config_path)
     project_path = request.output_root / request.source.stem
     staged = stage_input(request.source, project_path / "source")
     inspection = inspect_drawing(staged.converted_file)
@@ -45,9 +45,10 @@ def extract_project(request: ExtractionRequest) -> ExtractionSummary:
     parsed = parse_entities(doc, config)
     entities = parsed.entities + parsed.expanded_entities
     classified = classify_support(entities, inspection, config)
-    stations = detect_stations(classified.entities, inspection, config)
-    profiles = detect_profiles(tuple(station.record for station in stations.stations), classified.entities, config)
-    rollers = detect_rollers(tuple(station.record for station in stations.stations), profiles.profiles, classified.entities, config)
+    overrides = _load_project_overrides(project_path, classified.entities)
+    stations = detect_stations(classified.entities, inspection, config, overrides)
+    profiles = detect_profiles(tuple(station.record for station in stations.stations), classified.entities, config, overrides)
+    rollers = detect_rollers(tuple(station.record for station in stations.stations), profiles.profiles, classified.entities, config, overrides)
     warnings = parsed.warnings + stations.warnings + profiles.warnings + rollers.warnings
     snapshot = config.snapshot()
     snapshot["units"]["default"] = inspection.units
@@ -74,10 +75,18 @@ def extract_project(request: ExtractionRequest) -> ExtractionSummary:
     return ExtractionSummary(project_path, manifest, len(bundle.stations), len(bundle.warnings))
 
 
-def reprocess_project(project_path: Path) -> ExtractionSummary:
-    data = __import__("json").loads((project_path / "project.json").read_text(encoding="utf-8"))
+def reprocess_project(project_path: Path, config_path: Path | None = None) -> ExtractionSummary:
+    data = json.loads((project_path / "project.json").read_text(encoding="utf-8"))
     source = Path(data["source_path"])
-    return extract_project(ExtractionRequest(source, project_path.parent))
+    return extract_project(ExtractionRequest(source, project_path.parent, config_path))
+
+
+def _load_project_overrides(project_path: Path, entities) -> object | None:
+    path = project_path / "review" / "manual_overrides.json"
+    if not path.exists():
+        return None
+    handles = {handle for entity in entities for handle in (entity.source_handles or (entity.handle,))}
+    return load_overrides(path, handles)
 
 
 def _record_stages(engine, project_id: int, parsed, classified, stations, profiles, rollers) -> None:

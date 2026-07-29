@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import sqlite3
 
 from rollform_extractor.batch import _create_master_schema
@@ -86,11 +87,16 @@ def test_cli_inspect_review_and_reprocess_return_zero(tmp_path):
     assert main(["reprocess", str(out / "flower")]) == 0
 
 
-def test_cli_rejects_unsupported_stage(tmp_path, capsys):
+def test_cli_reprocess_accepts_config_path(tmp_path):
     source = make_flower_dxf(tmp_path / "flower.dxf", station_count=1, labels=True)
+    out = tmp_path / "out"
+    config = tmp_path / "config.yaml"
+    config.write_text("stations:\n  minimum_confidence: 0.95\n", encoding="utf-8")
+    main(["extract", str(source), str(out)])
 
-    assert main(["extract", str(source), str(tmp_path / "out"), "--stage", "profiles"]) == 2
-    assert "not supported" in capsys.readouterr().err
+    assert main(["reprocess", str(out / "flower"), "--config", str(config)]) == 0
+    data = json.loads((out / "flower" / "project.json").read_text(encoding="utf-8"))
+    assert data["configuration_snapshot"]["stations"]["minimum_confidence"] == 0.95
 
 
 def test_cli_import_metadata_uses_master_database(tmp_path, capsys):

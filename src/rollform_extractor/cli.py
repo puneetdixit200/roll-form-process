@@ -24,11 +24,12 @@ def main(argv: list[str] | None = None) -> int:
     extract_cmd.add_argument("source", type=Path)
     extract_cmd.add_argument("output", type=Path, nargs="?")
     extract_cmd.add_argument("--output", dest="output_option", type=Path)
-    extract_cmd.add_argument("--stage", choices=("profiles", "rollers"))
+    extract_cmd.add_argument("--config", type=Path)
     review_cmd = sub.add_parser("review")
     review_cmd.add_argument("project", type=Path)
     reprocess_cmd = sub.add_parser("reprocess")
     reprocess_cmd.add_argument("project", type=Path)
+    reprocess_cmd.add_argument("--config", type=Path)
     validate_cmd = sub.add_parser("validate")
     validate_cmd.add_argument("project", type=Path)
     batch_extract_cmd = sub.add_parser("batch-extract")
@@ -59,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
         if output is None:
             parser.error("extract requires OUTPUT or --output")
         try:
-            summary = extract_project(ExtractionRequest(args.source, output, args.stage))
+            summary = extract_project(ExtractionRequest(args.source, output, args.config))
         except (OSError, RuntimeError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 2
@@ -70,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
         print(path if path.exists() else "no review queue")
         return 0
     if args.command == "reprocess":
-        summary = reprocess_project(args.project)
+        summary = reprocess_project(args.project, args.config)
         print(f"{summary.project_path} stations={summary.station_count} warnings={summary.warning_count}")
         return 0
     if args.command == "validate":

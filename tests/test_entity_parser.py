@@ -105,6 +105,20 @@ def test_expanded_entities_only_contains_insert_expansion():
     assert [entity.entity_type for entity in parsed.expanded_entities] == ["LINE"]
 
 
+def test_repeated_insert_expansion_gives_each_occurrence_a_unique_ledger_handle():
+    doc = ezdxf.new("R2013", setup=True)
+    block_line = doc.blocks.new("PART").add_line((0, 0), (1, 0))
+    msp = doc.modelspace()
+    msp.add_blockref("PART", (0, 0))
+    msp.add_blockref("PART", (10, 0))
+
+    expanded = parse_entities(doc, ExtractionConfig.load()).expanded_entities
+
+    assert len({entity.handle for entity in expanded}) == 2
+    assert {entity.source_handles for entity in expanded} == {(block_line.dxf.handle,)}
+    assert {entity.original_primitives[0].source_handle for entity in expanded} == {block_line.dxf.handle}
+
+
 def test_polyline_spline_hatch_text_and_dimension_keep_geometry_fields():
     doc = ezdxf.new("R2013", setup=True)
     msp = doc.modelspace()

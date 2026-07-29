@@ -55,7 +55,7 @@ def parse_entities(doc, config: ExtractionConfig) -> ParseResult:
         for entity in layout:
             if entity.dxftype() == "INSERT":
                 expanded.extend(
-                    _expand_insert(entity, doc, layout.name, np.identity(4), (), config, config_hash, warnings)
+                    _expand_insert(entity, doc, layout.name, np.identity(4), (), (), config, config_hash, warnings)
                 )
     return ParseResult(
         entities=tuple(entities),
@@ -72,6 +72,7 @@ def _expand_insert(
     layout: str,
     parent_matrix: np.ndarray,
     block_path: tuple[str, ...],
+    insert_path: tuple[str, ...],
     config: ExtractionConfig,
     config_hash: str,
     warnings: list[WarningRecord],
@@ -79,6 +80,7 @@ def _expand_insert(
     matrix = compose_insert_matrix(insert, parent_matrix)
     name = str(insert.dxf.name)
     path = (*block_path, name)
+    occurrence_path = (*insert_path, f"{name}:{insert.dxf.handle}")
     try:
         block = doc.blocks[name]
     except Exception as exc:
@@ -87,9 +89,9 @@ def _expand_insert(
     records: list[CadEntityRecord] = []
     for entity in block:
         if entity.dxftype() == "INSERT":
-            records.extend(_expand_insert(entity, doc, layout, matrix, path, config, config_hash, warnings))
+            records.extend(_expand_insert(entity, doc, layout, matrix, path, occurrence_path, config, config_hash, warnings))
         else:
-            records.append(_record_entity(entity, layout, matrix, path, config, config_hash, warnings))
+            records.append(_record_entity(entity, layout, matrix, path, config, config_hash, warnings, occurrence_path))
     return tuple(records)
 
 
@@ -101,8 +103,10 @@ def _record_entity(
     config: ExtractionConfig,
     config_hash: str,
     warnings: list[WarningRecord],
+    occurrence_path: tuple[str, ...] = (),
 ) -> CadEntityRecord:
     handle = str(entity.dxf.handle)
+    ledger_handle = f"{handle}@{'/'.join(occurrence_path)}" if occurrence_path else handle
     entity_type = entity.dxftype()
     attrs = _dxf_attributes(entity)
     primitive = None
@@ -132,7 +136,7 @@ def _record_entity(
         mirrored=bool(np.linalg.det(np.asarray(matrix)[:3, :3]) < 0),
     )
     return CadEntityRecord(
-        handle=handle,
+        handle=ledger_handle,
         entity_type=entity_type,
         layer=str(getattr(entity.dxf, "layer", "0")),
         color=getattr(entity.dxf, "color", None),

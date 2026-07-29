@@ -103,6 +103,19 @@ def test_similarity_ignores_missing_dimensions_without_crashing():
     assert match.manual_review_required
 
 
+def test_similarity_matches_detector_dimension_aliases():
+    catalog = (CatalogItem(roller_catalog_id=41, geometry={"diameter": 50.0, "width": 18.0, "bore": 12.0}),)
+    occurrence = _occurrence(
+        "R1",
+        geometry={"outer_diameter_mm": 50.0, "width_mm": 18.0, "bore_diameter_mm": 12.0},
+    )
+
+    match = match_occurrence(occurrence, catalog, _thresholds())
+
+    assert match.roller_catalog_id == 41
+    assert match.method == "similarity"
+
+
 def test_assembly_template_signature_deduplicates_repeated_layouts():
     existing = detect_assembly_template(
         _assembly("A1", (("top", 10.0, 13.0, 21), ("bottom", 10.0, -3.0, 22))),

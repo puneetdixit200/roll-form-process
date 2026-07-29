@@ -141,9 +141,8 @@ def _similar(occurrence: RollerOccurrenceRecord, item: CatalogItem, tolerance: f
     expected = item.geometry or {}
     keys = tuple(key for key, value in expected.items() if value is not None)
     return bool(keys) and all(
-        key in actual
-        and actual[key] is not None
-        and math.isclose(float(actual[key]), float(expected[key]), abs_tol=tolerance)
+        _dimension(actual, key) is not None
+        and math.isclose(float(_dimension(actual, key)), float(expected[key]), abs_tol=tolerance)
         for key in keys
     )
 
@@ -152,11 +151,31 @@ def _occurrence_geometry(occurrence: RollerOccurrenceRecord) -> Mapping[str, flo
     evidence = occurrence.evidence
     return {
         "diameter": evidence.get("outer_diameter"),
+        "diameter_mm": evidence.get("outer_diameter_mm"),
         "outer_diameter": evidence.get("outer_diameter"),
+        "outer_diameter_mm": evidence.get("outer_diameter_mm"),
         "width": evidence.get("width"),
+        "width_mm": evidence.get("width_mm"),
         "bore": evidence.get("bore_diameter"),
+        "bore_mm": evidence.get("bore_diameter_mm"),
         "bore_diameter": evidence.get("bore_diameter"),
+        "bore_diameter_mm": evidence.get("bore_diameter_mm"),
     }
+
+
+def _dimension(geometry: Mapping[str, Any], key: str) -> Any:
+    aliases = {
+        "diameter": ("diameter", "outer_diameter", "outer_diameter_mm", "diameter_mm"),
+        "outer_diameter": ("outer_diameter", "outer_diameter_mm", "diameter", "diameter_mm"),
+        "width": ("width", "width_mm"),
+        "bore": ("bore", "bore_diameter", "bore_diameter_mm", "bore_mm"),
+        "bore_diameter": ("bore_diameter", "bore_diameter_mm", "bore", "bore_mm"),
+    }
+    for alias in aliases.get(key, (key,)):
+        value = geometry.get(alias)
+        if value is not None:
+            return value
+    return None
 
 
 def _usage(occurrence: RollerOccurrenceRecord) -> Mapping[str, Any]:
