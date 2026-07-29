@@ -71,6 +71,11 @@ def test_cli_extract_reports_conversion_failure(tmp_path, monkeypatch, capsys):
     assert "converter failed" in capsys.readouterr().err
 
 
+def test_cli_extract_reports_missing_source(tmp_path, capsys):
+    assert main(["extract", str(tmp_path / "no-such.dwg"), "--output", str(tmp_path / "out")]) == 2
+    assert "No such file or directory" in capsys.readouterr().err
+
+
 def test_cli_inspect_review_and_reprocess_return_zero(tmp_path):
     source = make_flower_dxf(tmp_path / "flower.dxf", station_count=2, labels=True)
     out = tmp_path / "out"

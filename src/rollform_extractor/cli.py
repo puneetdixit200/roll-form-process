@@ -60,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("extract requires OUTPUT or --output")
         try:
             summary = extract_project(ExtractionRequest(args.source, output, args.stage))
-        except (RuntimeError, ValueError) as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
             return 2
         print(f"{summary.project_path} stations={summary.station_count} warnings={summary.warning_count}")

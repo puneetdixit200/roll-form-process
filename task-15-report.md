@@ -113,3 +113,29 @@ The only output paths created by the failed extraction were empty directories:
   instead of a traceback.
 - CLI smoke tests now cover documented command help, DWG staging for `inspect`,
   documented `--output`, and conversion failure reporting.
+
+## Review Fix
+
+Review issue: missing source files on `extract` raised an `OSError` traceback.
+
+Regression command:
+
+```text
+python -m rollform_extractor extract /tmp/no-such.dwg --output /tmp/out
+```
+
+Result after fix: exit 2.
+
+```text
+[Errno 2] No such file or directory: '/tmp/no-such.dwg'
+```
+
+Additional verification:
+
+```text
+pytest tests/test_cli.py -q
+9 passed in 4.45s
+
+pytest -q
+172 passed in 45.95s
+```
