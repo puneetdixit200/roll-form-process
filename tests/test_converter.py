@@ -54,7 +54,7 @@ def test_libredwg_converts_from_temp_copy_not_original(tmp_path, monkeypatch):
         input_path = Path(command[-1])
         assert input_path != source
         assert input_path.read_bytes() == b"AC1027"
-        write_sample_dxf(Path(command[2]))
+        write_sample_dxf(Path(command[command.index("-o") + 1]))
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr(
@@ -65,7 +65,7 @@ def test_libredwg_converts_from_temp_copy_not_original(tmp_path, monkeypatch):
     result = converter.stage_input(source, tmp_path / "out")
 
     assert result.converter == "libredwg"
-    assert calls[0][0] == "dwg2dxf"
+    assert calls[0][:6] == ["dwg2dxf", "--minimal", "--as", "r2007", "-y", "-o"]
     assert sha256_file(source) == before
 
 

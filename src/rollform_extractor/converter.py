@@ -111,7 +111,7 @@ def _run_libredwg(executable: Path, source: Path, staged: Path) -> None:
         input_path = Path(input_dir) / source.name
         shutil.copy2(source, input_path)
         result = subprocess.run(
-            [str(executable), "-o", str(staged), str(input_path)],
+            [str(executable), "--minimal", "--as", "r2007", "-y", "-o", str(staged), str(input_path)],
             capture_output=True,
             text=True,
             check=False,
