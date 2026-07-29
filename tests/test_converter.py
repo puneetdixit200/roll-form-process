@@ -131,3 +131,19 @@ def test_oda_retries_ac1021_after_ac1027_failure(tmp_path, monkeypatch):
 
     assert result.converter == "oda"
     assert versions == ["AC1027", "AC1021"]
+
+
+def test_oda_failure_falls_back_to_libredwg_when_available(tmp_path, monkeypatch):
+    source = tmp_path / "part.dwg"
+    source.write_bytes(b"AC1027")
+
+    monkeypatch.setattr(
+        converter, "discover_converter", lambda: ConverterSpec("oda", Path("ODAFileConverter"))
+    )
+    monkeypatch.setattr(converter, "_run_oda", lambda *args: (_ for _ in ()).throw(ConversionUnavailableError("oda failed")))
+    monkeypatch.setattr(converter.shutil, "which", lambda name: "/usr/bin/dwg2dxf" if name == "dwg2dxf" else None)
+    monkeypatch.setattr(converter, "_run_libredwg", lambda executable, source_path, staged: write_sample_dxf(staged))
+
+    result = converter.stage_input(source, tmp_path / "out")
+
+    assert result.converter == "libredwg"

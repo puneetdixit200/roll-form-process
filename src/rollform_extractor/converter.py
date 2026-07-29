@@ -66,7 +66,14 @@ def stage_input(source: Path, destination: Path) -> ConversionResult:
 
         staged = destination / f"{source.stem}.dxf"
         if spec.name == "oda":
-            _run_oda(spec.executable, source, staged)
+            try:
+                _run_oda(spec.executable, source, staged)
+            except ConversionUnavailableError as oda_error:
+                libredwg = shutil.which("dwg2dxf")
+                if not libredwg:
+                    raise oda_error
+                _run_libredwg(Path(libredwg), source, staged)
+                spec = ConverterSpec("libredwg", Path(libredwg))
         else:
             _run_libredwg(spec.executable, source, staged)
         _validate_dxf(staged)
