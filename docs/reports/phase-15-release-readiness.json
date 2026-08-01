@@ -39,6 +39,7 @@
     ]
   },
   "ci": {
+    "dependency_install_command": "python -m pip install -e \".[backend,test]\"",
     "docker_job": "passed",
     "frontend_job": "passed",
     "overall": "PASS",
@@ -52,10 +53,18 @@
   },
   "commands": [
     {
-      "command": "python -m compileall src backend scripts/generate_phase15_release_report.py",
+      "command": "python -m compileall src backend scripts",
       "cwd": "repository",
       "duration": "2s",
-      "excerpt": "All source trees and report generator compiled.",
+      "excerpt": "All source trees and scripts compiled.",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "python -m pip install -e \".[backend,test]\"",
+      "cwd": "repository",
+      "duration": "~6s",
+      "excerpt": "Declared backend and test extras installed successfully.",
       "exit_code": 0,
       "result": "PASS"
     },
@@ -284,7 +293,7 @@
     "base_sha": "ba145a9e5099b80ca1a3f16700c7199588d4c085",
     "branch": "feature/phase-15-pass-features",
     "changed_file_count_against_main": 689,
-    "feature_head_sha": "5197fbf32ffedcba431323cd95578e3849bff239",
+    "feature_head_sha": "a5cfc9c59299b33d17956d089811403db542e2be",
     "merge_recommendation": "SAFE TO MERGE after the pull-request workflow remains green and required review is obtained.",
     "overall_result": "PASS",
     "phase": "Phase 15: Automatic Pass Feature Extraction",
