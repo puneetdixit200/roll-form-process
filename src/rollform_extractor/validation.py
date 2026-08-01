@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -66,6 +67,8 @@ def validate_project(project_path: Path) -> ValidationReport:
         if len(ids) != len(set(ids)):
             issues.append(ValidationIssue("duplicate_station", "station identifiers are not unique"))
 
+    issues.extend(_validate_features(project_path, manifest))
+
     stations = tuple(project.get("stations", ()))
     multi_sequence = len({int((station.get("evidence") or {}).get("sequence_id") or 1) for station in stations}) > 1
     expected_dirs = {
@@ -76,6 +79,50 @@ def validate_project(project_path: Path) -> ValidationReport:
     if expected_dirs != actual_dirs:
         issues.append(ValidationIssue("station_tree_mismatch", "station folders do not match project stations"))
     return ValidationReport(not issues, tuple(issues))
+
+
+def _validate_features(project_path: Path, manifest: dict) -> list[ValidationIssue]:
+    report_path = project_path / "report_data.json"
+    if not report_path.exists():
+        return []
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [ValidationIssue("invalid_feature_report", str(exc))]
+    summary = (report.get("project") or {}).get("feature_summary")
+    if not summary:
+        return []
+    issues: list[ValidationIssue] = []
+    passes = [item for flower in report.get("composite_flowers", ()) for item in flower.get("passes", ())]
+    feature_passes = [item for item in passes if item.get("features")]
+    if len(feature_passes) != len(passes):
+        issues.append(ValidationIssue("feature_pass_count", f"{len(feature_passes)} feature sets for {len(passes)} composite passes"))
+    full_lengths = set()
+    for item in feature_passes:
+        feature = item["features"]
+        vector = feature.get("full_vector") or {}
+        names = vector.get("field_names", ())
+        values = vector.get("values", ())
+        mask = vector.get("missing_mask", ())
+        full_lengths.add(len(values))
+        if feature.get("schema_version") is None or not feature.get("configuration_hash"):
+            issues.append(ValidationIssue("feature_metadata_missing", item.get("pass_id", "unknown")))
+        if len(names) != len(values) or len(mask) != len(values):
+            issues.append(ValidationIssue("feature_vector_shape", item.get("pass_id", "unknown")))
+        if any(isinstance(value, float) and not math.isfinite(value) for value in values):
+            issues.append(ValidationIssue("feature_nonfinite", item.get("pass_id", "unknown")))
+        fingerprints = feature.get("fingerprints") or {}
+        if any(not isinstance(value, str) or len(value) != 64 or any(char not in "0123456789abcdef" for char in value.lower()) for value in fingerprints.values()):
+            issues.append(ValidationIssue("feature_fingerprint_invalid", item.get("pass_id", "unknown")))
+        downloads = item.get("feature_downloads") or {}
+        for relative in downloads.values():
+            if relative and not (project_path / relative).exists():
+                issues.append(ValidationIssue("missing_feature_artifact", str(relative)))
+    if len(full_lengths) > 1:
+        issues.append(ValidationIssue("feature_vector_length", "full vector lengths differ between passes"))
+    if summary.get("feature_set_count") != len(feature_passes):
+        issues.append(ValidationIssue("feature_summary_count", "feature summary count does not match pass data"))
+    return issues
 
 
 def _sha256(path: Path) -> str:

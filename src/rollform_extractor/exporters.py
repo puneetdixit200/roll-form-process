@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 from hashlib import sha256
 from pathlib import Path
 import shutil
@@ -199,6 +199,8 @@ def _export_composite_flowers(bundle: ExtractionBundle, project_path: Path) -> t
         render_drawing_preview(_sequence_preview_entities(composite.passes, entities_by_handle), composite_dir / "sequence_preview.png")
         _write_json(composite_dir / "extraction_summary.json", _composite_summary(composite, units_confirmed))
         _write_composite_sequence_csv(composite_dir / "sequence.csv", composite, units_confirmed, factor)
+        (composite_dir / "summaries").mkdir(exist_ok=True)
+        feature_rows = []
         for item in composite.passes:
             pass_dir = passes_dir / item.pass_id
             pass_dir.mkdir(exist_ok=True)
@@ -224,6 +226,16 @@ def _export_composite_flowers(bundle: ExtractionBundle, project_path: Path) -> t
             render_drawing_preview(_preview_entities_from_primitives(f"{item.pass_id}_normalized", normalized_primitives), pass_dir / "profile_normalized.png")
             render_drawing_preview(_preview_entities_from_primitives(f"{item.pass_id}_outline", original_primitives), pass_dir / "profile_outline.png")
             render_drawing_preview(_preview_entities_from_primitives(f"{item.pass_id}_neutral", item.neutral_line_primitives), pass_dir / "profile_neutral_line.png")
+            feature = bundle.pass_features.get(item.pass_id)
+            if feature is not None:
+                _write_json(pass_dir / "pass_features.json", feature.to_dict())
+                _write_json(pass_dir / "pass_feature_vector.json", {"schema_version": feature.schema_version, "scalar": _jsonable(feature.scalar_vector), "shape": _jsonable(feature.shape_vector), "full": _jsonable(feature.full_vector), "fingerprints": _jsonable(feature.fingerprints)})
+                _write_csv(pass_dir / "segments.csv", [_jsonable(asdict(segment)) for segment in feature.segments], tuple(asdict(feature.segments[0]).keys()) if feature.segments else ("segment_id",))
+                _write_csv(pass_dir / "bend_features.csv", [_jsonable(dict(bend)) for bend in feature.bends], tuple(feature.bends[0].keys()) if feature.bends else ("bend_id",))
+                feature_rows.append({"composite_flower_id": feature.composite_flower_id, "pass_id": feature.pass_id, "profile_id": feature.profile_id, "station_id": feature.station_id, "inferred_pass_order": feature.inferred_pass_order, "schema_version": feature.schema_version, "confidence": feature.quality.confidence, "quality_flags": ";".join(feature.quality.flags), **{field: feature.scalar_vector.values[index] for index, field in enumerate(feature.scalar_vector.field_names)}})
+        if feature_rows:
+            _write_csv(composite_dir / "summaries" / "pass_features.csv", feature_rows, tuple(feature_rows[0].keys()))
+            _write_json(composite_dir / "summaries" / "pass_feature_index.json", {"schema_version": 1, "feature_set_count": len(feature_rows), "passes": [{"pass_id": row["pass_id"], "path": f"passes/{row['pass_id']}/pass_features.json"} for row in feature_rows]})
     return dxf_files, warnings
 
 
@@ -863,6 +875,8 @@ def _bbox(bbox: BBox | None) -> dict[str, float] | None:
 
 
 def _jsonable(value: Any) -> Any:
+    if is_dataclass(value):
+        return _jsonable(vars(value))
     if isinstance(value, Mapping):
         return {key: _jsonable(item) for key, item in value.items()}
     if isinstance(value, (tuple, list)):
