@@ -40,6 +40,8 @@ Defaults live in `config/default.yaml` and are also packaged under
 `rollform_extractor/config/default.yaml`. Load-time overrides reject unknown
 keys. Stage hashes are derived from only the configuration sections used by
 that stage, so unrelated tolerance edits do not invalidate every stage.
+The `features` section controls Phase 15 schema version, material sample count,
+curvature and symmetry tolerances, mirror canonicalization, and vector rounding.
 
 ## Commands
 
@@ -77,6 +79,11 @@ PROJECT/
   review/review_queue.json
   review/manual_overrides.json
   summaries/stations.csv
+  composite_flowers/flower/passes/pass_XX/pass_features.json
+  composite_flowers/flower/passes/pass_XX/pass_feature_vector.json
+  composite_flowers/flower/passes/pass_XX/segments.csv
+  composite_flowers/flower/passes/pass_XX/bend_features.csv
+  composite_flowers/flower/summaries/pass_features.csv
   stations/station_XX/profile.dxf
   stations/station_XX/rollers.csv
   stations/station_XX/top.dxf
@@ -96,6 +103,11 @@ Batch output has `master/master_rollform.sqlite`, built from successful project
 databases. The master separates drawing roller occurrences from physical
 catalog identity. Automatic physical roller matching should only be trusted
 after station and profile extraction pass the project validation gates.
+
+Phase 15 pass features are stored in `pass_feature_sets` and `pass_segments`,
+with versioned vectors, missing masks, quality flags, provenance, and SHA-256
+fingerprints. See `docs/pass-feature-schema-v1.md`. They are candidate
+engineering descriptors, not production-approved manufacturability results.
 
 ## Review Overrides
 
@@ -190,6 +202,10 @@ The web workflow accepts one `.dwg` or `.dxf`, copies the original to immutable
 project source storage, starts an asynchronous analysis job, streams job status
 with Server-Sent Events, writes SQLite/project artifacts, and displays the
 generated report data in the frontend.
+
+The web app exposes feature summaries in report data and a dedicated
+`/api/projects/{project_id}/passes/{pass_id}/features` endpoint. The Pass Detail
+screen shows a compact Feature Summary and links to pass-level feature files.
 
 Required web screens are implemented as dashboard sections:
 
