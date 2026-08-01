@@ -109,6 +109,7 @@ def _summary(project_path: Path, report_data: dict[str, Any]) -> dict[str, Any]:
             for change in flower.get("profile_step_changes", [])
             if change.get("review_choices")
         ],
+        "feature_summary": (report_data.get("project") or {}).get("feature_summary", {}),
     }
 
 

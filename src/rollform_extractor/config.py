@@ -18,6 +18,7 @@ STAGE_CONFIG_KEYS = {
     "roller_detection": ("geometry", "rollers"),
     "preview": ("geometry.curve_sampling_spacing_mm",),
     "support_classification": ("geometry",),
+    "feature_extraction": ("features",),
 }
 
 
@@ -53,12 +54,26 @@ class RollersConfig:
 
 
 @dataclass(frozen=True)
+class FeaturesConfig:
+    schema_version: int
+    material_sample_count: int
+    minimum_path_length: float
+    curvature_window: int
+    straight_angle_tolerance_deg: float
+    symmetry_tolerance: float
+    mirror_canonicalization: bool
+    vector_rounding_decimals: int
+    closure_tolerance: float = 0.05
+
+
+@dataclass(frozen=True)
 class ExtractionConfig:
     units: UnitsConfig
     geometry: GeometryConfig
     stations: StationsConfig
     profiles: ProfilesConfig
     rollers: RollersConfig
+    features: FeaturesConfig
 
     @classmethod
     def load(
@@ -75,6 +90,7 @@ class ExtractionConfig:
             stations=StationsConfig(**data["stations"]),
             profiles=ProfilesConfig(**data["profiles"]),
             rollers=RollersConfig(**data["rollers"]),
+            features=FeaturesConfig(**data["features"]),
         )
 
     def snapshot(self) -> dict[str, Any]:

@@ -115,7 +115,7 @@ def validate_batch(output_root: Path) -> ValidationReport:
         report = validate_project(project_json.parent)
         issues.extend(ValidationIssue(issue.code, f"{project_json.parent.name}: {issue.message}") for issue in report.issues)
     if not (output_root / "master" / "master_rollform.sqlite").exists():
-        issues.append(ValidationIssue("missing_master_database", "master/master_rollform.sqlite is missing"))
+        issues.append(ValidationIssue("missing_master_database", "master/master_rollform.sqlite is missing; run batch-extract (or batch-report) before batch-validate"))
     return ValidationReport(not issues, tuple(issues))
 
 
@@ -301,6 +301,27 @@ def _create_master_schema(db: sqlite3.Connection) -> None:
             fingerprint_json text,
             unique(project_id, owner_table, owner_key, fingerprint_hash)
         );
+        create table if not exists pass_feature_sets (
+            id integer primary key,
+            project_id integer not null references projects(id) on delete cascade,
+            composite_flower_id text,
+            composite_pass_id text not null,
+            schema_version integer not null,
+            configuration_hash text not null,
+            feature_json text,
+            scalar_vector_json text,
+            shape_vector_json text,
+            full_vector_json text,
+            scalar_field_names_json text,
+            shape_field_names_json text,
+            missing_mask_json text,
+            quality_json text,
+            confidence real,
+            physical_fingerprint_hash text,
+            shape_fingerprint_hash text,
+            combined_fingerprint_hash text,
+            unique(project_id, composite_flower_id, composite_pass_id, schema_version, configuration_hash)
+        );
         create table if not exists assembly_templates (
             template_id text primary key,
             signature_hash text,
@@ -358,7 +379,7 @@ def _aggregate_project(master: sqlite3.Connection, project_db: Path) -> None:
             )
         ]
         for old_id in old_ids:
-            for table in ("station_transitions", "project_roll_usage", "geometry_fingerprints", "rollers", "profiles", "stations"):
+            for table in ("pass_feature_sets", "station_transitions", "project_roll_usage", "geometry_fingerprints", "rollers", "profiles", "stations"):
                 master.execute(f"delete from {table} where project_id = ?", (old_id,))
         master.execute("delete from roller_catalog where source_database = ?", (source_database,))
         master.execute("delete from projects where source_database = ? and source_project_id = ?", (source_database, project["id"]))
@@ -372,6 +393,7 @@ def _aggregate_project(master: sqlite3.Connection, project_db: Path) -> None:
         _copy_rows(source, master, "profiles", project_id, ("profile_id", "station_id", "confidence"))
         _copy_rows(source, master, "roller_occurrences", project_id, ("occurrence_id", "station_id", "role", "confidence"), target="rollers")
         _copy_fingerprints(source, master, project_id)
+        _copy_feature_sets(source, master, project_id)
         _copy_templates(source, master)
         _copy_catalog(source, master, source_database)
         _copy_usage(source, master, project_id)
@@ -392,6 +414,17 @@ def _copy_fingerprints(source: sqlite3.Connection, master: sqlite3.Connection, p
             "insert or ignore into geometry_fingerprints (project_id, owner_table, owner_key, fingerprint_hash, fingerprint_json) values (?, ?, ?, ?, ?)",
             (project_id, row[0], row[1], row[2], _json_text(row[3])),
         )
+
+
+def _copy_feature_sets(source: sqlite3.Connection, master: sqlite3.Connection, project_id: int) -> None:
+    columns = ("composite_flower_id", "composite_pass_id", "schema_version", "configuration_hash", "feature_json", "scalar_vector_json", "shape_vector_json", "full_vector_json", "scalar_field_names_json", "shape_field_names_json", "missing_mask_json", "quality_json", "confidence", "physical_fingerprint_hash", "shape_fingerprint_hash", "combined_fingerprint_hash")
+    try:
+        rows = source.execute(f"select {', '.join(columns)} from pass_feature_sets")
+    except sqlite3.OperationalError:
+        return
+    placeholders = ", ".join("?" for _ in columns)
+    for row in rows:
+        master.execute(f"insert or replace into pass_feature_sets (project_id, {', '.join(columns)}) values (?, {placeholders})", (project_id, *tuple(row)))
 
 
 def _copy_templates(source: sqlite3.Connection, master: sqlite3.Connection) -> None:
@@ -434,6 +467,7 @@ def _write_master_csvs(output_root: Path, master_path: Path) -> None:
         db.row_factory = sqlite3.Row
         _write_csv(output_root / "master" / "projects.csv", [dict(row) for row in db.execute("select drawing_id, source_path, source_hash, source_database, source_project_id from projects order by drawing_id")])
         _write_csv(output_root / "master" / "rollers.csv", [dict(row) for row in db.execute("select p.drawing_id, r.occurrence_id, r.station_id, r.role, r.confidence from rollers r join projects p on p.id = r.project_id order by p.drawing_id, r.occurrence_id")])
+        _write_csv(output_root / "master" / "pass_features.csv", [dict(row) for row in db.execute("select p.drawing_id, f.composite_flower_id, f.composite_pass_id, f.schema_version, f.configuration_hash, f.confidence, f.combined_fingerprint_hash from pass_feature_sets f join projects p on p.id = f.project_id order by p.drawing_id, f.composite_pass_id")])
 
 
 def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:

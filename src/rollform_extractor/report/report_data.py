@@ -6,6 +6,7 @@ from typing import Any, Mapping
 from rollform_extractor.database import ExtractionBundle
 from rollform_extractor.models import BBox, CadPrimitive, ProfileRecord, RollerOccurrenceRecord, StationRecord, WarningRecord
 from rollform_extractor.transition_analysis import bend_change_events, profile_step_changes, segment_change_events
+from rollform_extractor.pass_features import PASS_FEATURE_SCHEMA_VERSION, FeatureKey
 
 
 def build_report_data(bundle: ExtractionBundle, project_path: Path, warnings: tuple[WarningRecord, ...]) -> dict[str, Any]:
@@ -28,10 +29,11 @@ def build_report_data(bundle: ExtractionBundle, project_path: Path, warnings: tu
             "validation_status": "valid",
             "confirmed_assemblies": len(getattr(bundle, "assemblies", ())),
             "confirmed_transitions": len(getattr(bundle, "transitions", ())),
+            "feature_summary": _feature_summary(bundle),
         },
         "sequences": _individual_sequences(stations, profiles_by_station, rollers_by_station, project_path),
         "composite_flowers": [
-            _composite_flower(composite, project_path)
+            _composite_flower(composite, project_path, getattr(bundle, "pass_features", {}))
             for composite in getattr(bundle, "composite_flowers", ())
         ],
         "stages": [_stage(station, profiles_by_station[station.station_id], rollers_by_station[station.station_id], project_path, stations) for station in stations],
@@ -57,9 +59,10 @@ def _individual_sequences(stations, profiles_by_station, rollers_by_station, pro
     ]
 
 
-def _composite_flower(composite, project_path: Path) -> dict[str, Any]:
+def _composite_flower(composite, project_path: Path, pass_features: Mapping[FeatureKey, Any] | None = None) -> dict[str, Any]:
     root = Path("composite_flowers") / composite.composite_flower_id
-    passes = [_composite_pass(item, root / "passes" / item.pass_id, project_path) for item in composite.passes]
+    pass_features = pass_features or {}
+    passes = [_composite_pass(item, root / "passes" / item.pass_id, project_path, pass_features.get((composite.composite_flower_id, item.pass_id))) for item in composite.passes]
     return {
         "composite_flower_id": composite.composite_flower_id,
         "label": _title(composite.composite_flower_id),
@@ -89,7 +92,7 @@ def _composite_flower(composite, project_path: Path) -> dict[str, Any]:
     }
 
 
-def _composite_pass(item, pass_root: Path, project_path: Path) -> dict[str, Any]:
+def _composite_pass(item, pass_root: Path, project_path: Path, feature=None) -> dict[str, Any]:
     downloads = _existing_links(project_path, pass_root, {
         "profile_dxf": "profile.dxf",
         "profile_original_coordinates_dxf": "profile_original_coordinates.dxf",
@@ -105,6 +108,10 @@ def _composite_pass(item, pass_root: Path, project_path: Path) -> dict[str, Any]
         "profile_geometry_json": "profile_geometry.json",
         "source_entities_json": "source_entities.json",
         "transform_json": "transform.json",
+        "pass_features_json": "pass_features.json",
+        "pass_feature_vector_json": "pass_feature_vector.json",
+        "segments_csv": "segments.csv",
+        "bend_features_csv": "bend_features.csv",
     })
     return {
         "kind": "composite_pass",
@@ -160,6 +167,12 @@ def _composite_pass(item, pass_root: Path, project_path: Path) -> dict[str, Any]
         "duplicate_of": item.duplicate_of,
         "transform_matrix_4x4": item.transform_matrix_4x4,
         "individual_profile_matches": [_jsonable(match) for match in item.individual_profile_matches],
+        "features": feature.to_dict() if feature is not None else None,
+        "feature_quality": _jsonable(feature.quality) if feature is not None else None,
+        "feature_schema_version": feature.schema_version if feature is not None else None,
+        "feature_vector_length": len(feature.full_vector.values) if feature is not None else 0,
+        "fingerprints": _jsonable(feature.fingerprints) if feature is not None else {},
+        "feature_downloads": {key: downloads.get(key) for key in ("pass_features_json", "pass_feature_vector_json", "segments_csv", "bend_features_csv")},
         "downloads": downloads,
         "preview_path": downloads.get("profile_png"),
         "original_preview_path": downloads.get("profile_original_coordinates_png") or downloads.get("profile_png"),
@@ -378,3 +391,19 @@ def _jsonable(value: Any) -> Any:
     if hasattr(value, "__dict__"):
         return _jsonable(vars(value))
     return value
+
+
+def _feature_summary(bundle: ExtractionBundle) -> dict[str, Any]:
+    features = tuple(getattr(bundle, "pass_features", {}).values())
+    scalar_lengths = {len(item.scalar_vector.values) for item in features}
+    shape_lengths = {len(item.shape_vector.values) for item in features}
+    full_lengths = {len(item.full_vector.values) for item in features}
+    return {
+        "feature_set_count": len(features),
+        "feature_schema_version": PASS_FEATURE_SCHEMA_VERSION,
+        "scalar_vector_length": next(iter(scalar_lengths), 0),
+        "shape_vector_length": next(iter(shape_lengths), 0),
+        "full_vector_length": next(iter(full_lengths), 0),
+        "passes_with_warnings": sum(bool(item.quality.flags) for item in features),
+        "passes_with_unconfirmed_units": sum(item.quality.units_status != "CONFIRMED" for item in features),
+    }

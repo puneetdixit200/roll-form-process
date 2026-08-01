@@ -1,0 +1,306 @@
+{
+  "api_frontend": {
+    "checks": [
+      {
+        "check": "GET /api/health",
+        "evidence": "HTTP 200",
+        "result": "PASS"
+      },
+      {
+        "check": "GET report-data",
+        "evidence": "HTTP 200; feature summary 12/94/256/350",
+        "result": "PASS"
+      },
+      {
+        "check": "Flower/pass feature endpoint",
+        "evidence": "HTTP 200; schema, quality, vectors, fingerprints present",
+        "result": "PASS"
+      },
+      {
+        "check": "Wrong flower and pass",
+        "evidence": "Both HTTP 404",
+        "result": "PASS"
+      },
+      {
+        "check": "Path traversal",
+        "evidence": "HTTP 404; no file exposed",
+        "result": "PASS"
+      },
+      {
+        "check": "Feature downloads",
+        "evidence": "pass features, vector, segments, and bend CSV all HTTP 200",
+        "result": "PASS"
+      },
+      {
+        "check": "Frontend Feature Summary",
+        "evidence": "Existing App.tsx renders engineering metrics, unit status, warnings, schema, and downloads",
+        "result": "PASS"
+      }
+    ]
+  },
+  "ci": {
+    "dependency_install_command": "python -m pip install -e \".[backend,test]\"",
+    "docker_job": "passed",
+    "frontend_job": "passed",
+    "overall": "PASS",
+    "python_job": "passed",
+    "required_action": "None",
+    "workflow_commit": "5197fbf32ffedcba431323cd95578e3849bff239",
+    "workflow_local": "present",
+    "workflow_path": ".github/workflows/quality.yml",
+    "workflow_remote": "present",
+    "workflow_run_url": "https://github.com/puneetdixit200/roll-form-process/actions/runs/30713018287"
+  },
+  "commands": [
+    {
+      "command": "python -m compileall src backend scripts",
+      "cwd": "repository",
+      "duration": "2s",
+      "excerpt": "All source trees and scripts compiled.",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "python -m pip install -e \".[backend,test]\"",
+      "cwd": "repository",
+      "duration": "~6s",
+      "excerpt": "Declared backend and test extras installed successfully.",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "pytest -q",
+      "cwd": "repository",
+      "duration": "97.82s",
+      "excerpt": "213 passed, 1 warning",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "cd frontend && npm ci",
+      "cwd": "repository",
+      "duration": "4s",
+      "excerpt": "159 packages installed; 0 vulnerabilities.",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "cd frontend && npm test -- --run",
+      "cwd": "repository",
+      "duration": "3s",
+      "excerpt": "1 test file, 2 tests passed.",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "cd frontend && npm run build",
+      "cwd": "repository",
+      "duration": "2s",
+      "excerpt": "TypeScript and Vite production build passed.",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "rollform-extractor batch-extract /tmp/rollform-phase15-batch-input /tmp/rollform-phase15-batch-output",
+      "cwd": "repository",
+      "duration": "~60s",
+      "excerpt": "files=1 success=1 failed=0 skipped=0",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "rollform-extractor batch-validate /tmp/rollform-phase15-batch-output",
+      "cwd": "repository",
+      "duration": "6s",
+      "excerpt": "valid",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "rollform-extractor extract <pilot> --output /tmp/phase15-run-a.33ef8q",
+      "cwd": "repository",
+      "duration": "~60s",
+      "excerpt": "drawing_stages=30 warnings=76",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "rollform-extractor validate <run-a-project>",
+      "cwd": "repository",
+      "duration": "5s",
+      "excerpt": "valid",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "rollform-extractor extract <pilot> --output /tmp/phase15-run-b.2sswkp",
+      "cwd": "repository",
+      "duration": "~60s",
+      "excerpt": "drawing_stages=30 warnings=76",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "rollform-extractor validate <run-b-project>",
+      "cwd": "repository",
+      "duration": "5s",
+      "excerpt": "valid",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "docker compose build --no-cache --progress=plain",
+      "cwd": "repository",
+      "duration": "4s",
+      "excerpt": "GitHub-hosted build passed; local Docker network remains captive-portal blocked.",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "GitHub Actions quality workflow (run 30713018287)",
+      "cwd": "repository",
+      "duration": "~5m",
+      "excerpt": "Python, frontend, and Docker jobs passed on GitHub-hosted ubuntu-latest.",
+      "exit_code": 0,
+      "result": "PASS"
+    }
+  ],
+  "database": {
+    "combined_fingerprints": "present",
+    "foreign_key_check": "no rows",
+    "geometry_fingerprint_rows": 48,
+    "master_collisions": "none",
+    "master_feature_rows": 12,
+    "master_projects": 1,
+    "master_schema_version": 1,
+    "project_feature_rows_run_a": 12,
+    "project_feature_rows_run_b": 12,
+    "project_segment_rows_run_a": 47,
+    "project_segment_rows_run_b": 47,
+    "result_provenance_rows": 1818,
+    "vector_metadata": "present"
+  },
+  "defects": [
+    {
+      "defect": "Multi-flower pass identity collision",
+      "fix": "Feature maps and persistence use (composite_flower_id, pass_id); master uniqueness includes flower identity.",
+      "risk": "Repeated local pass IDs could overwrite features.",
+      "status": "PASS",
+      "verification": "Two-flower focused test and pilot database inspection"
+    },
+    {
+      "defect": "Incorrect progress and formedness ratios",
+      "fix": "Progress uses inferred order/final order; formedness uses current/final formedness.",
+      "risk": "Sequence-relative ML features could be numerically wrong.",
+      "status": "PASS",
+      "verification": "Focused feature tests and 12-pass pilot vectors"
+    },
+    {
+      "defect": "Unit conversion ambiguity",
+      "fix": "Drawing-unit values remain separate; millimetres require confirmed conversion.",
+      "risk": "Drawing units could be mislabeled as millimetres.",
+      "status": "PASS",
+      "verification": "Confirmed 2.54 conversion test and pilot unit warnings"
+    },
+    {
+      "defect": "Direction and mirror fingerprint behavior",
+      "fix": "Direction-canonical physical/shape descriptors and separate mirror canonicalization.",
+      "risk": "Equivalent profiles could hash differently or mirrors could collapse incorrectly.",
+      "status": "PASS",
+      "verification": "Translation, reversal, scale, and mirror tests plus two-run comparison"
+    },
+    {
+      "defect": "Degenerate zero-vector handling",
+      "fix": "None structured values, missing masks, quality flags, and invalid structural status.",
+      "risk": "Unavailable geometry could appear valid.",
+      "status": "PASS",
+      "verification": "Degenerate-path focused test"
+    },
+    {
+      "defect": "Segment consistency",
+      "fix": "Clamped bend cuts, connectivity and length-sum summaries.",
+      "risk": "Segments could be disconnected or not sum to developed length.",
+      "status": "PASS",
+      "verification": "Pilot segment rows and validation"
+    },
+    {
+      "defect": "API pass ambiguity",
+      "fix": "Route requires flower_id and direct artifact addressing.",
+      "risk": "A repeated pass ID could return the wrong flower.",
+      "status": "PASS",
+      "verification": "HTTP 200/404 endpoint checks and traversal check"
+    },
+    {
+      "defect": "Generated-file tracking",
+      "fix": "Removed output, frontend builds, and web-workspace-pilot from the index; restored ignore rules.",
+      "risk": "Customer drawings and generated artifacts could remain in Git.",
+      "status": "PASS",
+      "verification": "git ls-files generated-path checks"
+    }
+  ],
+  "determinism": {
+    "equal": true,
+    "fingerprint_mismatches": [],
+    "flowers_compared": 1,
+    "json_mismatches": [],
+    "passes_compared": 12,
+    "vector_mismatches": []
+  },
+  "docker": {
+    "clean_runner": "GitHub-hosted ubuntu-latest build and smoke test passed.",
+    "diagnosis": "The local Docker network is environment-specific and captive-portal intercepted. The clean GitHub runner succeeded with normal CA/TLS verification.",
+    "environment": "GitHub-hosted ubuntu-latest and local Docker",
+    "excerpt": "Docker build passed; backend health and frontend HTTP smoke tests passed.",
+    "result": "PASS"
+  },
+  "hygiene": {
+    "secrets": "no secrets added by release changes",
+    "source_drawings": "not tracked in release changes",
+    "tracked_frontend_dist": "0",
+    "tracked_frontend_tsbuildinfo": "0",
+    "tracked_output": "0",
+    "tracked_web_workspace": "0",
+    "working_tree": "clean before report generation"
+  },
+  "limitations": {
+    "Engineer-review dependency": [
+      "Pilot units remain unconfirmed and extraction remains candidate engineering data."
+    ],
+    "Future Phase 16 work": [
+      "Engineer-approved physical roller database and inventory workflow; no roller recognition or tooling recommendation was started."
+    ],
+    "Nonblocking technical debt": [
+      "One existing Starlette/httpx deprecation warning remains."
+    ],
+    "Release blocker": []
+  },
+  "pilot": {
+    "bend_change_events": 36,
+    "composite_flowers": 1,
+    "composite_passes": 12,
+    "database_feature_rows": 12,
+    "database_geometry_fingerprint_rows": 48,
+    "database_segment_rows": 47,
+    "full_vector_length": 350,
+    "neutral_length_status": "unchanged; validator passed",
+    "pass_feature_sets": 12,
+    "profile_step_changes": 11,
+    "scalar_vector_length": 94,
+    "segment_change_events": 47,
+    "shape_vector_length": 256
+  },
+  "summary": {
+    "base_sha": "ba145a9e5099b80ca1a3f16700c7199588d4c085",
+    "branch": "feature/phase-15-pass-features",
+    "changed_file_count_against_main": 689,
+    "feature_head_sha": "68b767b5383f032fe10eaeddd1392cc0943d914c",
+    "merge_recommendation": "READY TO MERGE; final branch workflow is green and required review remains the merge gate.",
+    "overall_result": "PASS",
+    "phase": "Phase 15: Automatic Pass Feature Extraction",
+    "production_status": "Candidate engineering extraction; not approved for production use.",
+    "report_generated_utc": "2026-08-01T17:49:18Z",
+    "repository": "puneetdixit200/roll-form-process",
+    "scope": "Versioned schema, geometry and neutral-line descriptors, material-coordinate resampling, segments, bends, manufacturing and sequence features, fixed vectors and masks, deterministic fingerprints, SQLite persistence, exports, reports, API, frontend summary, batch aggregation, validation, and multi-flower identity.",
+    "working_tree_status": "clean"
+  }
+}

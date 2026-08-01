@@ -15,6 +15,7 @@ from rollform_extractor.dxf_reader import inspect_drawing
 from rollform_extractor.entity_parser import parse_entities
 from rollform_extractor.exporters import Manifest, export_project
 from rollform_extractor.models import StageResult
+from rollform_extractor.pass_features import extract_composite_pass_features
 from rollform_extractor.profile_detector import detect_profiles
 from rollform_extractor.review import load_overrides
 from rollform_extractor.roller_detector import detect_rollers
@@ -64,6 +65,18 @@ def extract_project(request: ExtractionRequest) -> ExtractionSummary:
     snapshot["units"]["conversion_factor_to_mm"] = drawing_units.get("conversion_factor_to_mm")
     transitions = confirmed_transitions(typed_stations, profiles.profiles, config.hash_for("profile_detection"), bool(snapshot["units"]["confirmed"]))
     composite_flowers = build_composite_flowers(typed_stations, profiles.profiles, classified.entities)
+    feature_configuration_hash = config.hash_for("feature_extraction")
+    pass_features = {
+        (composite.composite_flower_id, pass_id): feature
+        for composite in composite_flowers
+        for pass_id, feature in extract_composite_pass_features(
+            request.source.stem,
+            composite,
+            feature_configuration_hash,
+            config.features,
+            snapshot["units"],
+        ).items()
+    }
     bundle = ExtractionBundle(
         drawing_id=request.source.stem,
         source_path=request.source.resolve(),
@@ -80,12 +93,13 @@ def extract_project(request: ExtractionRequest) -> ExtractionSummary:
         assemblies=rollers.assemblies,
         transitions=transitions,
         composite_flowers=composite_flowers,
+        pass_features=pass_features,
         warnings=warnings,
     )
     manifest = export_project(bundle, request.output_root)
     engine = create_project_database(project_path / "project.sqlite")
     project_id = persist_extraction(engine, bundle)
-    _record_stages(engine, project_id, parsed, classified, stations, profiles, rollers)
+    _record_stages(engine, project_id, parsed, classified, stations, profiles, rollers, bundle)
     manifest = export_project(bundle, request.output_root)
     return ExtractionSummary(project_path, manifest, len(bundle.stations), len(bundle.warnings))
 
@@ -104,16 +118,21 @@ def _load_project_overrides(project_path: Path, entities) -> object | None:
     return load_overrides(path, handles)
 
 
-def _record_stages(engine, project_id: int, parsed, classified, stations, profiles, rollers) -> None:
+def _record_stages(engine, project_id: int, parsed, classified, stations, profiles, rollers, bundle: ExtractionBundle) -> None:
     for stage, records, warnings, method, config_hash, confidence in (
         ("parsing", parsed.entities + parsed.expanded_entities, parsed.warnings, parsed.method, parsed.configuration_hash, 1.0),
         ("support_classification", classified.entities, (), classified.method, classified.configuration_hash, 1.0),
         ("station_detection", stations.stations, stations.warnings, stations.method, stations.configuration_hash, 1.0),
         ("profile_detection", profiles.profiles, profiles.warnings, profiles.method, profiles.configuration_hash, 1.0),
         ("roller_detection", rollers.rollers, rollers.warnings, rollers.method, rollers.configuration_hash, 1.0),
+        ("feature_extraction", tuple(bundle.pass_features.values()), (), "composite_pass_feature_extractor_v1", config_hash_for_bundle(bundle), min((feature.quality.confidence for feature in bundle.pass_features.values()), default=0.0)),
     ):
         handles = tuple(handle for record in records for handle in getattr(record, "source_handles", ()))
         record_stage(engine, project_id, StageResult(stage, tuple(records), tuple(warnings), handles, method, config_hash, confidence))
+
+
+def config_hash_for_bundle(bundle: ExtractionBundle) -> str:
+    return next(iter(bundle.pass_features.values())).configuration_hash if bundle.pass_features else bundle.configuration_hash
 
 
 def _unique_warnings(warnings):

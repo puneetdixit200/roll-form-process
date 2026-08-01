@@ -39,6 +39,17 @@ export type ProjectSummary = {
   confirmed_transition_count: number;
   units_confirmed: boolean;
   unresolved_review_items: Array<{ from: string; to: string; choices: string[] }>;
+  feature_summary?: FeatureSummary;
+};
+
+export type FeatureSummary = {
+  feature_set_count: number;
+  feature_schema_version: number;
+  scalar_vector_length: number;
+  shape_vector_length: number;
+  full_vector_length: number;
+  passes_with_warnings: number;
+  passes_with_unconfirmed_units: number;
 };
 
 export type BendZone = {
@@ -70,6 +81,14 @@ export type FlowerPass = {
   outline_preview_path?: string;
   neutral_line_preview_path?: string;
   downloads: Record<string, string>;
+  feature_downloads?: Record<string, string | null>;
+  feature_schema_version?: number;
+  feature_vector_length?: number;
+  fingerprints?: Record<string, string>;
+  features?: {
+    manufacturing?: { values?: Record<string, number | string | null> };
+    quality?: { confidence?: number; flags?: string[]; units_status?: string; review_required?: boolean };
+  };
 };
 
 export type StepChange = {
@@ -101,8 +120,9 @@ export type ReportData = {
     drawing_id: string;
     engineering_status: string;
     units: { confirmed?: boolean; detected?: string };
-    confirmed_transitions: number;
-  };
+  confirmed_transitions: number;
+  feature_summary?: FeatureSummary;
+};
   sequences: Array<{ sequence_id: string; label: string; steps: unknown[] }>;
   composite_flowers: CompositeFlower[];
   warnings: Array<{ code: string; message: string; source_handles?: string[] }>;

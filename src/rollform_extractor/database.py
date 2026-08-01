@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from types import MappingProxyType
@@ -36,6 +36,7 @@ from rollform_extractor.models import (
     StationRecord,
     WarningRecord,
 )
+from rollform_extractor.pass_features import FeatureKey, PassFeatureSet
 from rollform_extractor.transition_analysis import bend_change_events, profile_step_changes, segment_change_events
 
 
@@ -56,6 +57,7 @@ class ExtractionBundle:
     assemblies: tuple[Any, ...] = ()
     transitions: tuple[StationTransitionRecord, ...] = ()
     composite_flowers: tuple[Any, ...] = ()
+    pass_features: Mapping[FeatureKey, PassFeatureSet] = field(default_factory=dict)
     warnings: tuple[WarningRecord, ...] = ()
 
 
@@ -270,6 +272,43 @@ class CompositeFlowerPass(Base):
     engineer_confirmed_thickness: Mapped[float | None] = mapped_column(Float)
     confidence: Mapped[float] = mapped_column(Float)
     requires_review: Mapped[bool] = mapped_column(Integer)
+
+
+class PassFeatureSetRow(Base):
+    __tablename__ = "pass_feature_sets"
+    __table_args__ = (UniqueConstraint("project_id", "composite_flower_id", "composite_pass_id", "schema_version", "configuration_hash"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    composite_pass_record_id: Mapped[int] = mapped_column(ForeignKey("composite_flower_passes.id", ondelete="CASCADE"))
+    composite_flower_id: Mapped[str] = mapped_column(String)
+    composite_pass_id: Mapped[str] = mapped_column(String)
+    pass_identifier: Mapped[str] = mapped_column(String)
+    schema_version: Mapped[int] = mapped_column(Integer)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    feature_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    scalar_vector_json: Mapped[list[float]] = mapped_column(JSON, default=list)
+    shape_vector_json: Mapped[list[float]] = mapped_column(JSON, default=list)
+    full_vector_json: Mapped[list[float]] = mapped_column(JSON, default=list)
+    scalar_field_names_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    shape_field_names_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    missing_mask_json: Mapped[list[bool]] = mapped_column(JSON, default=list)
+    quality_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    physical_fingerprint_hash: Mapped[str] = mapped_column(String)
+    shape_fingerprint_hash: Mapped[str] = mapped_column(String)
+    combined_fingerprint_hash: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class PassSegment(Base):
+    __tablename__ = "pass_segments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    feature_set_id: Mapped[int] = mapped_column(ForeignKey("pass_feature_sets.id", ondelete="CASCADE"))
+    segment_id: Mapped[str] = mapped_column(String)
+    segment_index: Mapped[int] = mapped_column(Integer)
+    segment_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
 class CompositePassEntity(Base):
@@ -586,7 +625,7 @@ def persist_extraction(engine: Engine, bundle: ExtractionBundle) -> int:
             session.flush()
             entity_rows = {row.handle: row for row in session.scalars(select(CadEntity).where(CadEntity.project_id == project_id))}
             for composite in bundle.composite_flowers:
-                _add_composite_flower(session, project_id, composite, entity_rows)
+                _add_composite_flower(session, project_id, composite, entity_rows, bundle.pass_features)
             for warning in bundle.warnings:
                 session.add(_warning(project_id, warning))
     except Exception as exc:
@@ -619,6 +658,8 @@ def _record_run_header(engine: Engine, bundle: ExtractionBundle) -> tuple[int, i
 
 def _clear_current_project_results(session: Session, project_id: int) -> None:
     for model in (
+        PassSegment,
+        PassFeatureSetRow,
         SegmentChangeEvent,
         BendChangeEvent,
         ProfileStepChange,
@@ -669,6 +710,15 @@ def _mark_run_failed(engine: Engine, project_id: int, run_id: int, exc: Exceptio
 def record_stage(engine: Engine, project_id: int, result: StageResult) -> None:
     warnings = [{"code": warning.code, "message": warning.message} for warning in result.warnings]
     status = _stage_status(result)
+    diagnostics = {"warnings": warnings}
+    if result.stage == "feature_extraction":
+        diagnostics.update(
+            {
+                "feature_count": len(result.records),
+                "vector_length": len(result.records[0].full_vector.values) if result.records else 0,
+                "quality_warnings": sorted({flag for record in result.records for flag in getattr(record.quality, "flags", ())}),
+            }
+        )
     with Session(engine) as session, session.begin():
         session.add(
             ProcessingStage(
@@ -682,7 +732,7 @@ def record_stage(engine: Engine, project_id: int, result: StageResult) -> None:
                 confidence=result.confidence,
                 software_version=None,
                 artifact_hashes_json={},
-                diagnostics_json={"warnings": warnings},
+                diagnostics_json=diagnostics,
             )
         )
 
@@ -799,7 +849,7 @@ def _transition(project_id: int, transition: StationTransitionRecord, from_stati
     )
 
 
-def _add_composite_flower(session: Session, project_id: int, composite: Any, entity_rows: dict[str, CadEntity]) -> None:
+def _add_composite_flower(session: Session, project_id: int, composite: Any, entity_rows: dict[str, CadEntity], pass_features: Mapping[FeatureKey, PassFeatureSet] | None = None) -> None:
     row = CompositeFlower(
         project_id=project_id,
         source_region_id=composite.source_region_id,
@@ -811,6 +861,7 @@ def _add_composite_flower(session: Session, project_id: int, composite: Any, ent
     session.add(row)
     session.flush()
     pass_rows: dict[str, CompositeFlowerPass] = {}
+    pass_rows_by_id: dict[str, CompositeFlowerPass] = {}
     for item in composite.passes:
         pass_row = CompositeFlowerPass(
             composite_flower_id=row.id,
@@ -846,6 +897,7 @@ def _add_composite_flower(session: Session, project_id: int, composite: Any, ent
         session.add(pass_row)
         session.flush()
         pass_rows[item.profile_id] = pass_row
+        pass_rows_by_id[item.pass_id] = pass_row
         for sequence, handle in enumerate(item.source_handles):
             entity = entity_rows.get(handle)
             session.add(
@@ -905,6 +957,39 @@ def _add_composite_flower(session: Session, project_id: int, composite: Any, ent
                     engineer_confirmed=False,
                 )
             )
+    for item in composite.passes:
+        feature = (pass_features or {}).get((composite.composite_flower_id, item.pass_id))
+        pass_row = pass_rows_by_id.get(item.pass_id)
+        if feature is None or pass_row is None:
+            continue
+        feature_row = PassFeatureSetRow(
+            project_id=project_id,
+            composite_pass_record_id=pass_row.id,
+            composite_flower_id=feature.composite_flower_id,
+            composite_pass_id=feature.pass_id,
+            pass_identifier=feature.pass_id,
+            schema_version=feature.schema_version,
+            configuration_hash=feature.configuration_hash,
+            feature_json=_jsonable(feature.to_dict()),
+            scalar_vector_json=list(feature.scalar_vector.values),
+            shape_vector_json=list(feature.shape_vector.values),
+            full_vector_json=list(feature.full_vector.values),
+            scalar_field_names_json=list(feature.scalar_vector.field_names),
+            shape_field_names_json=list(feature.shape_vector.field_names),
+            missing_mask_json=list(feature.full_vector.missing_mask),
+            quality_json=_jsonable(asdict(feature.quality)),
+            confidence=feature.quality.confidence,
+            physical_fingerprint_hash=feature.fingerprints["physical_fingerprint"],
+            shape_fingerprint_hash=feature.fingerprints["shape_fingerprint"],
+            combined_fingerprint_hash=feature.fingerprints["combined_fingerprint"],
+        )
+        session.add(feature_row)
+        session.flush()
+        for segment in feature.segments:
+            session.add(PassSegment(feature_set_id=feature_row.id, segment_id=segment.segment_id, segment_index=segment.segment_index, segment_json=_jsonable(asdict(segment))))
+        for name, digest in feature.fingerprints.items():
+            session.add(GeometryFingerprint(project_id=project_id, owner_table="pass_feature_sets", owner_key=f"{feature.composite_flower_id}:{feature.pass_id}:{name}", fingerprint_hash=digest, fingerprint_json={"schema_version": feature.schema_version, "composite_flower_id": feature.composite_flower_id, "pass_id": feature.pass_id, "kind": name}))
+        session.add(ResultProvenance(project_id=project_id, result_table="pass_feature_sets", result_key=f"{feature.composite_flower_id}:{feature.pass_id}", field_name=None, source_handles=list(feature.source_handles), method=feature.provenance.calculation_method, configuration_hash=feature.configuration_hash, confidence=feature.quality.confidence, warning=";".join(feature.quality.flags) or None))
     for change in profile_step_changes(composite.passes):
         session.add(
             ProfileStepChange(

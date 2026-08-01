@@ -97,6 +97,16 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
             raise HTTPException(status_code=404, detail="Manifest not found")
         return json.loads(manifest.read_text(encoding="utf-8"))
 
+    @app.get("/api/projects/{project_id}/flowers/{flower_id}/passes/{pass_id}/features")
+    def pass_features(project_id: str, flower_id: str, pass_id: str) -> dict[str, Any]:
+        project_path = store.project_output_path(project_id)
+        if project_path is None:
+            raise HTTPException(status_code=404, detail="Artifacts not ready")
+        target = project_path / "composite_flowers" / flower_id / "passes" / pass_id / "pass_features.json"
+        if not target.is_file():
+            raise HTTPException(status_code=404, detail="Pass features not found")
+        return json.loads(target.read_text(encoding="utf-8"))
+
     @app.get("/api/projects/{project_id}/artifacts/{artifact_path:path}")
     def artifact(project_id: str, artifact_path: str):
         project_path = store.project_output_path(project_id)
