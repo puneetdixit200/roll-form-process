@@ -16,11 +16,20 @@ dependencies = [
     "pandas",
     "pillow",
     "python-multipart",
-    "pytest",
     "pyyaml",
     "scipy",
     "shapely",
     "sqlalchemy",
+]
+
+[project.optional-dependencies]
+backend = [
+    "fastapi",
+    "uvicorn",
+]
+test = [
+    "httpx2",
+    "pytest",
 ]
 
 [project.scripts]
