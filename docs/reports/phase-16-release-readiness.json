@@ -29,10 +29,10 @@
   "ci": {
     "docker": "PASS",
     "frontend": "PASS",
-    "pull_request": "Pending PR creation",
+    "pull_request": "PASS: PR #2 merged",
     "python": "PASS",
-    "run_id": 30714818767,
-    "run_url": "https://github.com/puneetdixit200/roll-form-process/actions/runs/30714818767",
+    "run_id": 30715140210,
+    "run_url": "https://github.com/puneetdixit200/roll-form-process/actions/runs/30715140210",
     "smoke": "PASS",
     "workflow": ".github/workflows/quality.yml"
   },
@@ -78,7 +78,7 @@
       "The import UI currently provides validation/import/export and collection views; richer condition and review editing can be expanded additively."
     ],
     "release_blocker": [
-      "PR review, merge, and phase-16-v1 tag remain to be completed."
+      "No release blockers remain."
     ]
   },
   "pilot": {
@@ -99,13 +99,16 @@
   "summary": {
     "base_commit": "4ed49cc721fa776366101da785348a085d87048e",
     "branch": "feature/phase-16-roller-inventory",
-    "feature_commit": "d9e3d189c6f4777f122a8fdaf1292f08541427df",
-    "merge_recommendation": "READY TO MERGE after pull request checks and review complete.",
+    "feature_commit": "54cfcf5b96714a4c06b60816c9cf3a17f576f5a5",
+    "merge_commit": "e5b6884dd3117c3ff462a954d766f6424672f99d",
+    "merge_recommendation": "MERGED and verified on main; Phase 16 is complete.",
     "overall_result": "PASS",
     "phase": "Phase 16: Physical Roller Inventory Knowledge Base",
     "production_status": "Candidate inventory knowledge base; not production-approved.",
-    "report_generated_utc": "2026-08-02T00:55:00Z",
-    "repository": "puneetdixit200/roll-form-process"
+    "report_generated_utc": "2026-08-02T01:38:00Z",
+    "repository": "puneetdixit200/roll-form-process",
+    "tag": "phase-16-v1",
+    "tag_object": "a1dd2942a9b5215186dfdec93a564d50aa1e7fc1"
   },
   "tests": [
     {
@@ -149,8 +152,8 @@
       "result": "PASS"
     },
     {
-      "command": "GitHub Actions quality workflow",
-      "excerpt": "Python, frontend, Docker build, and Docker smoke test passed on d9e3d189c6f4777f122a8fdaf1292f08541427df.",
+      "command": "GitHub Actions quality workflow 30715140210",
+      "excerpt": "Python, frontend, Docker build, and Docker smoke test passed on merged main e5b6884dd3117c3ff462a954d766f6424672f99d.",
       "result": "PASS"
     }
   ]
