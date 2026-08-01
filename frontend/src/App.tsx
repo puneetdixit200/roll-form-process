@@ -95,7 +95,7 @@ export default function App() {
       <section id="Flower-Viewer" className="panel">
         <FlowerViewer projectId={projectId} report={report} flower={flower} pass={pass} selectedFlower={selectedFlower} selectedPass={selectedPass} mode={mode} onFlower={setSelectedFlower} onPass={setSelectedPass} onMode={setMode} />
       </section>
-      <section id="Pass-Detail" className="panel"><PassDetail pass={pass} /></section>
+      <section id="Pass-Detail" className="panel"><PassDetail projectId={projectId} pass={pass} /></section>
       <section id="What-Changed" className="panel"><WhatChanged changes={flower?.profile_step_changes ?? []} /></section>
       <section id="Bend-Zone-Progression" className="panel"><BendProgression flower={flower} /></section>
       <section id="Warnings" className="panel"><Warnings report={report} /></section>
@@ -151,9 +151,12 @@ function Preview({ projectId, mode, passes, index }: { projectId: string; mode: 
   return <div className={`preview ${mode}`}>{shown.map((p) => <img key={p.pass_id} alt={p.name} src={imageFor(p)} />)}{mode === "bend-zones" && <BendTable pass={selected} />}</div>;
 }
 
-function PassDetail({ pass }: { pass?: FlowerPass }) {
+function PassDetail({ projectId, pass }: { projectId: string; pass?: FlowerPass }) {
   if (!pass) return <><h2>Pass Detail</h2><p>No pass selected.</p></>;
-  return <><h2>Pass Detail</h2><div className="metrics"><Metric label="Expected length" value={pass.expected_neutral_length} /><Metric label="Generated length" value={pass.generated_neutral_length} /><Metric label="Length error %" value={pass.neutral_length_error_percent} /><Metric label="Vertex turns" value={pass.vertex_turn_count} /><Metric label="Bend zones" value={pass.physical_forming_bend_count} /></div><BendTable pass={pass} /></>;
+  const manufacturing = pass.features?.manufacturing?.values ?? {};
+  const quality = pass.features?.quality;
+  const metric = (name: string, fallback: unknown = null) => manufacturing[name] ?? fallback;
+  return <><h2>Pass Detail</h2><div className="metrics"><Metric label="Width" value={metric("profile_width", pass.width)} /><Metric label="Height" value={metric("maximum_profile_height", pass.height)} /><Metric label="Developed length" value={metric("neutral_line_developed_length", pass.generated_neutral_length)} /><Metric label="Aspect ratio" value={pass.features ? (pass.features as any).geometry?.bbox?.aspect_ratio : null} /><Metric label="Active bends" value={metric("active_bend_count", pass.physical_forming_bend_count)} /><Metric label="Total bend angle" value={metric("total_absolute_bend_angle", pass.physical_total_bend_angle)} /><Metric label="Min R/t" value={metric("minimum_radius_to_thickness")} /><Metric label="Symmetry score" value={metric("symmetry_score")} /><Metric label="Bend density" value={metric("bend_density")} /><Metric label="Formedness index" value={metric("formedness_index")} /><Metric label="Feature confidence" value={quality?.confidence} /><Metric label="Schema version" value={pass.feature_schema_version} /></div><p>Units: {quality?.units_status ?? "UNKNOWN"}</p>{quality?.flags?.map((flag) => <p key={flag}><strong>Quality warning:</strong> {flag}</p>)}<div className="links">{Object.entries(pass.feature_downloads ?? {}).filter(([, path]) => path).map(([name, path]) => <a key={name} href={artifactUrl(projectId, path as string)}>{name}</a>)}</div><BendTable pass={pass} /></>;
 }
 
 function WhatChanged({ changes }: { changes: StepChange[] }) {
