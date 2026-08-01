@@ -115,7 +115,7 @@ def validate_batch(output_root: Path) -> ValidationReport:
         report = validate_project(project_json.parent)
         issues.extend(ValidationIssue(issue.code, f"{project_json.parent.name}: {issue.message}") for issue in report.issues)
     if not (output_root / "master" / "master_rollform.sqlite").exists():
-        issues.append(ValidationIssue("missing_master_database", "master/master_rollform.sqlite is missing"))
+        issues.append(ValidationIssue("missing_master_database", "master/master_rollform.sqlite is missing; run batch-extract (or batch-report) before batch-validate"))
     return ValidationReport(not issues, tuple(issues))
 
 
@@ -320,7 +320,7 @@ def _create_master_schema(db: sqlite3.Connection) -> None:
             physical_fingerprint_hash text,
             shape_fingerprint_hash text,
             combined_fingerprint_hash text,
-            unique(project_id, composite_pass_id, schema_version, configuration_hash)
+            unique(project_id, composite_flower_id, composite_pass_id, schema_version, configuration_hash)
         );
         create table if not exists assembly_templates (
             template_id text primary key,

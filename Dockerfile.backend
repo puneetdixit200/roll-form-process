@@ -2,6 +2,12 @@ FROM python:3.12-slim
 
 WORKDIR /app
 COPY pyproject.toml requirements.txt ./
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_NO_CACHE_DIR=1
 RUN pip install --no-cache-dir -r requirements.txt fastapi uvicorn
 COPY src ./src
 COPY backend ./backend
