@@ -49,7 +49,7 @@
     "workflow_local": "present",
     "workflow_path": ".github/workflows/quality.yml",
     "workflow_remote": "present",
-    "workflow_run_url": "https://github.com/puneetdixit200/roll-form-process/actions/runs/30712446891"
+    "workflow_run_url": "https://github.com/puneetdixit200/roll-form-process/actions/runs/30713018287"
   },
   "commands": [
     {
@@ -157,7 +157,7 @@
       "result": "PASS"
     },
     {
-      "command": "GitHub Actions quality workflow (run 30712446891)",
+      "command": "GitHub Actions quality workflow (run 30713018287)",
       "cwd": "repository",
       "duration": "~5m",
       "excerpt": "Python, frontend, and Docker jobs passed on GitHub-hosted ubuntu-latest.",
@@ -293,8 +293,8 @@
     "base_sha": "ba145a9e5099b80ca1a3f16700c7199588d4c085",
     "branch": "feature/phase-15-pass-features",
     "changed_file_count_against_main": 689,
-    "feature_head_sha": "a5cfc9c59299b33d17956d089811403db542e2be",
-    "merge_recommendation": "SAFE TO MERGE after the pull-request workflow remains green and required review is obtained.",
+    "feature_head_sha": "68b767b5383f032fe10eaeddd1392cc0943d914c",
+    "merge_recommendation": "READY TO MERGE; final branch workflow is green and required review remains the merge gate.",
     "overall_result": "PASS",
     "phase": "Phase 15: Automatic Pass Feature Extraction",
     "production_status": "Candidate engineering extraction; not approved for production use.",
