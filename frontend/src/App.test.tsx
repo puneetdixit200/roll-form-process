@@ -60,7 +60,7 @@ afterEach(() => {
 
 test("renders every required offline application screen", () => {
   render(<App />);
-  for (const heading of ["Dashboard", "New Project / Upload", "Processing Progress", "Project Summary", "Flower Viewer", "Pass Detail", "What Changed", "Bend-Zone Progression", "Warnings", "Engineer Review", "Exports"]) {
+  for (const heading of ["Dashboard", "New Project / Upload", "Processing Progress", "Project Summary", "Flower Viewer", "Pass Detail", "What Changed", "Bend-Zone Progression", "Warnings", "Engineer Review", "Exports", "Physical Roller Inventory"]) {
     expect(screen.getAllByText(heading)[0]).toBeInTheDocument();
   }
 });

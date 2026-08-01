@@ -11,6 +11,15 @@ from rollform_extractor.batch import BatchRequest, batch_extract, validate_batch
 from rollform_extractor.converter import stage_input
 from rollform_extractor.dxf_reader import inspect_drawing
 from rollform_extractor.metadata_import import import_metadata
+from rollform_extractor.roller_inventory import (
+    export_inventory,
+    export_rejected_rows,
+    import_inventory,
+    inventory_stats,
+    validate_inventory,
+    write_inventory_template,
+)
+from rollform_extractor.database import create_project_database
 from rollform_extractor.pipeline import ExtractionRequest, extract_project, reprocess_project
 from rollform_extractor.review_apply import ReviewApplyError, apply_review_decisions
 from rollform_extractor.validation import validate_project
@@ -48,6 +57,21 @@ def main(argv: list[str] | None = None) -> int:
     apply_review_cmd = sub.add_parser("apply-review")
     apply_review_cmd.add_argument("project", type=Path)
     apply_review_cmd.add_argument("decisions", type=Path)
+    inventory_template_cmd = sub.add_parser("roller-inventory-template")
+    inventory_template_cmd.add_argument("output", type=Path)
+    inventory_validate_cmd = sub.add_parser("roller-inventory-validate")
+    inventory_validate_cmd.add_argument("source", type=Path)
+    inventory_validate_cmd.add_argument("--database", type=Path)
+    inventory_import_cmd = sub.add_parser("roller-inventory-import")
+    inventory_import_cmd.add_argument("source", type=Path)
+    inventory_import_cmd.add_argument("--database", type=Path, default=Path("roller_inventory.sqlite"))
+    inventory_export_cmd = sub.add_parser("roller-inventory-export")
+    inventory_export_cmd.add_argument("--database", type=Path, default=Path("roller_inventory.sqlite"))
+    inventory_export_cmd.add_argument("--batch", type=int)
+    inventory_export_cmd.add_argument("--rejected-output", type=Path)
+    inventory_export_cmd.add_argument("output", type=Path)
+    inventory_stats_cmd = sub.add_parser("roller-inventory-stats")
+    inventory_stats_cmd.add_argument("--database", type=Path, default=Path("roller_inventory.sqlite"))
     args = parser.parse_args(argv)
 
     if args.command == "inspect":
@@ -112,5 +136,37 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 2
         print(path)
+        return 0
+    if args.command == "roller-inventory-template":
+        print(write_inventory_template(args.output))
+        return 0
+    if args.command == "roller-inventory-validate":
+        try:
+            engine = create_project_database(args.database) if args.database else None
+            report = validate_inventory(args.source, engine)
+        except (OSError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
+        return 0 if report.valid else 1
+    if args.command == "roller-inventory-import":
+        try:
+            engine = create_project_database(args.database)
+            summary = import_inventory(args.source, engine)
+        except (OSError, ValueError, RuntimeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(json.dumps(summary.to_dict(), sort_keys=True))
+        return 0 if summary.rejected == 0 else 1
+    if args.command == "roller-inventory-export":
+        engine = create_project_database(args.database)
+        if args.batch is not None:
+            target = args.rejected_output or (args.output / f"rejected_batch_{args.batch}.csv")
+            print(export_rejected_rows(engine, args.batch, target))
+        else:
+            print(export_inventory(engine, args.output))
+        return 0
+    if args.command == "roller-inventory-stats":
+        print(json.dumps(inventory_stats(create_project_database(args.database)), sort_keys=True))
         return 0
     return 2

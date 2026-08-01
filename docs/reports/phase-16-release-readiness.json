@@ -1,0 +1,155 @@
+{
+  "api_frontend": [
+    {
+      "check": "Inventory statistics/designs/assets/batches",
+      "evidence": "HTTP 200",
+      "result": "PASS"
+    },
+    {
+      "check": "CSV validation/import",
+      "evidence": "HTTP 200 with staged summary",
+      "result": "PASS"
+    },
+    {
+      "check": "Geometry/location/condition/regrind/compatibility/file/audit interfaces",
+      "evidence": "HTTP 200 empty or populated collections",
+      "result": "PASS"
+    },
+    {
+      "check": "Path traversal protection",
+      "evidence": "../../secret.txt upload returns HTTP 400",
+      "result": "PASS"
+    },
+    {
+      "check": "React inventory dashboard",
+      "evidence": "frontend test renders Physical Roller Inventory and production build passes",
+      "result": "PASS"
+    }
+  ],
+  "ci": {
+    "docker": "PENDING Phase 16 branch run",
+    "frontend": "PENDING Phase 16 branch run",
+    "pull_request": "Not opened yet",
+    "python": "PENDING Phase 16 branch run",
+    "smoke": "PENDING Phase 16 branch run",
+    "workflow": ".github/workflows/quality.yml"
+  },
+  "database": {
+    "attachment_hashes": "schema supports unique SHA-256 file assets; importer does not accept arbitrary paths",
+    "foreign_key_check": "PASS for synthetic import",
+    "inventory_rows": "designs=2, assets=4, revisions=4, aliases=2, batches=1, review_rows=1",
+    "legacy_tables_preserved": "PASS",
+    "migration_strategy": "additive create_all plus legacy roller_catalog backfill using LEGACY-<catalog_id>; no extraction history deletion"
+  },
+  "docker": {
+    "environment": "Phase 16 branch CI pending",
+    "local_note": "Docker acceptance must be established by a clean CI runner before release.",
+    "result": "BLOCKED",
+    "tls_policy": "No TLS verification bypass added; existing secure dependency installation remains authoritative"
+  },
+  "import_workflow": {
+    "formats": [
+      "CSV",
+      "XLSX",
+      "XLSM"
+    ],
+    "idempotency": "source SHA-256 makes repeated import of the same file return the existing batch",
+    "phase_17_boundary": "exact IDs and explicit aliases only; no physical asset recognition, similarity claim, recommendation, reuse percentage, sequence generation, or manufacturability prediction",
+    "stages": [
+      "hash source",
+      "preserve original rows",
+      "normalize headers/unknowns",
+      "validate",
+      "review conflicts",
+      "transactional import",
+      "export rejected rows"
+    ]
+  },
+  "limitations": {
+    "engineer_review": [
+      "Verified dimensional claims require engineer-confirmed units and evidence; similarity remains candidate-only."
+    ],
+    "future_phase_17": [
+      "Automatic roller recognition, similarity scoring, tooling recommendations, reuse percentage, forming-sequence generation, and manufacturability prediction are intentionally not implemented."
+    ],
+    "nonblocking_technical_debt": [
+      "The import UI currently provides validation/import/export and collection views; richer condition and review editing can be expanded additively."
+    ],
+    "release_blocker": [
+      "CI, Docker, PR, merge, and phase-16-v1 tag are not yet complete."
+    ]
+  },
+  "pilot": {
+    "aliases": 2,
+    "designs_imported": 2,
+    "duplicate_candidates": 1,
+    "geometry_revisions": 4,
+    "import_idempotency": "PASS: repeated source hash returns the same batch without duplicate assets",
+    "physical_assets_imported": 4,
+    "provenance_coverage": "100% of accepted and review rows carry batch/source-row provenance",
+    "regrind_history": "synthetic reground-copy scenario represented by asset-specific revision REV-SYN-002",
+    "rejected_rows": 1,
+    "review_required_records": 1,
+    "unknown_unit_records": 1,
+    "verified_records": 3
+  },
+  "schema_summary": "Reuses the existing roller_catalog, roller_occurrences, project_roll_usage, assembly_templates, geometry_fingerprints, and result_provenance schema. Adds versioned roller_designs, roller_assets, roller_geometry_revisions, roller_aliases, roller_locations, roller_compatibility, roller_condition_history, roller_regrind_history, roller_file_assets, roller_import_batches, roller_import_rows, roller_review_decisions, and roller_audit_events.",
+  "summary": {
+    "base_commit": "4ed49cc721fa776366101da785348a085d87048e",
+    "branch": "feature/phase-16-roller-inventory",
+    "feature_commit": "local implementation pending CI",
+    "merge_recommendation": "DO NOT MERGE until the Phase 16 branch CI, Docker build, smoke tests, PR review, merge, and phase-16-v1 tag are complete.",
+    "overall_result": "BLOCKED",
+    "phase": "Phase 16: Physical Roller Inventory Knowledge Base",
+    "production_status": "Candidate inventory knowledge base; not production-approved.",
+    "report_generated_utc": "2026-08-02T00:55:00Z",
+    "repository": "puneetdixit200/roll-form-process"
+  },
+  "tests": [
+    {
+      "command": "python -m compileall -q src backend scripts",
+      "excerpt": "compiled successfully",
+      "result": "PASS"
+    },
+    {
+      "command": "pytest -q",
+      "excerpt": "219 passed",
+      "result": "PASS"
+    },
+    {
+      "command": "pytest -q tests/test_roller_inventory.py",
+      "excerpt": "6 passed",
+      "result": "PASS"
+    },
+    {
+      "command": "cd frontend && npm test -- --run",
+      "excerpt": "2 passed",
+      "result": "PASS"
+    },
+    {
+      "command": "cd frontend && npm run build",
+      "excerpt": "vite production build completed",
+      "result": "PASS"
+    },
+    {
+      "command": "synthetic roller inventory CLI pilot",
+      "excerpt": "accepted=4 review_required=1 rejected=1; stats designs=2 assets=4 geometry_revisions=4",
+      "result": "PASS"
+    },
+    {
+      "command": "inventory API and path-safety checks",
+      "excerpt": "health/stats/validate/import/catalog/export 200; traversal upload 400",
+      "result": "PASS"
+    },
+    {
+      "command": "docker compose build --no-cache --progress=plain",
+      "excerpt": "Not yet run on the Phase 16 branch; must pass in CI before merge.",
+      "result": "BLOCKED"
+    },
+    {
+      "command": "GitHub Actions quality workflow",
+      "excerpt": "Phase 16 branch has not yet been pushed.",
+      "result": "BLOCKED"
+    }
+  ]
+}

@@ -13,6 +13,15 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from rollform_extractor.web.backend.jobs.store import JobStore
 from rollform_extractor.web.backend.services.analysis import AnalysisService
+from rollform_extractor.database import (
+    RollerAsset, RollerAuditEvent, RollerCompatibility, RollerConditionHistory,
+    RollerDesign, RollerFileAsset, RollerGeometryRevision, RollerImportBatch,
+    RollerImportRow, RollerLocation, RollerReviewDecision, RollerRegrindHistory,
+    create_project_database,
+)
+from rollform_extractor.roller_inventory import export_inventory, import_inventory, inventory_stats, validate_inventory
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 
 def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> FastAPI:
@@ -28,10 +37,104 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     )
     app.state.store = store
     app.state.service = service
+    inventory_database = root / "roller_inventory.sqlite"
+
+    def inventory_engine():
+        return create_project_database(inventory_database)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "mode": "offline"}
+
+    @app.get("/api/inventory/stats")
+    def inventory_statistics() -> dict[str, int]:
+        return inventory_stats(inventory_engine())
+
+    @app.get("/api/inventory/designs")
+    def inventory_designs() -> list[dict[str, Any]]:
+        with Session(inventory_engine()) as session:
+            return [{"design_id": row.design_id, "name": row.name, "design_type": row.design_type, "manufacturer": row.manufacturer, "status": row.status, "verified": bool(row.verified)} for row in session.scalars(select(RollerDesign).order_by(RollerDesign.design_id))]
+
+    @app.get("/api/inventory/assets")
+    def inventory_assets() -> list[dict[str, Any]]:
+        with Session(inventory_engine()) as session:
+            return [{"asset_id": row.asset_id, "design_id": row.design_id, "serial_number": row.serial_number, "condition": row.condition, "location_id": row.location_id, "verified": bool(row.verified)} for row in session.scalars(select(RollerAsset).order_by(RollerAsset.asset_id))]
+
+    @app.get("/api/inventory/batches")
+    def inventory_batches() -> list[dict[str, Any]]:
+        with Session(inventory_engine()) as session:
+            return [{"id": row.id, "source_name": row.source_name, "source_sha256": row.source_sha256, "status": row.status, "row_count": row.row_count, "accepted_count": row.accepted_count, "review_count": row.review_count, "rejected_count": row.rejected_count} for row in session.scalars(select(RollerImportBatch).order_by(RollerImportBatch.id.desc()))]
+
+    @app.get("/api/inventory/geometry-revisions")
+    def inventory_geometry_revisions() -> list[dict[str, Any]]:
+        with Session(inventory_engine()) as session:
+            return [{"id": row.id, "revision_id": row.revision_id, "design_id": row.design_id, "asset_id": row.asset_id, "dimensions": row.dimensions_json, "unit_status": row.unit_status, "verification_status": row.verification_status, "physical_fingerprint": row.physical_fingerprint, "shape_fingerprint": row.shape_fingerprint} for row in session.scalars(select(RollerGeometryRevision).order_by(RollerGeometryRevision.id))]
+
+    @app.get("/api/inventory/locations")
+    def inventory_locations() -> list[dict[str, Any]]:
+        with Session(inventory_engine()) as session:
+            return [{"location_id": row.location_id, "name": row.name, "location_type": row.location_type, "parent_location_id": row.parent_location_id} for row in session.scalars(select(RollerLocation).order_by(RollerLocation.location_id))]
+
+    @app.get("/api/inventory/conditions")
+    def inventory_conditions() -> list[dict[str, Any]]:
+        with Session(inventory_engine()) as session:
+            return [{"id": row.id, "asset_id": row.asset_id, "condition": row.condition, "observed_at": row.observed_at, "source": row.source, "notes": row.notes} for row in session.scalars(select(RollerConditionHistory).order_by(RollerConditionHistory.id))]
+
+    @app.get("/api/inventory/regrinds")
+    def inventory_regrinds() -> list[dict[str, Any]]:
+        with Session(inventory_engine()) as session:
+            return [{"id": row.id, "asset_id": row.asset_id, "performed_at": row.performed_at, "amount_removed": row.amount_removed, "amount_unit": row.amount_unit, "resulting_revision_id": row.resulting_revision_id, "source": row.source, "notes": row.notes} for row in session.scalars(select(RollerRegrindHistory).order_by(RollerRegrindHistory.id))]
+
+    @app.get("/api/inventory/compatibility")
+    def inventory_compatibility() -> list[dict[str, Any]]:
+        with Session(inventory_engine()) as session:
+            return [{"id": row.id, "design_id": row.design_id, "compatible_design_id": row.compatible_design_id, "status": row.status, "evidence": row.evidence_json, "verified": bool(row.verified)} for row in session.scalars(select(RollerCompatibility).order_by(RollerCompatibility.id))]
+
+    @app.get("/api/inventory/files")
+    def inventory_files() -> list[dict[str, Any]]:
+        with Session(inventory_engine()) as session:
+            return [{"id": row.id, "sha256": row.sha256, "file_name": row.file_name, "relative_path": row.relative_path, "content_type": row.content_type, "design_id": row.design_id, "asset_id": row.asset_id, "revision_id": row.revision_id} for row in session.scalars(select(RollerFileAsset).order_by(RollerFileAsset.id))]
+
+    @app.get("/api/inventory/audit-events")
+    def inventory_audit_events() -> list[dict[str, Any]]:
+        with Session(inventory_engine()) as session:
+            return [{"id": row.id, "entity_type": row.entity_type, "entity_key": row.entity_key, "action": row.action, "actor": row.actor, "source": row.source} for row in session.scalars(select(RollerAuditEvent).order_by(RollerAuditEvent.id))]
+
+    async def _save_inventory_upload(file: UploadFile) -> Path:
+        name = Path(file.filename or "inventory.csv").name
+        if Path(name).suffix.lower() not in {".csv", ".xlsx", ".xlsm"}:
+            raise HTTPException(status_code=400, detail="Inventory upload must be CSV or XLSX")
+        target = root / "inventory_imports" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(await file.read())
+        return target
+
+    @app.post("/api/inventory/validate")
+    async def validate_inventory_upload(file: UploadFile = File(...)) -> dict[str, Any]:
+        return validate_inventory(await _save_inventory_upload(file), inventory_engine()).to_dict()
+
+    @app.post("/api/inventory/import")
+    async def import_inventory_upload(file: UploadFile = File(...)) -> dict[str, Any]:
+        return import_inventory(await _save_inventory_upload(file), inventory_engine()).to_dict()
+
+    @app.get("/api/inventory/export")
+    def inventory_export():
+        from fastapi.responses import FileResponse as _FileResponse
+        path = export_inventory(inventory_engine(), root / "inventory_exports")
+        return _FileResponse(path, filename="roller_inventory.csv", media_type="text/csv")
+
+    @app.post("/api/inventory/review-decisions")
+    def inventory_review_decision(decision: dict[str, Any]) -> dict[str, Any]:
+        batch_id, row_id = decision.get("batch_id"), decision.get("row_id")
+        if not isinstance(batch_id, int) or not isinstance(row_id, int) or decision.get("decision") not in {"ACCEPT", "REJECT"}:
+            raise HTTPException(status_code=400, detail="batch_id, row_id, and ACCEPT/REJECT decision are required")
+        with Session(inventory_engine()) as session, session.begin():
+            row = session.get(RollerImportRow, row_id)
+            if row is None or row.batch_id != batch_id:
+                raise HTTPException(status_code=404, detail="Inventory review row not found")
+            row.status = "ACCEPTED" if decision["decision"] == "ACCEPT" else "REJECTED"
+            session.add(RollerReviewDecision(batch_id=batch_id, row_id=row_id, decision=decision["decision"], reviewer=str(decision.get("reviewer") or "engineer"), notes=decision.get("notes")))
+            return {"row_id": row.id, "status": row.status}
 
     @app.post("/api/projects", status_code=202)
     async def upload_project(background: BackgroundTasks, file: UploadFile = File(...)) -> dict[str, str]:
