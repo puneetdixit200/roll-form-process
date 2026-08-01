@@ -14,3 +14,12 @@ profiles:
   minimum_score_margin: 0.15
 rollers:
   minimum_confidence: 0.65
+features:
+  schema_version: 1
+  material_sample_count: 128
+  minimum_path_length: 0.001
+  curvature_window: 3
+  straight_angle_tolerance_deg: 2.0
+  symmetry_tolerance: 0.02
+  mirror_canonicalization: true
+  vector_rounding_decimals: 6
