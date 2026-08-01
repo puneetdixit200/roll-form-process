@@ -1,0 +1,33 @@
+{
+  "phase": "Phase 15: Automatic Pass Feature Extraction",
+  "pull_request": 1,
+  "feature_head_sha": "ed951f6df5d5a7d4561e3cc43d952d87c1c7cc6",
+  "merge_commit": "4ed49cc721fa776366101da785348a085d87048e",
+  "tag": "phase-15-v1",
+  "tag_object_sha": "6ffa5c50f244b1c27a42c07067f44021a59bef9b",
+  "tag_target_sha": "4ed49cc721fa776366101da785348a085d87048e",
+  "final_main_workflow_run": 30713454104,
+  "tests": {
+    "python": "213 passed",
+    "frontend": "2 passed",
+    "frontend_build": "passed",
+    "docker_build": "passed",
+    "docker_smoke": "passed"
+  },
+  "pilot": {
+    "composite_flowers": 1,
+    "passes": 12,
+    "feature_sets": 12,
+    "segments": 47,
+    "scalar_vector_length": 94,
+    "shape_vector_length": 256,
+    "full_vector_length": 350,
+    "determinism": "identical across two runs"
+  },
+  "limitations": [
+    "Results remain candidate engineering data and are not production-approved.",
+    "Drawing units and review warnings require engineer confirmation where applicable.",
+    "Physical roller inventory, recognition, recommendation, sequence generation, and manufacturability prediction were outside Phase 15."
+  ],
+  "readiness_report_note": "docs/reports/phase-15-release-readiness.html is a pre-merge readiness snapshot; this manifest is the permanent post-merge release record."
+}

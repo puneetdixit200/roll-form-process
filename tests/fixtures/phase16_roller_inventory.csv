@@ -1,0 +1,7 @@
+design_id,design_name,design_type,manufacturer,design_alias,asset_id,serial_number,condition,location_id,location_name,revision_id,diameter,diameter_unit,bore,bore_unit,width,width_unit,measurement_method,geometry_source,verification_status,confidence,notes
+DES-SYN-001,Synthetic 1,WORKING,Synthetic,roll-one,ASSET-SYN-001,SN-001,GOOD,RACK-A,Rack A,REV-SYN-001,100,mm,40,mm,60,mm,CMM,synthetic,VERIFIED,0.98,approved synthetic row
+DES-SYN-001,Synthetic 1,WORKING,Synthetic,,ASSET-SYN-002,SN-002,GOOD,RACK-A,Rack A,REV-SYN-002,99.5,mm,40,mm,60,mm,CMM,synthetic,VERIFIED,0.94,reground copy
+DES-SYN-002,Synthetic 2,IDLER,Synthetic,roll-two,ASSET-SYN-003,SN-003,FAIR,RACK-B,Rack B,REV-SYN-003,4,in,1.5,in,2,in,CMM,synthetic,VERIFIED,0.91,converted units
+DES-SYN-002,Synthetic 2,IDLER,Synthetic,,ASSET-SYN-004,SN-004,UNKNOWN,RACK-B,Rack B,REV-SYN-004,100,widget,40,widget,60,widget,MANUAL,synthetic,UNVERIFIED,0.50,unknown units
+DES-SYN-003,Synthetic 3,SPARE,Synthetic,roll-one,ASSET-SYN-005,SN-005,GOOD,RACK-C,Rack C,REV-SYN-005,100,mm,40,mm,60,mm,MANUAL,synthetic,UNVERIFIED,0.60,alias conflict for review
+,,,,,,,,,,,,,,,,,,,,,missing required identifiers

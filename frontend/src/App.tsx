@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { applyReview, artifactUrl, getArtifacts, getJob, getProject, getReportData, uploadDrawing } from "./api/client";
+import { applyReview, artifactUrl, getArtifacts, getInventoryDesigns, getInventoryStats, getJob, getProject, getReportData, inventoryExportUrl, importInventory, uploadDrawing, validateInventory } from "./api/client";
 import type { CompositeFlower, FlowerPass, JobRecord, ProjectRecord, ReportData, StepChange } from "./types/report";
 import "./styles.css";
 
@@ -86,7 +86,7 @@ export default function App() {
           <h1>Rollform Extractor</h1>
           <p>Candidate extraction - not approved for production use</p>
         </div>
-        <nav>{["Dashboard", "New Project / Upload", "Processing Progress", "Project Summary", "Flower Viewer", "Pass Detail", "What Changed", "Bend-Zone Progression", "Warnings", "Engineer Review", "Exports"].map((item) => <a href={`#${item.replaceAll(" ", "-")}`} key={item}>{item}</a>)}</nav>
+        <nav>{["Dashboard", "New Project / Upload", "Processing Progress", "Project Summary", "Flower Viewer", "Pass Detail", "What Changed", "Bend-Zone Progression", "Warnings", "Engineer Review", "Exports", "Inventory"].map((item) => <a href={`#${item.replaceAll(" ", "-")}`} key={item}>{item}</a>)}</nav>
       </header>
       <section id="Dashboard" className="panel"><Dashboard project={project} report={report} /></section>
       <section id="New-Project-/-Upload" className="panel"><Upload onUpload={onUpload} /></section>
@@ -101,8 +101,19 @@ export default function App() {
       <section id="Warnings" className="panel"><Warnings report={report} /></section>
       <section id="Engineer-Review" className="panel"><EngineerReview onExport={exportReview} onApplyUnits={applyUnitReview} flower={flower} /></section>
       <section id="Exports" className="panel"><Exports projectId={projectId} artifacts={artifacts} /></section>
+      <section id="Inventory" className="panel"><Inventory /></section>
     </main>
   );
+}
+
+function Inventory() {
+  const [stats, setStats] = useState<{ designs: number; assets: number; geometry_revisions: number; aliases: number; import_batches: number; review_rows: number } | null>(null);
+  const [designs, setDesigns] = useState<{ design_id: string; name?: string; status: string }[]>([]);
+  const [validation, setValidation] = useState<any>(null);
+  async function refresh() { setStats(await getInventoryStats()); const nextDesigns = await getInventoryDesigns(); setDesigns(Array.isArray(nextDesigns) ? nextDesigns : []); }
+  async function onFile(file: File, action: "validate" | "import") { setValidation(action === "validate" ? await validateInventory(file) : await importInventory(file)); await refresh(); }
+  useEffect(() => { refresh().catch(() => undefined); }, []);
+  return <><h2>Physical Roller Inventory</h2><p>Phase 16 inventory knowledge base. Candidate records only; no automatic recognition or tooling recommendation.</p><div className="metrics"><Metric label="Designs" value={stats?.designs ?? 0} /><Metric label="Physical assets" value={stats?.assets ?? 0} /><Metric label="Geometry revisions" value={stats?.geometry_revisions ?? 0} /><Metric label="Review rows" value={stats?.review_rows ?? 0} /></div><label>Validate CSV/XLSX <input type="file" accept=".csv,.xlsx,.xlsm" onChange={(event) => event.target.files?.[0] && onFile(event.target.files[0], "validate")} /></label><label>Import accepted rows <input type="file" accept=".csv,.xlsx,.xlsm" onChange={(event) => event.target.files?.[0] && onFile(event.target.files[0], "import")} /></label><a href={inventoryExportUrl()}>Export inventory CSV</a>{validation && <pre>{JSON.stringify(validation, null, 2)}</pre>}<h3>Roller designs</h3><table><thead><tr><th>Design</th><th>Name</th><th>Status</th></tr></thead><tbody>{designs.map((design) => <tr key={design.design_id}><td>{design.design_id}</td><td>{design.name ?? "-"}</td><td>{design.status}</td></tr>)}</tbody></table></>;
 }
 
 function Dashboard({ project, report }: { project: ProjectRecord | null; report: ReportData | null }) {

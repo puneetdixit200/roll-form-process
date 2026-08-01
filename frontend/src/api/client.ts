@@ -30,3 +30,11 @@ export async function applyReview(projectId: string, decisions: unknown): Promis
 export function artifactUrl(projectId: string, path: string): string {
   return `${API_ROOT}/api/projects/${projectId}/artifacts/${path}`;
 }
+
+export type InventoryStats = { designs: number; assets: number; geometry_revisions: number; aliases: number; import_batches: number; review_rows: number };
+export type InventoryDesign = { design_id: string; name?: string; design_type?: string; manufacturer?: string; status: string; verified: boolean };
+export const getInventoryStats = () => request<InventoryStats>("/api/inventory/stats");
+export const getInventoryDesigns = () => request<InventoryDesign[]>("/api/inventory/designs");
+export const validateInventory = (file: File) => { const form = new FormData(); form.append("file", file); return request<any>("/api/inventory/validate", { method: "POST", body: form }); };
+export const importInventory = (file: File) => { const form = new FormData(); form.append("file", file); return request<any>("/api/inventory/import", { method: "POST", body: form }); };
+export const inventoryExportUrl = () => `${API_ROOT}/api/inventory/export`;

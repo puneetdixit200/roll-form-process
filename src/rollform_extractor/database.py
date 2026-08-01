@@ -551,6 +551,190 @@ class ProjectMetadata(Base):
     provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
+class RollerDesign(Base):
+    __tablename__ = "roller_designs"
+
+    design_id: Mapped[str] = mapped_column(String, primary_key=True)
+    legacy_catalog_id: Mapped[int | None] = mapped_column(ForeignKey("roller_catalog.roller_catalog_id", ondelete="SET NULL"), unique=True)
+    name: Mapped[str | None] = mapped_column(String)
+    design_type: Mapped[str | None] = mapped_column(String)
+    manufacturer: Mapped[str | None] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, default="CANDIDATE")
+    verified: Mapped[bool] = mapped_column(Integer, default=0)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class RollerLocation(Base):
+    __tablename__ = "roller_locations"
+
+    location_id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String)
+    location_type: Mapped[str | None] = mapped_column(String)
+    parent_location_id: Mapped[str | None] = mapped_column(ForeignKey("roller_locations.location_id", ondelete="SET NULL"))
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class RollerAsset(Base):
+    __tablename__ = "roller_assets"
+    __table_args__ = (UniqueConstraint("asset_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asset_id: Mapped[str] = mapped_column(String)
+    design_id: Mapped[str | None] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="SET NULL"))
+    serial_number: Mapped[str | None] = mapped_column(String)
+    condition: Mapped[str | None] = mapped_column(String)
+    location_id: Mapped[str | None] = mapped_column(ForeignKey("roller_locations.location_id", ondelete="SET NULL"))
+    verified: Mapped[bool] = mapped_column(Integer, default=0)
+    source: Mapped[str | None] = mapped_column(String)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class RollerGeometryRevision(Base):
+    __tablename__ = "roller_geometry_revisions"
+    __table_args__ = (UniqueConstraint("revision_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    revision_id: Mapped[str] = mapped_column(String)
+    design_id: Mapped[str | None] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="SET NULL"))
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey("roller_assets.id", ondelete="SET NULL"))
+    dimensions_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    unit_status: Mapped[str] = mapped_column(String, default="UNKNOWN")
+    measurement_method: Mapped[str | None] = mapped_column(String)
+    source: Mapped[str | None] = mapped_column(String)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    verification_status: Mapped[str] = mapped_column(String, default="UNVERIFIED")
+    input_file_hash: Mapped[str | None] = mapped_column(String)
+    algorithm_version: Mapped[str | None] = mapped_column(String)
+    configuration_hash: Mapped[str | None] = mapped_column(String)
+    physical_fingerprint: Mapped[str | None] = mapped_column(String)
+    shape_fingerprint: Mapped[str | None] = mapped_column(String)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class RollerAlias(Base):
+    __tablename__ = "roller_aliases"
+    __table_args__ = (UniqueConstraint("normalized_alias"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    design_id: Mapped[str] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="CASCADE"))
+    alias: Mapped[str] = mapped_column(String)
+    normalized_alias: Mapped[str] = mapped_column(String)
+    source: Mapped[str | None] = mapped_column(String)
+    verified: Mapped[bool] = mapped_column(Integer, default=0)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class RollerCompatibility(Base):
+    __tablename__ = "roller_compatibility"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    design_id: Mapped[str] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="CASCADE"))
+    compatible_design_id: Mapped[str] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(String, default="CANDIDATE")
+    evidence_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    verified: Mapped[bool] = mapped_column(Integer, default=0)
+
+
+class RollerConditionHistory(Base):
+    __tablename__ = "roller_condition_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("roller_assets.id", ondelete="CASCADE"))
+    condition: Mapped[str] = mapped_column(String)
+    observed_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    source: Mapped[str | None] = mapped_column(String)
+    notes: Mapped[str | None] = mapped_column(Text)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class RollerRegrindHistory(Base):
+    __tablename__ = "roller_regrind_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("roller_assets.id", ondelete="CASCADE"))
+    performed_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    amount_removed: Mapped[float | None] = mapped_column(Float)
+    amount_unit: Mapped[str | None] = mapped_column(String)
+    resulting_revision_id: Mapped[str | None] = mapped_column(ForeignKey("roller_geometry_revisions.revision_id", ondelete="SET NULL"))
+    source: Mapped[str | None] = mapped_column(String)
+    notes: Mapped[str | None] = mapped_column(Text)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class RollerFileAsset(Base):
+    __tablename__ = "roller_file_assets"
+    __table_args__ = (UniqueConstraint("sha256"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    file_name: Mapped[str] = mapped_column(String)
+    relative_path: Mapped[str | None] = mapped_column(Text)
+    sha256: Mapped[str] = mapped_column(String)
+    content_type: Mapped[str | None] = mapped_column(String)
+    design_id: Mapped[str | None] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="SET NULL"))
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey("roller_assets.id", ondelete="SET NULL"))
+    revision_id: Mapped[str | None] = mapped_column(ForeignKey("roller_geometry_revisions.revision_id", ondelete="SET NULL"))
+    source: Mapped[str | None] = mapped_column(String)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class RollerImportBatch(Base):
+    __tablename__ = "roller_import_batches"
+    __table_args__ = (UniqueConstraint("source_sha256"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_name: Mapped[str] = mapped_column(String)
+    source_sha256: Mapped[str] = mapped_column(String)
+    source_path: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String, default="STAGED")
+    row_count: Mapped[int] = mapped_column(Integer, default=0)
+    accepted_count: Mapped[int] = mapped_column(Integer, default=0)
+    rejected_count: Mapped[int] = mapped_column(Integer, default=0)
+    review_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class RollerImportRow(Base):
+    __tablename__ = "roller_import_rows"
+    __table_args__ = (UniqueConstraint("batch_id", "row_number"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    batch_id: Mapped[int] = mapped_column(ForeignKey("roller_import_batches.id", ondelete="CASCADE"))
+    row_number: Mapped[int] = mapped_column(Integer)
+    original_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    normalized_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String)
+    reasons_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class RollerReviewDecision(Base):
+    __tablename__ = "roller_review_decisions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    batch_id: Mapped[int] = mapped_column(ForeignKey("roller_import_batches.id", ondelete="CASCADE"))
+    row_id: Mapped[int] = mapped_column(ForeignKey("roller_import_rows.id", ondelete="CASCADE"))
+    decision: Mapped[str] = mapped_column(String)
+    reviewer: Mapped[str] = mapped_column(String)
+    notes: Mapped[str | None] = mapped_column(Text)
+    decided_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class RollerAuditEvent(Base):
+    __tablename__ = "roller_audit_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entity_type: Mapped[str] = mapped_column(String)
+    entity_key: Mapped[str] = mapped_column(String)
+    action: Mapped[str] = mapped_column(String)
+    actor: Mapped[str | None] = mapped_column(String)
+    before_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    after_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    source: Mapped[str | None] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
 def create_project_database(path: Path) -> Engine:
     engine = create_engine(f"sqlite:///{path}")
 
@@ -585,12 +769,33 @@ def _upgrade_schema(engine: Engine) -> None:
     }
     with engine.begin() as connection:
         table_names = {row[0] for row in connection.exec_driver_sql("select name from sqlite_master where type='table'")}
-        if "composite_flower_passes" not in table_names:
+        if "composite_flower_passes" in table_names:
+            existing = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(composite_flower_passes)")}
+            for name, sql_type in composite_pass_columns.items():
+                if name not in existing:
+                    connection.exec_driver_sql(f"ALTER TABLE composite_flower_passes ADD COLUMN {name} {sql_type}")
+    _migrate_legacy_roller_catalog(engine)
+
+
+def _migrate_legacy_roller_catalog(engine: Engine) -> None:
+    """Expose legacy catalog rows as design identities without changing old references."""
+    with Session(engine) as session, session.begin():
+        if session.scalar(select(RollerDesign.design_id).limit(1)) is not None:
             return
-        existing = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(composite_flower_passes)")}
-        for name, sql_type in composite_pass_columns.items():
-            if name not in existing:
-                connection.exec_driver_sql(f"ALTER TABLE composite_flower_passes ADD COLUMN {name} {sql_type}")
+        for row in session.scalars(select(RollerCatalog).order_by(RollerCatalog.roller_catalog_id)):
+            design_id = f"LEGACY-{row.roller_catalog_id}"
+            session.add(
+                RollerDesign(
+                    design_id=design_id,
+                    legacy_catalog_id=row.roller_catalog_id,
+                    name=row.factory_id or design_id,
+                    design_type="LEGACY_CATALOG",
+                    manufacturer=None,
+                    status="CANDIDATE",
+                    verified=0,
+                    provenance_json={"source": "roller_catalog", "roller_catalog_id": row.roller_catalog_id},
+                )
+            )
 
 
 def persist_extraction(engine: Engine, bundle: ExtractionBundle) -> int:

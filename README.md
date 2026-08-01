@@ -55,6 +55,11 @@ rollform-extractor batch-extract SOURCE_ROOT OUTPUT_ROOT [--resume] [--skip-unch
 rollform-extractor batch-validate OUTPUT_ROOT
 rollform-extractor batch-report OUTPUT_ROOT
 rollform-extractor import-metadata METADATA.csv [--master master.sqlite]
+rollform-extractor roller-inventory-template TEMPLATE.csv
+rollform-extractor roller-inventory-validate INVENTORY.csv [--database inventory.sqlite]
+rollform-extractor roller-inventory-import INVENTORY.csv [--database inventory.sqlite]
+rollform-extractor roller-inventory-export OUTPUT_DIR [--database inventory.sqlite]
+rollform-extractor roller-inventory-stats [--database inventory.sqlite]
 ```
 
 `inspect` prints JSON-safe drawing metadata. `extract` writes a project under
@@ -108,6 +113,14 @@ Phase 15 pass features are stored in `pass_feature_sets` and `pass_segments`,
 with versioned vectors, missing masks, quality flags, provenance, and SHA-256
 fingerprints. See `docs/pass-feature-schema-v1.md`. They are candidate
 engineering descriptors, not production-approved manufacturability results.
+
+Phase 16 adds an additive physical roller inventory knowledge base to the same
+SQLite schema. It distinguishes roller designs, physical assets, geometry
+revisions, drawing occurrences, historical usage, and assembly/tooling sets.
+CSV/XLSX imports are hashed, staged, provenance-preserving, unit-safe, and
+reviewable. Unknown units cannot support verified dimensional claims. Phase 17
+recognition, similarity claims, tooling recommendations, and sequence generation
+remain disabled. See `docs/specs/phase-16-roller-inventory.md`.
 
 ## Review Overrides
 
