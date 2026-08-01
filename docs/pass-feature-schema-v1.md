@@ -46,7 +46,7 @@ Every pass exports `pass_features.json`, `pass_feature_vector.json`,
 `segments.csv`, and `bend_features.csv`. Composite flowers export
 `summaries/pass_features.csv` and `summaries/pass_feature_index.json`. Full
 records are available from
-`GET /api/projects/{project_id}/passes/{pass_id}/features`.
+`GET /api/projects/{project_id}/flowers/{flower_id}/passes/{pass_id}/features`.
 
 These are candidate engineering descriptors, not production-approved
 manufacturability results or automatic roller-recognition output.

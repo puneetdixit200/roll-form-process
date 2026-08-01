@@ -204,7 +204,7 @@ with Server-Sent Events, writes SQLite/project artifacts, and displays the
 generated report data in the frontend.
 
 The web app exposes feature summaries in report data and a dedicated
-`/api/projects/{project_id}/passes/{pass_id}/features` endpoint. The Pass Detail
+`/api/projects/{project_id}/flowers/{flower_id}/passes/{pass_id}/features` endpoint. The Pass Detail
 screen shows a compact Feature Summary and links to pass-level feature files.
 
 Required web screens are implemented as dashboard sections:

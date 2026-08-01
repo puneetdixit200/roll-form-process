@@ -36,7 +36,7 @@ from rollform_extractor.models import (
     StationRecord,
     WarningRecord,
 )
-from rollform_extractor.pass_features import PassFeatureSet
+from rollform_extractor.pass_features import FeatureKey, PassFeatureSet
 from rollform_extractor.transition_analysis import bend_change_events, profile_step_changes, segment_change_events
 
 
@@ -57,7 +57,7 @@ class ExtractionBundle:
     assemblies: tuple[Any, ...] = ()
     transitions: tuple[StationTransitionRecord, ...] = ()
     composite_flowers: tuple[Any, ...] = ()
-    pass_features: Mapping[str, PassFeatureSet] = field(default_factory=dict)
+    pass_features: Mapping[FeatureKey, PassFeatureSet] = field(default_factory=dict)
     warnings: tuple[WarningRecord, ...] = ()
 
 
@@ -276,7 +276,7 @@ class CompositeFlowerPass(Base):
 
 class PassFeatureSetRow(Base):
     __tablename__ = "pass_feature_sets"
-    __table_args__ = (UniqueConstraint("composite_pass_id", "schema_version", "configuration_hash"),)
+    __table_args__ = (UniqueConstraint("project_id", "composite_flower_id", "composite_pass_id", "schema_version", "configuration_hash"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
@@ -849,7 +849,7 @@ def _transition(project_id: int, transition: StationTransitionRecord, from_stati
     )
 
 
-def _add_composite_flower(session: Session, project_id: int, composite: Any, entity_rows: dict[str, CadEntity], pass_features: Mapping[str, PassFeatureSet] | None = None) -> None:
+def _add_composite_flower(session: Session, project_id: int, composite: Any, entity_rows: dict[str, CadEntity], pass_features: Mapping[FeatureKey, PassFeatureSet] | None = None) -> None:
     row = CompositeFlower(
         project_id=project_id,
         source_region_id=composite.source_region_id,
@@ -958,7 +958,7 @@ def _add_composite_flower(session: Session, project_id: int, composite: Any, ent
                 )
             )
     for item in composite.passes:
-        feature = (pass_features or {}).get(item.pass_id)
+        feature = (pass_features or {}).get((composite.composite_flower_id, item.pass_id))
         pass_row = pass_rows_by_id.get(item.pass_id)
         if feature is None or pass_row is None:
             continue
@@ -988,8 +988,8 @@ def _add_composite_flower(session: Session, project_id: int, composite: Any, ent
         for segment in feature.segments:
             session.add(PassSegment(feature_set_id=feature_row.id, segment_id=segment.segment_id, segment_index=segment.segment_index, segment_json=_jsonable(asdict(segment))))
         for name, digest in feature.fingerprints.items():
-            session.add(GeometryFingerprint(project_id=project_id, owner_table="pass_feature_sets", owner_key=f"{feature.pass_id}:{name}", fingerprint_hash=digest, fingerprint_json={"schema_version": feature.schema_version, "pass_id": feature.pass_id, "kind": name}))
-        session.add(ResultProvenance(project_id=project_id, result_table="pass_feature_sets", result_key=feature.pass_id, field_name=None, source_handles=list(feature.source_handles), method=feature.provenance.calculation_method, configuration_hash=feature.configuration_hash, confidence=feature.quality.confidence, warning=";".join(feature.quality.flags) or None))
+            session.add(GeometryFingerprint(project_id=project_id, owner_table="pass_feature_sets", owner_key=f"{feature.composite_flower_id}:{feature.pass_id}:{name}", fingerprint_hash=digest, fingerprint_json={"schema_version": feature.schema_version, "composite_flower_id": feature.composite_flower_id, "pass_id": feature.pass_id, "kind": name}))
+        session.add(ResultProvenance(project_id=project_id, result_table="pass_feature_sets", result_key=f"{feature.composite_flower_id}:{feature.pass_id}", field_name=None, source_handles=list(feature.source_handles), method=feature.provenance.calculation_method, configuration_hash=feature.configuration_hash, confidence=feature.quality.confidence, warning=";".join(feature.quality.flags) or None))
     for change in profile_step_changes(composite.passes):
         session.add(
             ProfileStepChange(

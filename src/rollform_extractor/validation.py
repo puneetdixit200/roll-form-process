@@ -98,6 +98,8 @@ def _validate_features(project_path: Path, manifest: dict) -> list[ValidationIss
     if len(feature_passes) != len(passes):
         issues.append(ValidationIssue("feature_pass_count", f"{len(feature_passes)} feature sets for {len(passes)} composite passes"))
     full_lengths = set()
+    scalar_lengths = set()
+    shape_lengths = set()
     for item in feature_passes:
         feature = item["features"]
         vector = feature.get("full_vector") or {}
@@ -105,6 +107,10 @@ def _validate_features(project_path: Path, manifest: dict) -> list[ValidationIss
         values = vector.get("values", ())
         mask = vector.get("missing_mask", ())
         full_lengths.add(len(values))
+        scalar = feature.get("scalar_vector") or {}
+        shape = feature.get("shape_vector") or {}
+        scalar_lengths.add(len(scalar.get("values", ())))
+        shape_lengths.add(len(shape.get("values", ())))
         if feature.get("schema_version") is None or not feature.get("configuration_hash"):
             issues.append(ValidationIssue("feature_metadata_missing", item.get("pass_id", "unknown")))
         if len(names) != len(values) or len(mask) != len(values):
@@ -114,15 +120,29 @@ def _validate_features(project_path: Path, manifest: dict) -> list[ValidationIss
         fingerprints = feature.get("fingerprints") or {}
         if any(not isinstance(value, str) or len(value) != 64 or any(char not in "0123456789abcdef" for char in value.lower()) for value in fingerprints.values()):
             issues.append(ValidationIssue("feature_fingerprint_invalid", item.get("pass_id", "unknown")))
+        if not _finite_json(feature):
+            issues.append(ValidationIssue("feature_nonfinite", item.get("pass_id", "unknown")))
         downloads = item.get("feature_downloads") or {}
         for relative in downloads.values():
             if relative and not (project_path / relative).exists():
                 issues.append(ValidationIssue("missing_feature_artifact", str(relative)))
     if len(full_lengths) > 1:
         issues.append(ValidationIssue("feature_vector_length", "full vector lengths differ between passes"))
+    if len(scalar_lengths) > 1 or len(shape_lengths) > 1:
+        issues.append(ValidationIssue("feature_vector_length", "scalar or shape vector lengths differ between passes"))
     if summary.get("feature_set_count") != len(feature_passes):
         issues.append(ValidationIssue("feature_summary_count", "feature summary count does not match pass data"))
     return issues
+
+
+def _finite_json(value: object) -> bool:
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, dict):
+        return all(_finite_json(item) for item in value.values())
+    if isinstance(value, (tuple, list)):
+        return all(_finite_json(item) for item in value)
+    return True
 
 
 def _sha256(path: Path) -> str:

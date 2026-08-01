@@ -67,7 +67,7 @@ def extract_project(request: ExtractionRequest) -> ExtractionSummary:
     composite_flowers = build_composite_flowers(typed_stations, profiles.profiles, classified.entities)
     feature_configuration_hash = config.hash_for("feature_extraction")
     pass_features = {
-        pass_id: feature
+        (composite.composite_flower_id, pass_id): feature
         for composite in composite_flowers
         for pass_id, feature in extract_composite_pass_features(
             request.source.stem,

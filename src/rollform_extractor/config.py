@@ -63,6 +63,7 @@ class FeaturesConfig:
     symmetry_tolerance: float
     mirror_canonicalization: bool
     vector_rounding_decimals: int
+    closure_tolerance: float = 0.05
 
 
 @dataclass(frozen=True)

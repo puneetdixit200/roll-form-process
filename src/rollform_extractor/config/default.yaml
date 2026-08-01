@@ -23,3 +23,4 @@ features:
   symmetry_tolerance: 0.02
   mirror_canonicalization: true
   vector_rounding_decimals: 6
+  closure_tolerance: 0.05

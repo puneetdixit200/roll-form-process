@@ -226,7 +226,7 @@ def _export_composite_flowers(bundle: ExtractionBundle, project_path: Path) -> t
             render_drawing_preview(_preview_entities_from_primitives(f"{item.pass_id}_normalized", normalized_primitives), pass_dir / "profile_normalized.png")
             render_drawing_preview(_preview_entities_from_primitives(f"{item.pass_id}_outline", original_primitives), pass_dir / "profile_outline.png")
             render_drawing_preview(_preview_entities_from_primitives(f"{item.pass_id}_neutral", item.neutral_line_primitives), pass_dir / "profile_neutral_line.png")
-            feature = bundle.pass_features.get(item.pass_id)
+            feature = bundle.pass_features.get((composite.composite_flower_id, item.pass_id))
             if feature is not None:
                 _write_json(pass_dir / "pass_features.json", feature.to_dict())
                 _write_json(pass_dir / "pass_feature_vector.json", {"schema_version": feature.schema_version, "scalar": _jsonable(feature.scalar_vector), "shape": _jsonable(feature.shape_vector), "full": _jsonable(feature.full_vector), "fingerprints": _jsonable(feature.fingerprints)})

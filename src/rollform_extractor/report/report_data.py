@@ -6,7 +6,7 @@ from typing import Any, Mapping
 from rollform_extractor.database import ExtractionBundle
 from rollform_extractor.models import BBox, CadPrimitive, ProfileRecord, RollerOccurrenceRecord, StationRecord, WarningRecord
 from rollform_extractor.transition_analysis import bend_change_events, profile_step_changes, segment_change_events
-from rollform_extractor.pass_features import PASS_FEATURE_SCHEMA_VERSION
+from rollform_extractor.pass_features import PASS_FEATURE_SCHEMA_VERSION, FeatureKey
 
 
 def build_report_data(bundle: ExtractionBundle, project_path: Path, warnings: tuple[WarningRecord, ...]) -> dict[str, Any]:
@@ -59,10 +59,10 @@ def _individual_sequences(stations, profiles_by_station, rollers_by_station, pro
     ]
 
 
-def _composite_flower(composite, project_path: Path, pass_features: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _composite_flower(composite, project_path: Path, pass_features: Mapping[FeatureKey, Any] | None = None) -> dict[str, Any]:
     root = Path("composite_flowers") / composite.composite_flower_id
     pass_features = pass_features or {}
-    passes = [_composite_pass(item, root / "passes" / item.pass_id, project_path, pass_features.get(item.pass_id)) for item in composite.passes]
+    passes = [_composite_pass(item, root / "passes" / item.pass_id, project_path, pass_features.get((composite.composite_flower_id, item.pass_id))) for item in composite.passes]
     return {
         "composite_flower_id": composite.composite_flower_id,
         "label": _title(composite.composite_flower_id),
