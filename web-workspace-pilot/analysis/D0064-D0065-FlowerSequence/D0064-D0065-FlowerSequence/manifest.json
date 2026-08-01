@@ -1,0 +1,1213 @@
+{
+  "dxf_files": [
+    "stations/sequence_01_station_02/profile.dxf",
+    "stations/sequence_01_station_04/profile.dxf",
+    "stations/sequence_01_station_05/profile.dxf",
+    "stations/sequence_01_station_06/profile.dxf",
+    "stations/sequence_01_station_07/profile.dxf",
+    "stations/sequence_02_station_02/profile.dxf",
+    "stations/sequence_02_station_04/profile.dxf",
+    "stations/sequence_02_station_05/profile.dxf",
+    "stations/sequence_02_station_06/profile.dxf",
+    "stations/sequence_02_station_07/profile.dxf",
+    "stations/sequence_02_station_08/profile.dxf",
+    "stations/sequence_02_station_09/profile.dxf",
+    "stations/sequence_02_station_10/profile.dxf",
+    "stations/sequence_02_station_11/profile.dxf",
+    "stations/sequence_02_station_12/profile.dxf",
+    "stations/sequence_02_station_13/profile.dxf",
+    "stations/sequence_02_station_14/profile.dxf",
+    "stations/sequence_02_station_15/profile.dxf",
+    "stations/sequence_02_station_16/profile.dxf",
+    "stations/sequence_02_station_23/composite_passes/profile_pass_01.dxf",
+    "stations/sequence_02_station_23/composite_passes/profile_pass_02.dxf",
+    "stations/sequence_02_station_23/composite_passes/profile_pass_03.dxf",
+    "stations/sequence_02_station_23/composite_passes/profile_pass_04.dxf",
+    "stations/sequence_02_station_23/composite_passes/profile_pass_05.dxf",
+    "stations/sequence_02_station_23/composite_passes/profile_pass_06.dxf",
+    "stations/sequence_02_station_23/composite_passes/profile_pass_07.dxf",
+    "stations/sequence_02_station_23/composite_passes/profile_pass_08.dxf",
+    "stations/sequence_02_station_23/composite_passes/profile_pass_09.dxf",
+    "stations/sequence_02_station_23/composite_passes/profile_pass_10.dxf",
+    "stations/sequence_02_station_23/composite_passes/profile_pass_11.dxf",
+    "stations/sequence_02_station_23/composite_passes/profile_pass_12.dxf",
+    "composite_flowers/composite_flower_01/complete_composite_flower.dxf",
+    "composite_flowers/composite_flower_01/overlaid_reconstruction.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_original_coordinates.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_normalized.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_outline.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_neutral_line.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_01/profile.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_original_coordinates.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_normalized.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_outline.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_neutral_line.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_02/profile.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_original_coordinates.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_normalized.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_outline.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_neutral_line.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_03/profile.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_original_coordinates.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_normalized.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_outline.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_neutral_line.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_04/profile.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_original_coordinates.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_normalized.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_outline.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_neutral_line.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_05/profile.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_original_coordinates.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_normalized.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_outline.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_neutral_line.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_06/profile.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_original_coordinates.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_normalized.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_outline.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_neutral_line.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_07/profile.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_original_coordinates.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_normalized.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_outline.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_neutral_line.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_08/profile.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_original_coordinates.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_normalized.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_outline.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_neutral_line.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_09/profile.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_original_coordinates.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_normalized.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_outline.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_neutral_line.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_10/profile.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_original_coordinates.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_normalized.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_outline.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_neutral_line.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_original_coordinates.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_normalized.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_outline.dxf",
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_neutral_line.dxf"
+  ],
+  "files": {
+    "composite_flowers/composite_flower_01/complete_composite_flower.dxf": {
+      "bytes": 67763,
+      "sha256": "1e5607d6046951c9404e01dd7d7758c2586faa8f3b3e0fb0554fb74bb4aa2b0a"
+    },
+    "composite_flowers/composite_flower_01/complete_composite_flower.png": {
+      "bytes": 127325,
+      "sha256": "a03bb188566f301e17ffde631638916d302fb7dc7fd3bad577a8752a508e06ae"
+    },
+    "composite_flowers/composite_flower_01/extraction_debug.png": {
+      "bytes": 51755,
+      "sha256": "47abea3bf5d986622bc32363d4ab0bd35ede38103e16ba25e941c3b73ef50694"
+    },
+    "composite_flowers/composite_flower_01/extraction_summary.json": {
+      "bytes": 217089,
+      "sha256": "fc62493747001ddd644e5fc329c4d7727e545fc1c78a1a1d39daece193f120b6"
+    },
+    "composite_flowers/composite_flower_01/overlaid_reconstruction.dxf": {
+      "bytes": 67763,
+      "sha256": "60a4c686fc5480738e32b2c3580c8dbb24697af44c21b780f0a2a89e054517ef"
+    },
+    "composite_flowers/composite_flower_01/overlaid_reconstruction.png": {
+      "bytes": 127325,
+      "sha256": "a03bb188566f301e17ffde631638916d302fb7dc7fd3bad577a8752a508e06ae"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile.dxf": {
+      "bytes": 55538,
+      "sha256": "abd7ae5c24f0fd8f5dc2ab98bee10b7bb0ddb400e7079d5d8d24706f2b0f1461"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile.json": {
+      "bytes": 1739,
+      "sha256": "7fe8e507df36bbd5eda79491d7f45be0cbb407b036c2389fad00776964186c4a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile.png": {
+      "bytes": 1177,
+      "sha256": "c0eaf349638757ddb9fbb83ab3bff46a0e9cc1f382b85464903a13cf41dae49b"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_geometry.json": {
+      "bytes": 10886,
+      "sha256": "aba288077bd44101cda59a5688830a212dca6afeee80d45a14c12679dc7e32c1"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_neutral_line.dxf": {
+      "bytes": 55000,
+      "sha256": "4109cdc2212386bdde417be6b3894f2cf9ff5451f2f782d6368b6f48ef4f7d76"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_neutral_line.png": {
+      "bytes": 950,
+      "sha256": "e0b716e3e293a6de18f53fae337214e3e6365dd339ed7cefd1a14bd05728b07f"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_normalized.dxf": {
+      "bytes": 55132,
+      "sha256": "e59f744eb9fe85e3325b066a27b60e988cfa7a57a8ee48dde43043f4317b3280"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_normalized.png": {
+      "bytes": 1177,
+      "sha256": "c0eaf349638757ddb9fbb83ab3bff46a0e9cc1f382b85464903a13cf41dae49b"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_original_coordinates.dxf": {
+      "bytes": 55538,
+      "sha256": "cbe8b9dad838ca12fff464da4b52bdc70298b7b734a670aa2abf15cf434a5c8e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_original_coordinates.png": {
+      "bytes": 1177,
+      "sha256": "c0eaf349638757ddb9fbb83ab3bff46a0e9cc1f382b85464903a13cf41dae49b"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_outline.dxf": {
+      "bytes": 55538,
+      "sha256": "50b9fae97a2e6b19352422b401a5926c50394d87d07bce67b7c4939b47406d6c"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/profile_outline.png": {
+      "bytes": 1177,
+      "sha256": "c0eaf349638757ddb9fbb83ab3bff46a0e9cc1f382b85464903a13cf41dae49b"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/source_entities.json": {
+      "bytes": 9780,
+      "sha256": "7ca46dff2bdfc76e49db6165228a5a0a165adf27c8d357d640a25fb8a74cb309"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_00_flat/transform.json": {
+      "bytes": 277,
+      "sha256": "fbc988ade73178f2a6fdb6b90de82b9a5997aa0450ada82d86be276a587558ff"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/profile.dxf": {
+      "bytes": 55542,
+      "sha256": "51af4fab43172458161df0f13bd32996d59b1bd652bd4ce34dd790e16f1dddba"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/profile.json": {
+      "bytes": 1765,
+      "sha256": "c45e41a1111161b52f7b3ff8b9a63e51fdd459ec15c800e3f3127524a578eddf"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/profile.png": {
+      "bytes": 7094,
+      "sha256": "3e52cd876ee270e690feb17f4d2280d292975aa34cddf2ff6e1c9bf9b97fdd5f"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_geometry.json": {
+      "bytes": 12611,
+      "sha256": "bf1e71e9c2e9c2c9a1603ed59f32b27cbbbb4d6ff5edc79ee3f09735be4dd2a9"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_neutral_line.dxf": {
+      "bytes": 55405,
+      "sha256": "7455d8068ec2a5f3a80c819419b74c0c84e320abee021e56e36634474df54a9f"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_neutral_line.png": {
+      "bytes": 4606,
+      "sha256": "33413c8af7a6354cc6372c10f518e449832f6078da7a73c64627ea05a2203e4a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_normalized.dxf": {
+      "bytes": 55340,
+      "sha256": "baab908bc3eca5becd95888885562a14fa72485d333cb197c4d79b7e1a2ad832"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_normalized.png": {
+      "bytes": 7094,
+      "sha256": "3e52cd876ee270e690feb17f4d2280d292975aa34cddf2ff6e1c9bf9b97fdd5f"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_original_coordinates.dxf": {
+      "bytes": 55542,
+      "sha256": "8971fc0ed0b2d837cdcb21b2c5e713670b2581b9c3f30379d2a2a7726f61f53c"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_original_coordinates.png": {
+      "bytes": 7094,
+      "sha256": "3e52cd876ee270e690feb17f4d2280d292975aa34cddf2ff6e1c9bf9b97fdd5f"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_outline.dxf": {
+      "bytes": 55542,
+      "sha256": "e0b8c6fbd25f66b8e173c712a98a16d6c3c76f3ecf9918796d0e46e8fe9fd262"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/profile_outline.png": {
+      "bytes": 7094,
+      "sha256": "3e52cd876ee270e690feb17f4d2280d292975aa34cddf2ff6e1c9bf9b97fdd5f"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/source_entities.json": {
+      "bytes": 9788,
+      "sha256": "55b3cb7208ffef11557f035ba99b85e41641500d4ab072af81b4ac30795a9ecb"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_01/transform.json": {
+      "bytes": 277,
+      "sha256": "c9c2a822f5cc93b2d0ce2cc2e9f211242154a28566f5a772979bbdb16761c31b"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/profile.dxf": {
+      "bytes": 55540,
+      "sha256": "8fdd77cef76dd8e657090eb59157046a60deaeb831f60957e4ee1b3a78ae710e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/profile.json": {
+      "bytes": 11525,
+      "sha256": "c4501da87b5ddb81667e8ff4b260b7857d63015cd6c66442482948e4e90841ef"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/profile.png": {
+      "bytes": 13356,
+      "sha256": "07b330e578f5d9305b50ec4ff02db90c98552b8e042a6086a17a3e5d358fca16"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_geometry.json": {
+      "bytes": 21921,
+      "sha256": "0cc005df47cc51b68859ff006e4eba6aa424b3f8c30c1d7ec5ff157df10a1c64"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_neutral_line.dxf": {
+      "bytes": 55406,
+      "sha256": "8117d3a473d58fb3545e6f199e06207c5e417c3d8a60dea93cc6f7f4c21f65eb"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_neutral_line.png": {
+      "bytes": 7957,
+      "sha256": "cfcb21720882375185a5fe04ade0f4b664ef8c788b997fcd624f6b0341ffeceb"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_normalized.dxf": {
+      "bytes": 55344,
+      "sha256": "ad630d5f7bb9bbfc20615a88e13ae212e222d6c8683416287da021fa8faffe50"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_normalized.png": {
+      "bytes": 13356,
+      "sha256": "07b330e578f5d9305b50ec4ff02db90c98552b8e042a6086a17a3e5d358fca16"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_original_coordinates.dxf": {
+      "bytes": 55540,
+      "sha256": "8f245f1729152411b9c70f5bac03d81e167bc9e4b4319b23b26551dea6098a61"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_original_coordinates.png": {
+      "bytes": 13356,
+      "sha256": "07b330e578f5d9305b50ec4ff02db90c98552b8e042a6086a17a3e5d358fca16"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_outline.dxf": {
+      "bytes": 55540,
+      "sha256": "4aa6fcc519705fe0a302d1c92c5516335ae6a8b1524f0007c2a14e5ff827bbf2"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/profile_outline.png": {
+      "bytes": 13356,
+      "sha256": "07b330e578f5d9305b50ec4ff02db90c98552b8e042a6086a17a3e5d358fca16"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/source_entities.json": {
+      "bytes": 9782,
+      "sha256": "51e6a77df73b8811c6175b4e543f67b2d463a1e985983ee34faee612b9794d36"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_02/transform.json": {
+      "bytes": 276,
+      "sha256": "d2118ac183bcb919f75a9d2c194c90e0e048ce04eb6df2804e59d17b3820bccc"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/profile.dxf": {
+      "bytes": 55538,
+      "sha256": "9d916f23500d38094eb126296def7e4a15fea1ebd053c987158602bcff227f32"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/profile.json": {
+      "bytes": 16341,
+      "sha256": "7bc827d9a2612cf23a8ab93ee68d0da96a7442a0ab592bd886a453b07f1eb265"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/profile.png": {
+      "bytes": 20650,
+      "sha256": "a9b30ce04cc919eb3eba66c1d3cc5344bb7f6ed7ae5ff0657a3dd4c4ab22197e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_geometry.json": {
+      "bytes": 26511,
+      "sha256": "1bf3ee02ebe819bbb26b305b517e8d15de3dc0c7736e740d26ca1862f7f5b3e4"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_neutral_line.dxf": {
+      "bytes": 55409,
+      "sha256": "117c740e19a1d47fa944988f8ee1fefadf6972fbccfe9d60650a463dc9a10e05"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_neutral_line.png": {
+      "bytes": 14957,
+      "sha256": "fdbcec0155768d6e4c4233a68555ac62c7e3d21286a68ec253cfba29908cb86a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_normalized.dxf": {
+      "bytes": 55344,
+      "sha256": "183be79824f314b840bb82194aba3ecfcabfbb493dbc9d267aafc2cdf45a9e13"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_normalized.png": {
+      "bytes": 20650,
+      "sha256": "a9b30ce04cc919eb3eba66c1d3cc5344bb7f6ed7ae5ff0657a3dd4c4ab22197e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_original_coordinates.dxf": {
+      "bytes": 55538,
+      "sha256": "066db6f962f3a1d30424d4323ac821c1c818e5f8a4ba436f3c75679cf3f4443a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_original_coordinates.png": {
+      "bytes": 20650,
+      "sha256": "a9b30ce04cc919eb3eba66c1d3cc5344bb7f6ed7ae5ff0657a3dd4c4ab22197e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_outline.dxf": {
+      "bytes": 55538,
+      "sha256": "038ad4ab468ed1ae2c511e6f9c25ff499cb7a382e978937d393ee80c6b4da86c"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/profile_outline.png": {
+      "bytes": 20650,
+      "sha256": "a9b30ce04cc919eb3eba66c1d3cc5344bb7f6ed7ae5ff0657a3dd4c4ab22197e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/source_entities.json": {
+      "bytes": 9780,
+      "sha256": "f2d7763e081f001e9ac0630e37319bc8434d5ff8e91a4d02a94f15270981d8a8"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_03/transform.json": {
+      "bytes": 277,
+      "sha256": "4ce3f247f1614451792d62950d23a3abb6f8a4a8cdb97709b823c79338d2f6f3"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/profile.dxf": {
+      "bytes": 55540,
+      "sha256": "068066a15eb43d31865098bb236b81a7219128ef8c85b1c47833e0ad0d769d8c"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/profile.json": {
+      "bytes": 11733,
+      "sha256": "593f0154e7a1b795f97b6a0fa2fa4a35b72389eeef7098322b86088602cda30b"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/profile.png": {
+      "bytes": 14226,
+      "sha256": "2e81c3fc3aa07d24f321eecb29ee5eae66d5db1e6ec57f18baff3175bfc3545e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_geometry.json": {
+      "bytes": 21907,
+      "sha256": "ebc8686eec267252c9651176440b37d9a3ce345f826ce997177d64b062d30f75"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_neutral_line.dxf": {
+      "bytes": 55407,
+      "sha256": "1366fdda864e8786709eb056b2d8802a113e37ce66e930147956e027b1ecfdfc"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_neutral_line.png": {
+      "bytes": 9244,
+      "sha256": "431c5a524798f59c52ba50c292555b92e9df4b621eb91625f27b92073b82fe8e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_normalized.dxf": {
+      "bytes": 55348,
+      "sha256": "258ef337f29a1d18fa8f60a1aaca54ff2be5c45be80af42190d9e508c80b7eec"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_normalized.png": {
+      "bytes": 14226,
+      "sha256": "2e81c3fc3aa07d24f321eecb29ee5eae66d5db1e6ec57f18baff3175bfc3545e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_original_coordinates.dxf": {
+      "bytes": 55540,
+      "sha256": "9e09c2307f1e923bf37e2c60c532817aa88ad60d4f52b0a031afa355340ac344"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_original_coordinates.png": {
+      "bytes": 14226,
+      "sha256": "2e81c3fc3aa07d24f321eecb29ee5eae66d5db1e6ec57f18baff3175bfc3545e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_outline.dxf": {
+      "bytes": 55540,
+      "sha256": "8d5a2bd5b74274ffa02cc27d8f149dd29e5d54e224e60abed70c2c26275ed3ab"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/profile_outline.png": {
+      "bytes": 14226,
+      "sha256": "2e81c3fc3aa07d24f321eecb29ee5eae66d5db1e6ec57f18baff3175bfc3545e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/source_entities.json": {
+      "bytes": 9784,
+      "sha256": "82558f1d1d7aa8ee42bf48e1cc069fe7aa419731ebad14290b6f1796f33e28a4"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_04/transform.json": {
+      "bytes": 277,
+      "sha256": "826b375acd7ba29877e10639a73d78257085216fd61e8bf9be10372c91ba5980"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/profile.dxf": {
+      "bytes": 55533,
+      "sha256": "4eb8c33b90808dcc9db310d2455fdb089963daff94050565e2ed152828b49fa2"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/profile.json": {
+      "bytes": 20955,
+      "sha256": "2672bf1b998c776fb54e00999e39abfb6da97f37d90b69cd76d0459f0f270097"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/profile.png": {
+      "bytes": 20281,
+      "sha256": "586292bec4ee2503a5004ebc0e78a451e4d0ea636ed355a76eecd05099d04922"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_geometry.json": {
+      "bytes": 31118,
+      "sha256": "9a7c3dfc4decd6b50441ed678937e73c67f32a5c53ce94f52bedc139920593c6"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_neutral_line.dxf": {
+      "bytes": 55405,
+      "sha256": "08e9b96a0893c55558a0fd220ca7d14436b6612ffd751fa2fd71e9ee4fcf4759"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_neutral_line.png": {
+      "bytes": 15368,
+      "sha256": "1c1a640c96e75fc154c666c42bd47fd0ad333e98562c04ad1fff4c6b536b7a48"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_normalized.dxf": {
+      "bytes": 55342,
+      "sha256": "1a4df65735fbc78870b091007d7a8655c54044fa6b9a5eb4885613cf55ea302a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_normalized.png": {
+      "bytes": 20281,
+      "sha256": "586292bec4ee2503a5004ebc0e78a451e4d0ea636ed355a76eecd05099d04922"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_original_coordinates.dxf": {
+      "bytes": 55533,
+      "sha256": "d641dc0888f1e3bb23adfede66afd01b7925a937b40f91b2201578d4cb91514b"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_original_coordinates.png": {
+      "bytes": 20281,
+      "sha256": "586292bec4ee2503a5004ebc0e78a451e4d0ea636ed355a76eecd05099d04922"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_outline.dxf": {
+      "bytes": 55533,
+      "sha256": "52766b6cd13b8cea61956d7be11671ff94158591a339f6e6a558c11ac7685aa8"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/profile_outline.png": {
+      "bytes": 20281,
+      "sha256": "586292bec4ee2503a5004ebc0e78a451e4d0ea636ed355a76eecd05099d04922"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/source_entities.json": {
+      "bytes": 9770,
+      "sha256": "7900791cc3085def8d40ef9bfacc5614fc4f784f6414f237d8d2477cb1733e86"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_05/transform.json": {
+      "bytes": 277,
+      "sha256": "35a051393dc47fa21e5e6e835ed943f20917acd85b31390512dfaa4e19a72a11"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/profile.dxf": {
+      "bytes": 55539,
+      "sha256": "1cb6c7d544594d38d1afeee2c841ef769e47c370eb48d285159e6408abfec1c1"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/profile.json": {
+      "bytes": 20778,
+      "sha256": "f81f3fca663bc7900289dcc204c3299b2dac354a472e2d08d9d012d309f31efc"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/profile.png": {
+      "bytes": 26934,
+      "sha256": "cf576babc2aef360bb36c3962f9a8e51840adf5046b870af3ad3410be2097b39"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_geometry.json": {
+      "bytes": 31169,
+      "sha256": "c4c120ec340f3341048d168b37aa1b7d4cb28d41d05ed150eef0977513acc61c"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_neutral_line.dxf": {
+      "bytes": 55410,
+      "sha256": "2a26b70ee0494f6ccf75c5306a14781ee787718d2db558e681c2fad33dd6265b"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_neutral_line.png": {
+      "bytes": 18417,
+      "sha256": "c8fc61bbe13302a91e4197e75ef6b73166e90c4d41e312a3415b470d7a2f6cff"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_normalized.dxf": {
+      "bytes": 55363,
+      "sha256": "04c2cc80696888f6d0e03adfde863a2ba05cae1ba490fe66aeb5379a0b6bb44a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_normalized.png": {
+      "bytes": 26934,
+      "sha256": "cf576babc2aef360bb36c3962f9a8e51840adf5046b870af3ad3410be2097b39"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_original_coordinates.dxf": {
+      "bytes": 55539,
+      "sha256": "829d4767a4db503d55c06f388ef1c06fb4bf894aaa8e21639cf51bb61d25ff6d"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_original_coordinates.png": {
+      "bytes": 26934,
+      "sha256": "cf576babc2aef360bb36c3962f9a8e51840adf5046b870af3ad3410be2097b39"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_outline.dxf": {
+      "bytes": 55539,
+      "sha256": "70b53b79451511979c1ba05aba15e13d6c5bb3b522f23c2191b5d3aa8c83f12d"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/profile_outline.png": {
+      "bytes": 26934,
+      "sha256": "cf576babc2aef360bb36c3962f9a8e51840adf5046b870af3ad3410be2097b39"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/source_entities.json": {
+      "bytes": 9782,
+      "sha256": "9f08f1747abaa0df2c5545ae6a2dbef7eb6206568be2db0ba11fb1e3a1a03dc2"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_06/transform.json": {
+      "bytes": 277,
+      "sha256": "274aefda145f294ff166f2d534029fe0969ff496aaaa9ee3a90889bf1af45a1d"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/profile.dxf": {
+      "bytes": 55540,
+      "sha256": "d7e9675ee1751844b7ceea0ef041fce40fd531beed6eaebc51c215381a032d80"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/profile.json": {
+      "bytes": 20742,
+      "sha256": "d502c28a87540790e9318188cfe8c06f662c75a90d9d375df5cc5f25ee07ff29"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/profile.png": {
+      "bytes": 30837,
+      "sha256": "32a51446abf58665062d16341fc83425c2efccc99704bf5bda5fa42c719abe0f"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_geometry.json": {
+      "bytes": 31129,
+      "sha256": "8d3a079450f61aaeb67407f2ce0ace621810ee35f95066db859ceb0268bedabb"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_neutral_line.dxf": {
+      "bytes": 55407,
+      "sha256": "30b4a729f95e13fdbaf238ff7e5ebd6eebfb8763487202ad5e3dd2fe8ce992cb"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_neutral_line.png": {
+      "bytes": 27362,
+      "sha256": "188a5a42139c71a6574770e4e4b54e7fcc1f02b40a8a60230aa5d12f2a924b27"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_normalized.dxf": {
+      "bytes": 55373,
+      "sha256": "d201a778d92c0ffdf19f0918a99eea2d935ec9dc12f0c89e81df7bd8fadc8488"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_normalized.png": {
+      "bytes": 30837,
+      "sha256": "32a51446abf58665062d16341fc83425c2efccc99704bf5bda5fa42c719abe0f"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_original_coordinates.dxf": {
+      "bytes": 55540,
+      "sha256": "17efe1aef99d76f851604f23723253ef6334a1b72a13993db68dfd8da30981ad"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_original_coordinates.png": {
+      "bytes": 30837,
+      "sha256": "32a51446abf58665062d16341fc83425c2efccc99704bf5bda5fa42c719abe0f"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_outline.dxf": {
+      "bytes": 55540,
+      "sha256": "3a54f759d1644221538df9127a90b82adc403bbdfecb0a4db640e7e35b44b7f2"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/profile_outline.png": {
+      "bytes": 30837,
+      "sha256": "32a51446abf58665062d16341fc83425c2efccc99704bf5bda5fa42c719abe0f"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/source_entities.json": {
+      "bytes": 9780,
+      "sha256": "9e386697f1d8e1a7b6dfaca7705b55c40e6616c75a66c5ce1c7ba93228c5ea7d"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_07/transform.json": {
+      "bytes": 277,
+      "sha256": "7aa993d8a6e2489cc732cbf07ad40eeb1395f7b9ac68d641c6f23b34c39c0680"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/profile.dxf": {
+      "bytes": 55541,
+      "sha256": "542d0e4b26b9c493067fd6786217d347b5cb79dbdea9a95d62df14b1400af917"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/profile.json": {
+      "bytes": 20753,
+      "sha256": "df74bcb0c83ab704314e90898518e993a4391ed04b797da7ecb505e171b2fa96"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/profile.png": {
+      "bytes": 38686,
+      "sha256": "e440d913b8f888a69cc7ec1dd081b6396c6f0feffe4daba7164eac83394c51be"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_geometry.json": {
+      "bytes": 31143,
+      "sha256": "babbc326443a55aa86eedac19188bf87c5b1b94b768b87590383c13e34f4dd43"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_neutral_line.dxf": {
+      "bytes": 55408,
+      "sha256": "12759a788a20437c1b2fd6bb7c3c563854a17495d823434544f384f8d88fe241"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_neutral_line.png": {
+      "bytes": 27581,
+      "sha256": "d3434b24329326b08b56173711110be5a9bfc3b994a2c910663cd6f544107944"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_normalized.dxf": {
+      "bytes": 55346,
+      "sha256": "fc4aab41cb5c2d360c676b928f9e1fd4bb20ce8b8579ecc10fd5d86278cc2f72"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_normalized.png": {
+      "bytes": 38686,
+      "sha256": "e440d913b8f888a69cc7ec1dd081b6396c6f0feffe4daba7164eac83394c51be"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_original_coordinates.dxf": {
+      "bytes": 55541,
+      "sha256": "cb2a42747866f3d7da8e118ab2dd9b7ab9a492a17c8203f392e2badea646be79"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_original_coordinates.png": {
+      "bytes": 38686,
+      "sha256": "e440d913b8f888a69cc7ec1dd081b6396c6f0feffe4daba7164eac83394c51be"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_outline.dxf": {
+      "bytes": 55541,
+      "sha256": "bdb67a21a413bdd79427647cb1c29521a6fccfcae16c8f668754d4dafb6d6d0a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/profile_outline.png": {
+      "bytes": 38686,
+      "sha256": "e440d913b8f888a69cc7ec1dd081b6396c6f0feffe4daba7164eac83394c51be"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/source_entities.json": {
+      "bytes": 9782,
+      "sha256": "062b2c00774f47992343519d94caeade03485a312916dcd8bea3c76f1b6415a4"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_08/transform.json": {
+      "bytes": 277,
+      "sha256": "0b756d3a17b91ade04e6f8c5be907a4bdb3dbda4e8246c81b92bc242293c27a0"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/profile.dxf": {
+      "bytes": 55544,
+      "sha256": "f50f0ad835130fdf39eb0418f875ca01068d522a0e31875e4af44ff100f1a948"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/profile.json": {
+      "bytes": 21412,
+      "sha256": "274ef44964e826a75ea4088ee03e231c8578db4a113d6016e71324774f0abc1f"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/profile.png": {
+      "bytes": 38725,
+      "sha256": "a6ce50e61e506c5d6b78995f6a322fd1603ffb8fae3279d75ecf62eae0f6d93a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_geometry.json": {
+      "bytes": 31157,
+      "sha256": "3122304740901caeff22e984212a4dfede0b0d73e16cb145ea0e5e1c53b36af8"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_neutral_line.dxf": {
+      "bytes": 55410,
+      "sha256": "69d5308d15bbe3264d90f1ade51f2a2f02b7c7ddd92210c55a52a70bda0e2bd8"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_neutral_line.png": {
+      "bytes": 27706,
+      "sha256": "3bd73ed20f3cdfd87dde408ee585df1d9ca00d099402c36f1e6963e39af6348a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_normalized.dxf": {
+      "bytes": 55351,
+      "sha256": "f58be2bf8e96b59c8ded331e665e8979e6df5c82a5125ccb4ca572836148ef20"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_normalized.png": {
+      "bytes": 38725,
+      "sha256": "a6ce50e61e506c5d6b78995f6a322fd1603ffb8fae3279d75ecf62eae0f6d93a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_original_coordinates.dxf": {
+      "bytes": 55544,
+      "sha256": "9421b11a4525daf5086e60e66527111f9332b085903fa47d6ac700aadcac1389"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_original_coordinates.png": {
+      "bytes": 38725,
+      "sha256": "a6ce50e61e506c5d6b78995f6a322fd1603ffb8fae3279d75ecf62eae0f6d93a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_outline.dxf": {
+      "bytes": 55544,
+      "sha256": "700095ed21f7b45e602c26d9aaf16ad483b91cc4bfc2ed057e1cd86b9e15aab7"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/profile_outline.png": {
+      "bytes": 38725,
+      "sha256": "a6ce50e61e506c5d6b78995f6a322fd1603ffb8fae3279d75ecf62eae0f6d93a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/source_entities.json": {
+      "bytes": 9787,
+      "sha256": "5f0e93816112cfeeeeeb4f7dbd4ff8fdf37c3e09040a756a32c3d352006eabb9"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_09/transform.json": {
+      "bytes": 276,
+      "sha256": "3e1f130bcb3c61c71c14e4b0950e91c21fdce6bd8591a2285c9ab37fcd2dbb20"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/profile.dxf": {
+      "bytes": 55542,
+      "sha256": "21686234314cb676190379f7b2e5eb41edb41e37e4b2f3124c64a9c1a4bb9349"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/profile.json": {
+      "bytes": 21215,
+      "sha256": "7242db0ed8c676343b430bb4dda3331e9a5109be268bed770c9a52ad8a75c62b"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/profile.png": {
+      "bytes": 24164,
+      "sha256": "38ae9e6ab5bcf9c1c0749b583b7861f3317797e00e4cb824c0d11cf8a18ad262"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_geometry.json": {
+      "bytes": 31146,
+      "sha256": "c6aee3dc2d8ae4fe24142d85601bdbceffa3022a5b67693f639ad05c195ec3ac"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_neutral_line.dxf": {
+      "bytes": 55407,
+      "sha256": "5ba1eeea6bbe34f9a96a7639f2da2ea458f99a335115e2643df5ced25ed9845e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_neutral_line.png": {
+      "bytes": 17047,
+      "sha256": "6bee3d6a3a29e4e3eb7374ca7b0981c2e0dc1b0b15e0407e6c1bdbfece7b548a"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_normalized.dxf": {
+      "bytes": 55330,
+      "sha256": "97fb2ffcf43771f88af7f86b858e3e55370dd97091bd1d54d4032040fffee670"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_normalized.png": {
+      "bytes": 24164,
+      "sha256": "38ae9e6ab5bcf9c1c0749b583b7861f3317797e00e4cb824c0d11cf8a18ad262"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_original_coordinates.dxf": {
+      "bytes": 55542,
+      "sha256": "4e4b1637d4b923141722b510b269d05d29a231b480cab2a03a9db558a2342861"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_original_coordinates.png": {
+      "bytes": 24164,
+      "sha256": "38ae9e6ab5bcf9c1c0749b583b7861f3317797e00e4cb824c0d11cf8a18ad262"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_outline.dxf": {
+      "bytes": 55542,
+      "sha256": "ee109865a2a8b5fb68a5aa0bf0a56c9311956dea41c643214c259401cfe47739"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/profile_outline.png": {
+      "bytes": 24164,
+      "sha256": "38ae9e6ab5bcf9c1c0749b583b7861f3317797e00e4cb824c0d11cf8a18ad262"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/source_entities.json": {
+      "bytes": 9784,
+      "sha256": "f7ff25f87ed56e1cb022481f791da613657bfc036b5ed966ad58885f6e22c089"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_10/transform.json": {
+      "bytes": 277,
+      "sha256": "91a5ae93b89955819c30116cb005bb93ad5b21abb90a080fb8f6f0eca4618808"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile.dxf": {
+      "bytes": 55544,
+      "sha256": "6383e927a62625f7240226047fc91762a0d7296e0cff96fa6ac524f2fdfae745"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile.json": {
+      "bytes": 21129,
+      "sha256": "292cb6398983d80bd76f34349fe83a157d73cb5f3b9e7d7694fe98dd893d2033"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile.png": {
+      "bytes": 16866,
+      "sha256": "369f5d461b8bc34a9899cb5743adc23829ce22b0cf510492b28f0d9fc970562e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_geometry.json": {
+      "bytes": 31051,
+      "sha256": "7a7c69bda95870a6067b1f80d3f745e0dfec08388cf5662cd7b9338f26515a32"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_neutral_line.dxf": {
+      "bytes": 55409,
+      "sha256": "46fca52a044f959ed279ffeabc0c46e1bec9776fda71b27c37385c60587be60f"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_neutral_line.png": {
+      "bytes": 13379,
+      "sha256": "c8ba5bcd0083a73d0f3d4f1ab571dfa853b919bfb6d86dd3d4a635fac2e5a729"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_normalized.dxf": {
+      "bytes": 55293,
+      "sha256": "db82b2679c9123cbd6f941ec34ec8d0d678803837c347b208cbe145bd165cca2"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_normalized.png": {
+      "bytes": 16866,
+      "sha256": "369f5d461b8bc34a9899cb5743adc23829ce22b0cf510492b28f0d9fc970562e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_original_coordinates.dxf": {
+      "bytes": 55544,
+      "sha256": "0ce4e2f0cc6c8a9bdba4453f8b11c31a440b2046bc0b91992d17b9054d213323"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_original_coordinates.png": {
+      "bytes": 16866,
+      "sha256": "369f5d461b8bc34a9899cb5743adc23829ce22b0cf510492b28f0d9fc970562e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_outline.dxf": {
+      "bytes": 55544,
+      "sha256": "adcd5d349fb46c75d95fd2864f269ba552581452a1d69f5827b79c52223a0992"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/profile_outline.png": {
+      "bytes": 16866,
+      "sha256": "369f5d461b8bc34a9899cb5743adc23829ce22b0cf510492b28f0d9fc970562e"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/source_entities.json": {
+      "bytes": 9788,
+      "sha256": "0b93b2d715d64612224361a72153149f463d09974dee4a6bb2956e9ae279ea86"
+    },
+    "composite_flowers/composite_flower_01/passes/pass_11_final/transform.json": {
+      "bytes": 277,
+      "sha256": "9e656fbb78e909123be6e4d84346428eb1950209fae6072eddc717b537e0fc39"
+    },
+    "composite_flowers/composite_flower_01/sequence.csv": {
+      "bytes": 2761,
+      "sha256": "a830b0f113ade192be86abb772985f4c88fb3e690fe91f5238eec1bb551509a4"
+    },
+    "composite_flowers/composite_flower_01/sequence_preview.png": {
+      "bytes": 14685,
+      "sha256": "334ea66150f1c0bea1d5e8cf60684d97e2dd7e819ea1879484c640da50b91fc6"
+    },
+    "previews/classification.png": {
+      "bytes": 35886,
+      "sha256": "605ce7f574cdf2a8fc62218e2339c5485b0342cc46f63ce5068667cfbe6f669d"
+    },
+    "previews/manual_review_handles.png": {
+      "bytes": 70361,
+      "sha256": "762c170f46aeae88871f80b4da45df6d8484e1a02a86758c8494e93650cc8aba"
+    },
+    "project.json": {
+      "bytes": 2836621,
+      "sha256": "201b9166c1a7c5ad65a40e54ebe6cd739aaadb2f37036535360c309f28a2eb01"
+    },
+    "project.sqlite": {
+      "bytes": 19873792,
+      "sha256": "d46277d1766b9685231b6b7fbc4509431a73411a3f78ad40bfdb2e54593751dc"
+    },
+    "report.html": {
+      "bytes": 517451,
+      "sha256": "467b602b97e4fbb7de6cd7b4a4a800ca17cad5401523372abfc1c9cd99fc640c"
+    },
+    "report_data.json": {
+      "bytes": 492219,
+      "sha256": "b2b2f137e25716105664e2ec174ad43cb4e5b1527f92fb37286beee79ae0c8b7"
+    },
+    "review/manual_overrides.json": {
+      "bytes": 39073,
+      "sha256": "05e8417e2338e844a85fbd294438c09c545ebdb818d2c777f05725430f918d33"
+    },
+    "review/review_queue.csv": {
+      "bytes": 12454,
+      "sha256": "986442bd5b9bbea0494799dc64595a99eb7bf5b4c7e50fcee4d6a1503ff951fd"
+    },
+    "review/review_queue.json": {
+      "bytes": 25533,
+      "sha256": "f0fba37fd1e26399b6ea25765e5311b007490699e9f03e99dea52eaa7fee9cbb"
+    },
+    "source/D0064-D0065-FlowerSequence.dxf": {
+      "bytes": 728409,
+      "sha256": "61b12b144434128e0e5ae877595268dac99e3ae8c1cc43db0fb20e124dfc7b60"
+    },
+    "stations/sequence_01_station_01/profile_not_detected.json": {
+      "bytes": 111,
+      "sha256": "cf7da8a23cf5d3db1b2a3ce24954229e00a5d875500e3175b119c0f845cf1063"
+    },
+    "stations/sequence_01_station_01/review.png": {
+      "bytes": 7674,
+      "sha256": "cd898188a4c0db4f2e260bf061e71a72f163618c7bee5554e79308d439dd2b92"
+    },
+    "stations/sequence_01_station_02/profile.dxf": {
+      "bytes": 55504,
+      "sha256": "dfddb7df4d330cc6ff699eb49f9e32d1e192b114a307e05817ff5a60b48de818"
+    },
+    "stations/sequence_01_station_02/review.png": {
+      "bytes": 6552,
+      "sha256": "11ae8edd4ffca344c9df82a94415ddf3750fd23a34800e897c98af17678d6a32"
+    },
+    "stations/sequence_01_station_03/profile_not_detected.json": {
+      "bytes": 111,
+      "sha256": "1d9e5a15158e6e213ebfa301ad05a82cd17f8fdedd376bbba3f4cb2331658d63"
+    },
+    "stations/sequence_01_station_03/review.png": {
+      "bytes": 3045,
+      "sha256": "7d87f7f86029005e3f280bc28c676ddbc2352fd212e4925a694af1719ea93839"
+    },
+    "stations/sequence_01_station_04/profile.dxf": {
+      "bytes": 55505,
+      "sha256": "a5b4b52a2e2c9146ba60a1bc04983b4fed51daf2a129b45bfdb6d911bbda7de8"
+    },
+    "stations/sequence_01_station_04/review.png": {
+      "bytes": 41286,
+      "sha256": "f0ce73fa530510083be40ff4b8ff60175d4c628805b1f8f036aeb4883d1865cd"
+    },
+    "stations/sequence_01_station_04/rollers.csv": {
+      "bytes": 121,
+      "sha256": "40b22a6db831e30a77cbc477d74fde2451a5cc7fc12776f494c2cd172c22d3e9"
+    },
+    "stations/sequence_01_station_05/profile.dxf": {
+      "bytes": 55511,
+      "sha256": "af9b2cd22f2d04cabdad357917f6e2aba5a2b205ab53f2488edfe78807c3e964"
+    },
+    "stations/sequence_01_station_05/review.png": {
+      "bytes": 41567,
+      "sha256": "429eb90ba155578614aa59d97e394a1cce889b85748e3d176ceaf0ee7624a730"
+    },
+    "stations/sequence_01_station_05/rollers.csv": {
+      "bytes": 124,
+      "sha256": "a53969a1fe6154bf6fc30a9fd599dc20948ca09560324ca9ccb9a06acbb5d540"
+    },
+    "stations/sequence_01_station_06/profile.dxf": {
+      "bytes": 55510,
+      "sha256": "91d139f67b76664db555025fb4b7a6633001f46abcfafbd24011b0a75eddc299"
+    },
+    "stations/sequence_01_station_06/review.png": {
+      "bytes": 46553,
+      "sha256": "a174e47419e4ceffcc6b7f0ee198dd64bcbfaf851b9674f665242b456af69f16"
+    },
+    "stations/sequence_01_station_06/rollers.csv": {
+      "bytes": 127,
+      "sha256": "90dff99a825ff3163d98cb58687b264ca7de99e33383b1800c370512a7b7c919"
+    },
+    "stations/sequence_01_station_07/profile.dxf": {
+      "bytes": 55365,
+      "sha256": "cf512a7196f3dc13f887507703a83721c60647b4fa06189582297c5dc4524a4e"
+    },
+    "stations/sequence_01_station_07/review.png": {
+      "bytes": 39271,
+      "sha256": "6cf4b3c4ebd72c96b55c513e8521e6952d2ce2e499dbecace257c9806d26b248"
+    },
+    "stations/sequence_02_station_01/profile_not_detected.json": {
+      "bytes": 111,
+      "sha256": "e6a9fde51a1d07ddde52e09f368957fc3037f0631f0db25226478fceeb859cd8"
+    },
+    "stations/sequence_02_station_01/review.png": {
+      "bytes": 3024,
+      "sha256": "48851bc580a6b6b85b4007a03c95d7311ba5b96f3d98826c013e16bc5e3ae8b7"
+    },
+    "stations/sequence_02_station_02/profile.dxf": {
+      "bytes": 55540,
+      "sha256": "09bcf6138480ae01b1db0329b8613c274b8b4a16a1d415703c3fbfbe0c833cbb"
+    },
+    "stations/sequence_02_station_02/review.png": {
+      "bytes": 5369,
+      "sha256": "a4b583ec47fd5c187a19ea86a9db94623e3d3c3107c5947ad85d46f54ebc38a2"
+    },
+    "stations/sequence_02_station_03/profile_not_detected.json": {
+      "bytes": 111,
+      "sha256": "ae87c7ef4785226e5f0da855904873c41c39ee8dbd89cf814dc4a9d5b753f41f"
+    },
+    "stations/sequence_02_station_03/review.png": {
+      "bytes": 3031,
+      "sha256": "1c7bf00801e1121b7e3e9e49341edba565c9d75620502e4585778ca742b34976"
+    },
+    "stations/sequence_02_station_04/profile.dxf": {
+      "bytes": 55541,
+      "sha256": "6ce29a34779eba105577a18f80fc553002af7204d385d2c4aa0588c0d9a5e82f"
+    },
+    "stations/sequence_02_station_04/review.png": {
+      "bytes": 27385,
+      "sha256": "b48924f75e65b0dda47eef7e71fe6916f9d06860a46e9f10a08c1c9dfb2fee47"
+    },
+    "stations/sequence_02_station_04/rollers.csv": {
+      "bytes": 63,
+      "sha256": "ed4bb500498f917b6c7db344a0682083f417c4c9f94cb8f59602cfbea0ee6726"
+    },
+    "stations/sequence_02_station_05/profile.dxf": {
+      "bytes": 55542,
+      "sha256": "ede7b360b00bd7519113781efb2980e52924b05b985a1786553aa0a68a54f3d3"
+    },
+    "stations/sequence_02_station_05/review.png": {
+      "bytes": 29570,
+      "sha256": "1899aeee1450d0318aadd6707261014c3a98564033ec312f6f13b14eb60a651b"
+    },
+    "stations/sequence_02_station_05/rollers.csv": {
+      "bytes": 63,
+      "sha256": "3eab567f3d7fcb8c8254118b7ea80ceda42326e13e1691ce80ffe8d630c03261"
+    },
+    "stations/sequence_02_station_06/profile.dxf": {
+      "bytes": 55542,
+      "sha256": "5b28e9d3eea879d3f0c0f3eee34ceb70bbe7a87b18799cd29be14632ff447974"
+    },
+    "stations/sequence_02_station_06/review.png": {
+      "bytes": 27362,
+      "sha256": "51d31dfbb160ef591ba11072682e5dff59578c4a88e3b20f9d6915bcc9895690"
+    },
+    "stations/sequence_02_station_06/rollers.csv": {
+      "bytes": 63,
+      "sha256": "2593a623479065454ee21f6b4fa8d5d80507744162c0fc2ab942f4426b6922c9"
+    },
+    "stations/sequence_02_station_07/profile.dxf": {
+      "bytes": 55540,
+      "sha256": "a108940b926bafbd46b7996dcdb87eb4d00698b50291b9618f797697b9c76622"
+    },
+    "stations/sequence_02_station_07/review.png": {
+      "bytes": 30680,
+      "sha256": "f3f33424969ca75ae02c4fd1e0300ea05148d0da561adb32f8e0d7ae9a562425"
+    },
+    "stations/sequence_02_station_07/rollers.csv": {
+      "bytes": 63,
+      "sha256": "4c946962b556336be1a742e2904b38e8319447d968f1c1d6d1ba26fd443639a9"
+    },
+    "stations/sequence_02_station_08/profile.dxf": {
+      "bytes": 55535,
+      "sha256": "b67403ec1f3d07a183fb6b5fbded9cd9abac33fc48b71f7e54ecd4a19ea88f82"
+    },
+    "stations/sequence_02_station_08/review.png": {
+      "bytes": 30922,
+      "sha256": "d68367813179a3982fecf756260f8e5f9651688fbd717ede2f8addd1dc3fa0ec"
+    },
+    "stations/sequence_02_station_08/rollers.csv": {
+      "bytes": 63,
+      "sha256": "6f41bccd3a01ae99719c4c35b47d9752a75f01d5f85eed5c29a3b0b4b04a5df1"
+    },
+    "stations/sequence_02_station_09/profile.dxf": {
+      "bytes": 55541,
+      "sha256": "7083ff217ce6f143cbf072e9f5b964390788b288d68c32c03d57bc0c598dad35"
+    },
+    "stations/sequence_02_station_09/review.png": {
+      "bytes": 33225,
+      "sha256": "5eb3e0a28236b5fa935c6c92dba8adcce19772dc9f40e2444ff0e9bf830a3a73"
+    },
+    "stations/sequence_02_station_09/rollers.csv": {
+      "bytes": 63,
+      "sha256": "f65f64981b4024e91b0290fe94f39eb5e392d5b121d72f75841990f76a913118"
+    },
+    "stations/sequence_02_station_10/profile.dxf": {
+      "bytes": 55540,
+      "sha256": "adb793244dfae4d29184e256d7f3c92c380c81904bf55f2558aeea679c3252e2"
+    },
+    "stations/sequence_02_station_10/review.png": {
+      "bytes": 35046,
+      "sha256": "24b390567c09dc9bc9f739b42e693b4b2d46fabe4c587c1083d25234bbd162e1"
+    },
+    "stations/sequence_02_station_10/rollers.csv": {
+      "bytes": 65,
+      "sha256": "770ec539f8f1cd297cbb00cc28208c06f7004c5c44ece7d33c1e475b3e7acdb7"
+    },
+    "stations/sequence_02_station_11/profile.dxf": {
+      "bytes": 55541,
+      "sha256": "2201d5f705f88f7a3cc5d1952aad68639f71771965e728d83227c44f22f71a58"
+    },
+    "stations/sequence_02_station_11/review.png": {
+      "bytes": 34484,
+      "sha256": "30278dc6095d6dbd747754bba7b8653addb2228666bfffd4c2c96dd88743c5ad"
+    },
+    "stations/sequence_02_station_11/rollers.csv": {
+      "bytes": 65,
+      "sha256": "376cd4e2a6c06f85cef9f6574a87b2b6b5899bab000b5367c26bb2f33dd0b715"
+    },
+    "stations/sequence_02_station_12/profile.dxf": {
+      "bytes": 55542,
+      "sha256": "605e00d44af2daa32d59e90ac1c4001b290a786c5bfc81b94390a623d0d75cdf"
+    },
+    "stations/sequence_02_station_12/review.png": {
+      "bytes": 37303,
+      "sha256": "3d3691e9001e03a7d6956394f8669e0624c57fd439a154e578ed7b86880600c5"
+    },
+    "stations/sequence_02_station_12/rollers.csv": {
+      "bytes": 116,
+      "sha256": "1060dde5a07027e9101e27692830892196e5238f8395c225f4d4b044db475945"
+    },
+    "stations/sequence_02_station_13/profile.dxf": {
+      "bytes": 55540,
+      "sha256": "38fdaa5f8c96d0b58aa38dd0c734b9c0f5fa79cf45b1f9d434e6f0566ae07fba"
+    },
+    "stations/sequence_02_station_13/review.png": {
+      "bytes": 36862,
+      "sha256": "f22a28f336676b30bd0ba3047f8558107f8d25b626d34b28ddc2b75a20430b76"
+    },
+    "stations/sequence_02_station_13/rollers.csv": {
+      "bytes": 167,
+      "sha256": "1ae0909b051f36f24c808bdc5ed8902900acf6adc77e2bde4fcf745163465f61"
+    },
+    "stations/sequence_02_station_14/profile.dxf": {
+      "bytes": 55543,
+      "sha256": "68dc3a22ace0d08a470e042a6f02a09ba836f9c9d210d5197fd995ac84af8dbb"
+    },
+    "stations/sequence_02_station_14/review.png": {
+      "bytes": 28381,
+      "sha256": "cc3b6e4ba32e55fc84dc70705553288c000123f7ec04a7caed6860da1fdbdab5"
+    },
+    "stations/sequence_02_station_14/rollers.csv": {
+      "bytes": 133,
+      "sha256": "f064915e92db69dfe2e2dedd588ea69ac6c0187e998ce37c73d86e5f39c5cbb0"
+    },
+    "stations/sequence_02_station_15/profile.dxf": {
+      "bytes": 55542,
+      "sha256": "9b3b2f89561dd8dffb893d2f5abc3a2db4120d329ca16ec42b36e776f6113a92"
+    },
+    "stations/sequence_02_station_15/review.png": {
+      "bytes": 31439,
+      "sha256": "ffba87f0897051e1ce4d456829a5119a8bce5cce8e42b10dcf51bdbff04d671f"
+    },
+    "stations/sequence_02_station_15/rollers.csv": {
+      "bytes": 99,
+      "sha256": "d82b8ea5009857dcb3949150141cde4a29b795f897e4c6bb002370d4b93072e7"
+    },
+    "stations/sequence_02_station_16/profile.dxf": {
+      "bytes": 55543,
+      "sha256": "d0e914c0cb88bd53df57a7aff45e78b023799c7cdb3163f7d6fee3e5e8b5cc61"
+    },
+    "stations/sequence_02_station_16/review.png": {
+      "bytes": 31270,
+      "sha256": "4690b07f70837fb21babaf14b40a1b41f8ef837f7bad6a59dcc1b735d7c0b710"
+    },
+    "stations/sequence_02_station_16/rollers.csv": {
+      "bytes": 167,
+      "sha256": "13c68f601c272fe1a6914e3c7253cfd385c33c3fd725085169e89f6cfabcece4"
+    },
+    "stations/sequence_02_station_17/profile_not_detected.json": {
+      "bytes": 113,
+      "sha256": "e7fe2a0b131e8bf9ccb3628df596b98fe586df11d12275f8d508012aac61ae34"
+    },
+    "stations/sequence_02_station_17/review.png": {
+      "bytes": 3040,
+      "sha256": "805e88b247668936367fe8187879e9ac97dee21814117f8aa89f090a9ba03ab8"
+    },
+    "stations/sequence_02_station_18/profile_not_detected.json": {
+      "bytes": 113,
+      "sha256": "9c41162f5103977a259eefdcbcd07f3ed3e269bde2b69c465656e845e13df155"
+    },
+    "stations/sequence_02_station_18/review.png": {
+      "bytes": 20036,
+      "sha256": "322ff47825b247a6f559cd43ebf545b4839c126932da824b786caddda43a94cf"
+    },
+    "stations/sequence_02_station_18/rollers.csv": {
+      "bytes": 116,
+      "sha256": "f04f037cc95ee356fffe03cc3744acd28fcb4bb6bed12382e120c8e055f369fd"
+    },
+    "stations/sequence_02_station_19/profile_not_detected.json": {
+      "bytes": 113,
+      "sha256": "6df7ca8d494ac1b7309b9e975601c5ea19e881cbdfa1acab75370b812c14d007"
+    },
+    "stations/sequence_02_station_19/review.png": {
+      "bytes": 19250,
+      "sha256": "155c7e636b9e206a430c1ea337d5b258471b25364c64cf98bfb9884e503f983b"
+    },
+    "stations/sequence_02_station_19/rollers.csv": {
+      "bytes": 116,
+      "sha256": "ba4e9d5735fc2dd592207b1ce97920b1ee5ff59ce59a74c2ea753dcc812550b4"
+    },
+    "stations/sequence_02_station_20/profile_not_detected.json": {
+      "bytes": 113,
+      "sha256": "299468f8101c3e0b2b2968f54cb33e51f653763d16f014c5bba0ce7d9bfd7117"
+    },
+    "stations/sequence_02_station_20/review.png": {
+      "bytes": 3036,
+      "sha256": "5f663e14c0ecee8cc4e047c8c816bacb4275047a6de10c9f9dc30ea01ae1c7fa"
+    },
+    "stations/sequence_02_station_21/profile_not_detected.json": {
+      "bytes": 113,
+      "sha256": "1d5f391d50b9c27069e27da15043c18bd842ba8cb9307aba036a8f4573db63c3"
+    },
+    "stations/sequence_02_station_21/review.png": {
+      "bytes": 3021,
+      "sha256": "23cf5131663f9d63fcdcae8537c8eff949a67fa487da8f562d0079b5f48867a9"
+    },
+    "stations/sequence_02_station_22/profile_not_detected.json": {
+      "bytes": 113,
+      "sha256": "3ea5cbb06e0c23955332e84429b905543cbf44b0e5485cf4ca30321fc76de6c8"
+    },
+    "stations/sequence_02_station_22/review.png": {
+      "bytes": 20002,
+      "sha256": "00ee7a890d95702704c3102419c7a4ce2f3daad92f0cb27cdd489fb9ea5d5ab8"
+    },
+    "stations/sequence_02_station_22/rollers.csv": {
+      "bytes": 116,
+      "sha256": "9ea10f557c3adbbe69b57d87e7bad9688fdabafc9c1e6a04a906840efe3fc3eb"
+    },
+    "stations/sequence_02_station_23/composite_passes/passes.json": {
+      "bytes": 996932,
+      "sha256": "3e283f745f0f3aef7da2978c46c2df1ceffb9809f9c140b980e3e14eaaae846a"
+    },
+    "stations/sequence_02_station_23/composite_passes/profile_pass_01.dxf": {
+      "bytes": 55538,
+      "sha256": "955c2dd6f733e57607c509dcb87f42474af0039de8792d3527f2d7e14308125c"
+    },
+    "stations/sequence_02_station_23/composite_passes/profile_pass_02.dxf": {
+      "bytes": 55542,
+      "sha256": "56931922805b1caa5476452a5ad60c91a963ef575df092b9aa57dd037b16ac46"
+    },
+    "stations/sequence_02_station_23/composite_passes/profile_pass_03.dxf": {
+      "bytes": 55540,
+      "sha256": "2887037e2e1352d95ff878a2c4c46d01c0007be039cc0c4965c844748253ad09"
+    },
+    "stations/sequence_02_station_23/composite_passes/profile_pass_04.dxf": {
+      "bytes": 55538,
+      "sha256": "d9a68ff5526e8d04543a0bfffed5031e4e0d12f4d5bca1c1e1e7e30d40e4bb08"
+    },
+    "stations/sequence_02_station_23/composite_passes/profile_pass_05.dxf": {
+      "bytes": 55540,
+      "sha256": "919dda120b0e2ad538e609c685aece9b92d1bf0312b41d5bed59d87ddf7db8d7"
+    },
+    "stations/sequence_02_station_23/composite_passes/profile_pass_06.dxf": {
+      "bytes": 55533,
+      "sha256": "c191c19d05ac2c1c16d06079303df5967205e8b74fdc9abe0f4c1183e7f4b935"
+    },
+    "stations/sequence_02_station_23/composite_passes/profile_pass_07.dxf": {
+      "bytes": 55539,
+      "sha256": "a5ee3cc911187fdd9d05c80ad3d24066443c2b8e2f4908dbf9ef947fc768f775"
+    },
+    "stations/sequence_02_station_23/composite_passes/profile_pass_08.dxf": {
+      "bytes": 55538,
+      "sha256": "0a7a3274d87d42103d311cc066133ae8160230be7728581128b3ffac7a66e69c"
+    },
+    "stations/sequence_02_station_23/composite_passes/profile_pass_09.dxf": {
+      "bytes": 55539,
+      "sha256": "59057c02e644d627690cd3021fe72f23af1e922a1fdf94a70854501f718248b6"
+    },
+    "stations/sequence_02_station_23/composite_passes/profile_pass_10.dxf": {
+      "bytes": 55542,
+      "sha256": "922963cc722003d99d973cff258f34a48f2051e63f5408187cf4b599533a538d"
+    },
+    "stations/sequence_02_station_23/composite_passes/profile_pass_11.dxf": {
+      "bytes": 55540,
+      "sha256": "8c14afe87fb7cc6e4da319de82e24a9706fbb8859566552c325ec49b0495148e"
+    },
+    "stations/sequence_02_station_23/composite_passes/profile_pass_12.dxf": {
+      "bytes": 55542,
+      "sha256": "562605500f483df62aa4c2c9b306638f9da1367fa8a20a067b8e3ca3ccbd8494"
+    },
+    "stations/sequence_02_station_23/review.png": {
+      "bytes": 172660,
+      "sha256": "b77dc566986bbd9deae81ebc789115461c9831fd0a893dfa97d62cc93b7709da"
+    },
+    "summaries/stations.csv": {
+      "bytes": 2548,
+      "sha256": "e737a65de767da4e2875f2830c3f099f0b1fb549ad88135ba3addde7c0a76794"
+    }
+  },
+  "source_sha256": "dfc0f5fca3c95fecc879ef378be62f32a7b69f68861a598e34646382a71eabae",
+  "station_count": 30
+}

@@ -1,0 +1,118 @@
+{
+  "created_at": "2026-07-29T17:37:44.153274+00:00",
+  "job_id": "3f41831933dc4fdaba0627b9b0c8ea39",
+  "logs": [
+    {
+      "at": "2026-07-29T17:37:44.155077+00:00",
+      "message": "Input staged for converter/pipeline",
+      "stage": "CONVERTING"
+    },
+    {
+      "at": "2026-07-29T17:37:44.156074+00:00",
+      "message": "Handled by deterministic Python extraction pipeline",
+      "stage": "PARSING"
+    },
+    {
+      "at": "2026-07-29T17:37:44.156870+00:00",
+      "message": "Handled by deterministic Python extraction pipeline",
+      "stage": "DETECTING_FLOWERS"
+    },
+    {
+      "at": "2026-07-29T17:37:44.157975+00:00",
+      "message": "Handled by deterministic Python extraction pipeline",
+      "stage": "EXTRACTING_PASSES"
+    },
+    {
+      "at": "2026-07-29T17:37:44.158928+00:00",
+      "message": "Handled by deterministic Python extraction pipeline",
+      "stage": "ANALYSING_GEOMETRY"
+    },
+    {
+      "at": "2026-07-29T17:38:38.948038+00:00",
+      "message": "Report and artifacts generated",
+      "stage": "GENERATING_REPORT"
+    }
+  ],
+  "project_id": "D0064-D0065-FlowerSequence",
+  "stages": [
+    {
+      "ended_at": "2026-07-29T17:37:44.153259+00:00",
+      "logs": [],
+      "stage": "UPLOADED",
+      "started_at": "2026-07-29T17:37:44.153259+00:00",
+      "status": "complete",
+      "warnings": []
+    },
+    {
+      "ended_at": "2026-07-29T17:37:44.155063+00:00",
+      "logs": [
+        "Input staged for converter/pipeline"
+      ],
+      "stage": "CONVERTING",
+      "started_at": "2026-07-29T17:37:44.155063+00:00",
+      "status": "complete",
+      "warnings": []
+    },
+    {
+      "ended_at": "2026-07-29T17:37:44.156061+00:00",
+      "logs": [
+        "Handled by deterministic Python extraction pipeline"
+      ],
+      "stage": "PARSING",
+      "started_at": "2026-07-29T17:37:44.156061+00:00",
+      "status": "complete",
+      "warnings": []
+    },
+    {
+      "ended_at": "2026-07-29T17:37:44.156860+00:00",
+      "logs": [
+        "Handled by deterministic Python extraction pipeline"
+      ],
+      "stage": "DETECTING_FLOWERS",
+      "started_at": "2026-07-29T17:37:44.156860+00:00",
+      "status": "complete",
+      "warnings": []
+    },
+    {
+      "ended_at": "2026-07-29T17:37:44.157965+00:00",
+      "logs": [
+        "Handled by deterministic Python extraction pipeline"
+      ],
+      "stage": "EXTRACTING_PASSES",
+      "started_at": "2026-07-29T17:37:44.157965+00:00",
+      "status": "complete",
+      "warnings": []
+    },
+    {
+      "ended_at": "2026-07-29T17:37:44.158918+00:00",
+      "logs": [
+        "Handled by deterministic Python extraction pipeline"
+      ],
+      "stage": "ANALYSING_GEOMETRY",
+      "started_at": "2026-07-29T17:37:44.158918+00:00",
+      "status": "complete",
+      "warnings": []
+    },
+    {
+      "ended_at": "2026-07-29T17:38:38.948006+00:00",
+      "logs": [
+        "Report and artifacts generated"
+      ],
+      "stage": "GENERATING_REPORT",
+      "started_at": "2026-07-29T17:38:38.948006+00:00",
+      "status": "complete",
+      "warnings": []
+    },
+    {
+      "ended_at": "2026-07-29T17:38:38.951468+00:00",
+      "logs": [],
+      "stage": "CANDIDATE_READY",
+      "started_at": "2026-07-29T17:38:38.951468+00:00",
+      "status": "complete",
+      "warnings": []
+    }
+  ],
+  "status": "CANDIDATE_READY",
+  "updated_at": "2026-07-29T17:38:38.950289+00:00",
+  "warnings": []
+}

@@ -1,0 +1,78 @@
+{
+  "active_bend_count": 0,
+  "automatically_inferred_order": 0,
+  "bend_count": 0,
+  "bend_signature": "",
+  "bend_zones": [],
+  "composite_flower_id": "composite_flower_01",
+  "contour_confidence": 0.82,
+  "developed_length_drawing_units": 94.00114822387695,
+  "developed_length_mm": null,
+  "duplicate_group_id": null,
+  "duplicate_of": null,
+  "engineer_confirmed_order": null,
+  "expected_neutral_length": 94.00114822387695,
+  "generated_neutral_length": 94.00114822387695,
+  "height": 1.0,
+  "individual_profile_matches": [
+    {
+      "confirmed_link": false,
+      "exact_match": true,
+      "geometric_difference": 0.0,
+      "individual_profile_id": "Q2_S2-P1",
+      "mirrored_match": false,
+      "similarity_score": 1.0
+    }
+  ],
+  "neutral_length_error": 0.0,
+  "neutral_length_error_percent": 0.0,
+  "neutral_line_confidence": 0.74,
+  "neutral_line_method": "paired_boundary_midline",
+  "order_confidence": 0.72,
+  "pass_id": "pass_00_flat",
+  "physical_bends": [],
+  "physical_forming_bend_count": 0,
+  "physical_total_bend_angle": 0,
+  "profile_id": "Q2_S23-CF01",
+  "profile_type": "SOURCE_STRIP_OUTLINE",
+  "raw_geometry_corner_count": 3,
+  "raw_total_turning_angle": 270.0,
+  "requires_review": true,
+  "sheet_thickness_drawing_units": 1.0,
+  "source_handles": [
+    "FB03"
+  ],
+  "source_layers": [
+    "0-CAD-polyline"
+  ],
+  "station_id": "Q2_S23",
+  "total_bend_angle": 0,
+  "transform_matrix_4x4": [
+    [
+      1.0,
+      0.0,
+      0.0,
+      -506.6865613678033
+    ],
+    [
+      0.0,
+      1.0,
+      0.0,
+      5184.335792689664
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "vertex_turn_count": 0,
+  "width": 94.00114822387695
+}

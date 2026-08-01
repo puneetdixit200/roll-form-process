@@ -1,0 +1,1176 @@
+{
+  "active_bend_count": 4,
+  "bend_signature": "BZ03:88.0;BZ01:90.0;BZ02:-91.0;BZ04:88.0",
+  "bend_zones": [
+    {
+      "absolute_bend_angle": 88.0,
+      "activation_status": "forming",
+      "bend_direction": "up",
+      "bend_id": "BZ03",
+      "bend_zone_id": "BZ03",
+      "centre_developed_coordinate": 27.950304903722312,
+      "confidence": 0.78,
+      "contributing_source_handles": [
+        "FC57"
+      ],
+      "contributing_vertex_count": 4,
+      "contributing_vertices": [
+        {
+          "developed_length_position": 26.608349829648038,
+          "point": [
+            534.2683803727747,
+            -5181.966995236187,
+            0.0
+          ],
+          "signed_turn_angle": 22.34,
+          "u": 0.28441091111894384,
+          "vertex_index": 1
+        },
+        {
+          "developed_length_position": 27.34518635553349,
+          "point": [
+            534.572067964144,
+            -5182.638338600441,
+            0.0
+          ],
+          "signed_turn_angle": 21.655,
+          "u": 0.2922867977866429,
+          "vertex_index": 2
+        },
+        {
+          "developed_length_position": 28.798849347369288,
+          "point": [
+            535.6176500580316,
+            -5183.648236703605,
+            0.0
+          ],
+          "signed_turn_angle": 21.664,
+          "u": 0.30782468790815815,
+          "vertex_index": 3
+        },
+        {
+          "developed_length_position": 29.292259977796583,
+          "point": [
+            536.0740235917866,
+            -5183.835792689664,
+            0.0
+          ],
+          "signed_turn_angle": 22.341,
+          "u": 0.3130986476934898,
+          "vertex_index": 4
+        }
+      ],
+      "developed_length_position": 27.950304903722312,
+      "end_developed_coordinate": 29.292259977796583,
+      "estimated_radius": 1.747463625582539,
+      "incoming_tangent": -87.99995709780782,
+      "inside_radius": 1.747463625582539,
+      "neutral_line_radius": 1.747463625582539,
+      "outgoing_tangent": 0.0,
+      "outside_radius": 1.747463625582539,
+      "signed_bend_angle": 88.0,
+      "source_entity_handles": [
+        "FC57"
+      ],
+      "start_developed_coordinate": 26.608349829648038,
+      "total_absolute_turning_angle": 88.0,
+      "total_signed_turning_angle": 88.0,
+      "u": 0.2987547794062168,
+      "x": 535.1330304966842,
+      "y": -5183.022340807474,
+      "zone_length": 2.683910148148545
+    },
+    {
+      "absolute_bend_angle": 90.0,
+      "activation_status": "forming",
+      "bend_direction": "up",
+      "bend_id": "BZ01",
+      "bend_zone_id": "BZ01",
+      "centre_developed_coordinate": 42.858648707390955,
+      "confidence": 0.78,
+      "contributing_source_handles": [
+        "FC57"
+      ],
+      "contributing_vertex_count": 4,
+      "contributing_vertices": [
+        {
+          "developed_length_position": 41.44676915602226,
+          "point": [
+            548.2285327700123,
+            -5183.835792689664,
+            0.0
+          ],
+          "signed_turn_angle": 22.151,
+          "u": 0.4430155742114563,
+          "vertex_index": 5
+        },
+        {
+          "developed_length_position": 41.59851130346281,
+          "point": [
+            548.3690755175259,
+            -5183.77857892007,
+            0.0
+          ],
+          "signed_turn_angle": 22.849,
+          "u": 0.44463751329016693,
+          "vertex_index": 6
+        },
+        {
+          "developed_length_position": 42.86960153277664,
+          "point": [
+            549.2678718170889,
+            -5182.879782178337,
+            0.0
+          ],
+          "signed_turn_angle": 22.151,
+          "u": 0.4582239225394442,
+          "vertex_index": 7
+        },
+        {
+          "developed_length_position": 44.27052825875965,
+          "point": [
+            549.8118606294291,
+            -5181.588785716831,
+            0.0
+          ],
+          "signed_turn_angle": 22.849,
+          "u": 0.47319812609203543,
+          "vertex_index": 8
+        }
+      ],
+      "developed_length_position": 42.858648707390955,
+      "end_developed_coordinate": 44.27052825875965,
+      "estimated_radius": 1.7976602661715961,
+      "incoming_tangent": 0.0,
+      "inside_radius": 1.7976602661715961,
+      "neutral_line_radius": 1.7976602661715961,
+      "outgoing_tangent": 90.00003059146253,
+      "outside_radius": 1.7976602661715961,
+      "signed_bend_angle": 90.0,
+      "source_entity_handles": [
+        "FC57"
+      ],
+      "start_developed_coordinate": 41.44676915602226,
+      "total_absolute_turning_angle": 90.0,
+      "total_signed_turning_angle": 90.0,
+      "u": 0.45810685015174585,
+      "x": 548.919335183514,
+      "y": -5183.020734876225,
+      "zone_length": 2.823759102737384
+    },
+    {
+      "absolute_bend_angle": 91.0,
+      "activation_status": "forming",
+      "bend_direction": "down",
+      "bend_id": "BZ02",
+      "bend_zone_id": "BZ02",
+      "centre_developed_coordinate": 56.31253393005211,
+      "confidence": 0.78,
+      "contributing_source_handles": [
+        "FC57"
+      ],
+      "contributing_vertex_count": 4,
+      "contributing_vertices": [
+        {
+          "developed_length_position": 54.933400446872746,
+          "point": [
+            549.8118549362898,
+            -5170.925913528719,
+            0.0
+          ],
+          "signed_turn_angle": -22.396,
+          "u": 0.5871712666130238,
+          "vertex_index": 9
+        },
+        {
+          "developed_length_position": 56.00606068384976,
+          "point": [
+            550.2205488663417,
+            -5169.934162927242,
+            0.0
+          ],
+          "signed_turn_angle": -23.105,
+          "u": 0.5986367004814468,
+          "vertex_index": 10
+        },
+        {
+          "developed_length_position": 57.390893217029664,
+          "point": [
+            551.2083065904026,
+            -5168.963546719098,
+            0.0
+          ],
+          "signed_turn_angle": -23.102,
+          "u": 0.6134388766791604,
+          "vertex_index": 11
+        },
+        {
+          "developed_length_position": 57.69166741323148,
+          "point": [
+            551.4883499681644,
+            -5168.853816032084,
+            0.0
+          ],
+          "signed_turn_angle": -22.397,
+          "u": 0.6166537871764476,
+          "vertex_index": 12
+        }
+      ],
+      "developed_length_position": 56.31253393005211,
+      "end_developed_coordinate": 57.69166741323148,
+      "estimated_radius": 1.736678505416052,
+      "incoming_tangent": 90.00003059146253,
+      "inside_radius": 1.736678505416052,
+      "neutral_line_radius": 1.736678505416052,
+      "outgoing_tangent": -0.9995732211313374,
+      "outside_radius": 1.736678505416052,
+      "signed_bend_angle": -91.0,
+      "source_entity_handles": [
+        "FC57"
+      ],
+      "start_developed_coordinate": 54.933400446872746,
+      "total_absolute_turning_angle": 91.0,
+      "total_signed_turning_angle": -91.0,
+      "u": 0.6019125268947357,
+      "x": 550.6822650902996,
+      "y": -5169.669359801786,
+      "zone_length": 2.7582669663587325
+    },
+    {
+      "absolute_bend_angle": 88.0,
+      "activation_status": "forming",
+      "bend_direction": "up",
+      "bend_id": "BZ04",
+      "bend_zone_id": "BZ04",
+      "centre_developed_coordinate": 80.38834335655713,
+      "confidence": 0.78,
+      "contributing_source_handles": [
+        "FC57"
+      ],
+      "contributing_vertex_count": 4,
+      "contributing_vertices": [
+        {
+          "developed_length_position": 79.04652403248177,
+          "point": [
+            572.8399569148064,
+            -5169.226350627585,
+            0.0
+          ],
+          "signed_turn_angle": 22.338,
+          "u": 0.8449112427037346,
+          "vertex_index": 13
+        },
+        {
+          "developed_length_position": 79.94932638726598,
+          "point": [
+            573.680870515946,
+            -5168.897844300062,
+            0.0
+          ],
+          "signed_turn_angle": 21.658,
+          "u": 0.8545611023127814,
+          "vertex_index": 14
+        },
+        {
+          "developed_length_position": 81.40268930323818,
+          "point": [
+            574.7438569430412,
+            -5167.906721895243,
+            0.0
+          ],
+          "signed_turn_angle": 21.661,
+          "u": 0.8700957849881258,
+          "vertex_index": 15
+        },
+        {
+          "developed_length_position": 81.73016268063247,
+          "point": [
+            574.8840279243275,
+            -5167.610764281881,
+            0.0
+          ],
+          "signed_turn_angle": 22.343,
+          "u": 0.8735960772733743,
+          "vertex_index": 16
+        }
+      ],
+      "developed_length_position": 80.38834335655713,
+      "end_developed_coordinate": 81.73016268063247,
+      "estimated_radius": 1.7472946432224454,
+      "incoming_tangent": -0.9995732211313374,
+      "inside_radius": 1.7472946432224454,
+      "neutral_line_radius": 1.7472946432224454,
+      "outgoing_tangent": 86.99999163397248,
+      "outside_radius": 1.7472946432224454,
+      "signed_bend_angle": 88.0,
+      "source_entity_handles": [
+        "FC57"
+      ],
+      "start_developed_coordinate": 79.04652403248177,
+      "total_absolute_turning_angle": 88.0,
+      "total_signed_turning_angle": 88.0,
+      "u": 0.8592536599885545,
+      "x": 574.0371780745303,
+      "y": -5168.410420276193,
+      "zone_length": 2.683638648150705
+    }
+  ],
+  "neutral_line": {
+    "confidence": 0.74,
+    "expected_length": 93.9929179951331,
+    "generated_length": 93.9929179951331,
+    "length_error": 0.0,
+    "length_error_percent": 0.0,
+    "method": "paired_boundary_midline",
+    "primitives": [
+      {
+        "attributes": {
+          "closed": false,
+          "vertices": [
+            {
+              "bulge": 0.0,
+              "point": [
+                533.3397424438531,
+                -5155.374855189664,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                534.2683803727747,
+                -5181.966995236187,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                534.572067964144,
+                -5182.638338600441,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                535.6176500580316,
+                -5183.648236703605,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                536.0740235917866,
+                -5183.835792689664,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                541.8852093601434,
+                -5183.835792689664,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                542.2334063195997,
+                -5183.835792689664,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                548.2285327700123,
+                -5183.835792689664,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                548.3690755175259,
+                -5183.77857892007,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                549.2678718170889,
+                -5182.879782178337,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                549.8118606294291,
+                -5181.588785716831,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                549.8118549362898,
+                -5170.925913528719,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                550.2205488663417,
+                -5169.934162927242,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                551.2083065904026,
+                -5168.963546719098,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                551.4883499681644,
+                -5168.853816032084,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                572.8399569148064,
+                -5169.226350627585,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                573.680870515946,
+                -5168.897844300062,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                574.7438569430412,
+                -5167.906721895243,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                574.8840279243275,
+                -5167.610764281881,
+                0.0
+              ]
+            },
+            {
+              "bulge": 0.0,
+              "point": [
+                575.5029466369683,
+                -5155.801124720914,
+                0.0
+              ]
+            }
+          ]
+        },
+        "kind": "LWPOLYLINE",
+        "source_handle": "Q2_S23-CF11-neutral"
+      }
+    ]
+  },
+  "original_strip_outline": [
+    {
+      "attributes": {
+        "closed": false,
+        "points": [
+          [
+            533.8394372680718,
+            -5155.357277064664,
+            0.0
+          ],
+          [
+            532.8400476196343,
+            -5155.392433314664,
+            0.0
+          ],
+          [
+            533.7823484161431,
+            -5182.375831752164,
+            0.0
+          ],
+          [
+            535.811861775213,
+            -5184.335792689664,
+            0.0
+          ],
+          [
+            542.0618694046075,
+            -5184.335792689664,
+            0.0
+          ],
+          [
+            548.3118620136315,
+            -5184.335792689664,
+            0.0
+          ],
+          [
+            550.3118610003526,
+            -5182.335792689664,
+            0.0
+          ],
+          [
+            550.3118546226556,
+            -5170.335792689664,
+            0.0
+          ],
+          [
+            551.314178846174,
+            -5169.350929408414,
+            0.0
+          ],
+          [
+            573.3108289459283,
+            -5169.734718470914,
+            0.0
+          ],
+          [
+            575.3742368438775,
+            -5167.810890345914,
+            0.0
+          ],
+          [
+            576.0022618988091,
+            -5155.827491908414,
+            0.0
+          ],
+          [
+            575.0036313751275,
+            -5155.774757533414,
+            0.0
+          ],
+          [
+            574.3756063201959,
+            -5167.758155970914,
+            0.0
+          ],
+          [
+            573.3282811859185,
+            -5168.734718470914,
+            0.0
+          ],
+          [
+            551.3316307285363,
+            -5168.350929408414,
+            0.0
+          ],
+          [
+            549.3118546226556,
+            -5170.335792689664,
+            0.0
+          ],
+          [
+            549.3118610599572,
+            -5182.335792689664,
+            0.0
+          ],
+          [
+            548.3118615367944,
+            -5183.335792689664,
+            0.0
+          ],
+          [
+            542.0618694046075,
+            -5183.335792689664,
+            0.0
+          ],
+          [
+            535.811861775213,
+            -5183.335792689664,
+            0.0
+          ],
+          [
+            534.7817390182549,
+            -5182.340675502164,
+            0.0
+          ],
+          [
+            533.8394372680718,
+            -5155.357277064664,
+            0.0
+          ]
+        ],
+        "vertices": [
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              533.8394372680718,
+              -5155.357277064664,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              532.8400476196343,
+              -5155.392433314664,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              533.7823484161431,
+              -5182.375831752164,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              535.811861775213,
+              -5184.335792689664,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              542.0618694046075,
+              -5184.335792689664,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              548.3118620136315,
+              -5184.335792689664,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              550.3118610003526,
+              -5182.335792689664,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              550.3118546226556,
+              -5170.335792689664,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              551.314178846174,
+              -5169.350929408414,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              573.3108289459283,
+              -5169.734718470914,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              575.3742368438775,
+              -5167.810890345914,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              576.0022618988091,
+              -5155.827491908414,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              575.0036313751275,
+              -5155.774757533414,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              574.3756063201959,
+              -5167.758155970914,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              573.3282811859185,
+              -5168.734718470914,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              551.3316307285363,
+              -5168.350929408414,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              549.3118546226556,
+              -5170.335792689664,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              549.3118610599572,
+              -5182.335792689664,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              548.3118615367944,
+              -5183.335792689664,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              542.0618694046075,
+              -5183.335792689664,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              535.811861775213,
+              -5183.335792689664,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              534.7817390182549,
+              -5182.340675502164,
+              0.0
+            ],
+            "start_width": 0.0
+          },
+          {
+            "bulge": 0.0,
+            "end_width": 0.0,
+            "point": [
+              533.8394372680718,
+              -5155.357277064664,
+              0.0
+            ],
+            "start_width": 0.0
+          }
+        ]
+      },
+      "kind": "POLYLINE",
+      "source_handle": "FC57"
+    }
+  ],
+  "physical_bends": [
+    {
+      "absolute_bend_angle": 88.0,
+      "activation_status": "forming",
+      "bend_direction": "up",
+      "bend_id": "BZ03",
+      "bend_zone_id": "BZ03",
+      "centre_developed_coordinate": 27.950304903722312,
+      "confidence": 0.78,
+      "contributing_source_handles": [
+        "FC57"
+      ],
+      "contributing_vertex_count": 4,
+      "contributing_vertices": [
+        {
+          "developed_length_position": 26.608349829648038,
+          "point": [
+            534.2683803727747,
+            -5181.966995236187,
+            0.0
+          ],
+          "signed_turn_angle": 22.34,
+          "u": 0.28441091111894384,
+          "vertex_index": 1
+        },
+        {
+          "developed_length_position": 27.34518635553349,
+          "point": [
+            534.572067964144,
+            -5182.638338600441,
+            0.0
+          ],
+          "signed_turn_angle": 21.655,
+          "u": 0.2922867977866429,
+          "vertex_index": 2
+        },
+        {
+          "developed_length_position": 28.798849347369288,
+          "point": [
+            535.6176500580316,
+            -5183.648236703605,
+            0.0
+          ],
+          "signed_turn_angle": 21.664,
+          "u": 0.30782468790815815,
+          "vertex_index": 3
+        },
+        {
+          "developed_length_position": 29.292259977796583,
+          "point": [
+            536.0740235917866,
+            -5183.835792689664,
+            0.0
+          ],
+          "signed_turn_angle": 22.341,
+          "u": 0.3130986476934898,
+          "vertex_index": 4
+        }
+      ],
+      "developed_length_position": 27.950304903722312,
+      "end_developed_coordinate": 29.292259977796583,
+      "estimated_radius": 1.747463625582539,
+      "incoming_tangent": -87.99995709780782,
+      "inside_radius": 1.747463625582539,
+      "neutral_line_radius": 1.747463625582539,
+      "outgoing_tangent": 0.0,
+      "outside_radius": 1.747463625582539,
+      "signed_bend_angle": 88.0,
+      "source_entity_handles": [
+        "FC57"
+      ],
+      "start_developed_coordinate": 26.608349829648038,
+      "total_absolute_turning_angle": 88.0,
+      "total_signed_turning_angle": 88.0,
+      "u": 0.2987547794062168,
+      "x": 535.1330304966842,
+      "y": -5183.022340807474,
+      "zone_length": 2.683910148148545
+    },
+    {
+      "absolute_bend_angle": 90.0,
+      "activation_status": "forming",
+      "bend_direction": "up",
+      "bend_id": "BZ01",
+      "bend_zone_id": "BZ01",
+      "centre_developed_coordinate": 42.858648707390955,
+      "confidence": 0.78,
+      "contributing_source_handles": [
+        "FC57"
+      ],
+      "contributing_vertex_count": 4,
+      "contributing_vertices": [
+        {
+          "developed_length_position": 41.44676915602226,
+          "point": [
+            548.2285327700123,
+            -5183.835792689664,
+            0.0
+          ],
+          "signed_turn_angle": 22.151,
+          "u": 0.4430155742114563,
+          "vertex_index": 5
+        },
+        {
+          "developed_length_position": 41.59851130346281,
+          "point": [
+            548.3690755175259,
+            -5183.77857892007,
+            0.0
+          ],
+          "signed_turn_angle": 22.849,
+          "u": 0.44463751329016693,
+          "vertex_index": 6
+        },
+        {
+          "developed_length_position": 42.86960153277664,
+          "point": [
+            549.2678718170889,
+            -5182.879782178337,
+            0.0
+          ],
+          "signed_turn_angle": 22.151,
+          "u": 0.4582239225394442,
+          "vertex_index": 7
+        },
+        {
+          "developed_length_position": 44.27052825875965,
+          "point": [
+            549.8118606294291,
+            -5181.588785716831,
+            0.0
+          ],
+          "signed_turn_angle": 22.849,
+          "u": 0.47319812609203543,
+          "vertex_index": 8
+        }
+      ],
+      "developed_length_position": 42.858648707390955,
+      "end_developed_coordinate": 44.27052825875965,
+      "estimated_radius": 1.7976602661715961,
+      "incoming_tangent": 0.0,
+      "inside_radius": 1.7976602661715961,
+      "neutral_line_radius": 1.7976602661715961,
+      "outgoing_tangent": 90.00003059146253,
+      "outside_radius": 1.7976602661715961,
+      "signed_bend_angle": 90.0,
+      "source_entity_handles": [
+        "FC57"
+      ],
+      "start_developed_coordinate": 41.44676915602226,
+      "total_absolute_turning_angle": 90.0,
+      "total_signed_turning_angle": 90.0,
+      "u": 0.45810685015174585,
+      "x": 548.919335183514,
+      "y": -5183.020734876225,
+      "zone_length": 2.823759102737384
+    },
+    {
+      "absolute_bend_angle": 91.0,
+      "activation_status": "forming",
+      "bend_direction": "down",
+      "bend_id": "BZ02",
+      "bend_zone_id": "BZ02",
+      "centre_developed_coordinate": 56.31253393005211,
+      "confidence": 0.78,
+      "contributing_source_handles": [
+        "FC57"
+      ],
+      "contributing_vertex_count": 4,
+      "contributing_vertices": [
+        {
+          "developed_length_position": 54.933400446872746,
+          "point": [
+            549.8118549362898,
+            -5170.925913528719,
+            0.0
+          ],
+          "signed_turn_angle": -22.396,
+          "u": 0.5871712666130238,
+          "vertex_index": 9
+        },
+        {
+          "developed_length_position": 56.00606068384976,
+          "point": [
+            550.2205488663417,
+            -5169.934162927242,
+            0.0
+          ],
+          "signed_turn_angle": -23.105,
+          "u": 0.5986367004814468,
+          "vertex_index": 10
+        },
+        {
+          "developed_length_position": 57.390893217029664,
+          "point": [
+            551.2083065904026,
+            -5168.963546719098,
+            0.0
+          ],
+          "signed_turn_angle": -23.102,
+          "u": 0.6134388766791604,
+          "vertex_index": 11
+        },
+        {
+          "developed_length_position": 57.69166741323148,
+          "point": [
+            551.4883499681644,
+            -5168.853816032084,
+            0.0
+          ],
+          "signed_turn_angle": -22.397,
+          "u": 0.6166537871764476,
+          "vertex_index": 12
+        }
+      ],
+      "developed_length_position": 56.31253393005211,
+      "end_developed_coordinate": 57.69166741323148,
+      "estimated_radius": 1.736678505416052,
+      "incoming_tangent": 90.00003059146253,
+      "inside_radius": 1.736678505416052,
+      "neutral_line_radius": 1.736678505416052,
+      "outgoing_tangent": -0.9995732211313374,
+      "outside_radius": 1.736678505416052,
+      "signed_bend_angle": -91.0,
+      "source_entity_handles": [
+        "FC57"
+      ],
+      "start_developed_coordinate": 54.933400446872746,
+      "total_absolute_turning_angle": 91.0,
+      "total_signed_turning_angle": -91.0,
+      "u": 0.6019125268947357,
+      "x": 550.6822650902996,
+      "y": -5169.669359801786,
+      "zone_length": 2.7582669663587325
+    },
+    {
+      "absolute_bend_angle": 88.0,
+      "activation_status": "forming",
+      "bend_direction": "up",
+      "bend_id": "BZ04",
+      "bend_zone_id": "BZ04",
+      "centre_developed_coordinate": 80.38834335655713,
+      "confidence": 0.78,
+      "contributing_source_handles": [
+        "FC57"
+      ],
+      "contributing_vertex_count": 4,
+      "contributing_vertices": [
+        {
+          "developed_length_position": 79.04652403248177,
+          "point": [
+            572.8399569148064,
+            -5169.226350627585,
+            0.0
+          ],
+          "signed_turn_angle": 22.338,
+          "u": 0.8449112427037346,
+          "vertex_index": 13
+        },
+        {
+          "developed_length_position": 79.94932638726598,
+          "point": [
+            573.680870515946,
+            -5168.897844300062,
+            0.0
+          ],
+          "signed_turn_angle": 21.658,
+          "u": 0.8545611023127814,
+          "vertex_index": 14
+        },
+        {
+          "developed_length_position": 81.40268930323818,
+          "point": [
+            574.7438569430412,
+            -5167.906721895243,
+            0.0
+          ],
+          "signed_turn_angle": 21.661,
+          "u": 0.8700957849881258,
+          "vertex_index": 15
+        },
+        {
+          "developed_length_position": 81.73016268063247,
+          "point": [
+            574.8840279243275,
+            -5167.610764281881,
+            0.0
+          ],
+          "signed_turn_angle": 22.343,
+          "u": 0.8735960772733743,
+          "vertex_index": 16
+        }
+      ],
+      "developed_length_position": 80.38834335655713,
+      "end_developed_coordinate": 81.73016268063247,
+      "estimated_radius": 1.7472946432224454,
+      "incoming_tangent": -0.9995732211313374,
+      "inside_radius": 1.7472946432224454,
+      "neutral_line_radius": 1.7472946432224454,
+      "outgoing_tangent": 86.99999163397248,
+      "outside_radius": 1.7472946432224454,
+      "signed_bend_angle": 88.0,
+      "source_entity_handles": [
+        "FC57"
+      ],
+      "start_developed_coordinate": 79.04652403248177,
+      "total_absolute_turning_angle": 88.0,
+      "total_signed_turning_angle": 88.0,
+      "u": 0.8592536599885545,
+      "x": 574.0371780745303,
+      "y": -5168.410420276193,
+      "zone_length": 2.683638648150705
+    }
+  ],
+  "physical_forming_bend_count": 4,
+  "physical_total_bend_angle": 357.0,
+  "profile_representation": "SOURCE_STRIP_OUTLINE",
+  "raw_geometry_corner_count": 19,
+  "raw_total_turning_angle": 983.983,
+  "sheet_thickness_drawing_units": 1.0000148669779758,
+  "vertex_turn_count": 16
+}

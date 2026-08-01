@@ -1,0 +1,796 @@
+{
+  "items": [
+    {
+      "category": "bbox_failed",
+      "confidence": 0.0,
+      "configuration_hash": "9abd7cfbdef5f9e05f05e10b07d9bb681c65bf4b7793472b488927e80c28138e",
+      "message": "Required block definition for \"MIF_RND_R3\" does not exist.",
+      "method": "entity_parser",
+      "source_handles": [
+        "CB0C"
+      ]
+    },
+    {
+      "category": "missing_block",
+      "confidence": 0.0,
+      "configuration_hash": "9abd7cfbdef5f9e05f05e10b07d9bb681c65bf4b7793472b488927e80c28138e",
+      "message": "missing block definition MIF_RND_R3; preserved INSERT CB0C with insertion-point/proxy extents",
+      "method": "entity_parser",
+      "source_handles": [
+        "CB0C"
+      ]
+    },
+    {
+      "category": "profile_candidate_requires_review",
+      "confidence": 0.2,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "best profile candidate is below the configured confidence threshold",
+      "method": "profile_detector",
+      "source_handles": [
+        "FD7A"
+      ]
+    },
+    {
+      "category": "profile_candidate_requires_review",
+      "confidence": 0.2,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "best profile candidate is below the configured confidence threshold",
+      "method": "profile_detector",
+      "source_handles": [
+        "FD7B"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.7468429410605066,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "FFEA"
+      ]
+    },
+    {
+      "category": "profile_candidate_requires_review",
+      "confidence": 0.2,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "best profile candidate is below the configured confidence threshold",
+      "method": "profile_detector",
+      "source_handles": [
+        "F145"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.9507036388035224,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F123"
+      ]
+    },
+    {
+      "category": "profile_candidate_requires_review",
+      "confidence": 0.2,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "best profile candidate is below the configured confidence threshold",
+      "method": "profile_detector",
+      "source_handles": [
+        "F146"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.9351676026963808,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F149"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.9170356660697582,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F1B9"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.9087208448161819,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F229"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.9097737164199223,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F29C"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.8979671542040893,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F314"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.8861192675688563,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F38C"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.8753740203350752,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F404"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.8697367250421103,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F47C"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.8254363484679583,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F4F4"
+      ]
+    },
+    {
+      "category": "profile_ambiguity",
+      "confidence": 0.8254363484679583,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "multiple plausible profile candidates were detected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F4F4",
+        "F50D"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.8234944188420485,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F5BD"
+      ]
+    },
+    {
+      "category": "profile_ambiguity",
+      "confidence": 0.8234944188420485,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "multiple plausible profile candidates were detected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F5BD",
+        "F5D6"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.8332456503006165,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F6D1"
+      ]
+    },
+    {
+      "category": "profile_ambiguity",
+      "confidence": 0.8332456503006165,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "multiple plausible profile candidates were detected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F6D1",
+        "F6EB"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.7612787828507841,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F7A2"
+      ]
+    },
+    {
+      "category": "profile_ambiguity",
+      "confidence": 0.7612787828507841,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "multiple plausible profile candidates were detected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F7A2",
+        "F7C1"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.8225162299989534,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F82E"
+      ]
+    },
+    {
+      "category": "profile_ambiguity",
+      "confidence": 0.8225162299989534,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "multiple plausible profile candidates were detected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F82E",
+        "F848"
+      ]
+    },
+    {
+      "category": "profile_candidate_requires_review",
+      "confidence": 0.2,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "best profile candidate is below the configured confidence threshold",
+      "method": "profile_detector",
+      "source_handles": [
+        "F95C"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.6870517621511572,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F954"
+      ]
+    },
+    {
+      "category": "profile_ambiguity",
+      "confidence": 0.6870517621511572,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "multiple plausible profile candidates were detected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F954",
+        "F955"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.6377444192275276,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F9EF"
+      ]
+    },
+    {
+      "category": "profile_ambiguity",
+      "confidence": 0.6377444192275276,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "multiple plausible profile candidates were detected",
+      "method": "profile_detector",
+      "source_handles": [
+        "F9EF",
+        "F9F0"
+      ]
+    },
+    {
+      "category": "profile_candidate_requires_review",
+      "confidence": 0.2,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "best profile candidate is below the configured confidence threshold",
+      "method": "profile_detector",
+      "source_handles": [
+        "F9F3"
+      ]
+    },
+    {
+      "category": "profile_candidate_requires_review",
+      "confidence": 0.2,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "best profile candidate is below the configured confidence threshold",
+      "method": "profile_detector",
+      "source_handles": [
+        "FA8E"
+      ]
+    },
+    {
+      "category": "broken_profile_contour",
+      "confidence": 0.8362621340867248,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile contour is disconnected",
+      "method": "profile_detector",
+      "source_handles": [
+        "FA86"
+      ]
+    },
+    {
+      "category": "profile_ambiguity",
+      "confidence": 0.8362621340867248,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "multiple plausible profile candidates were detected",
+      "method": "profile_detector",
+      "source_handles": [
+        "FA86",
+        "FA87"
+      ]
+    },
+    {
+      "category": "profile_rejected_short_outlier",
+      "confidence": 0.6870517621511572,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile developed length is below 25 percent of the sequence median",
+      "method": "profile_detector",
+      "source_handles": [
+        "F954"
+      ]
+    },
+    {
+      "category": "profile_rejected_short_outlier",
+      "confidence": 0.6377444192275276,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile developed length is below 25 percent of the sequence median",
+      "method": "profile_detector",
+      "source_handles": [
+        "F9EF"
+      ]
+    },
+    {
+      "category": "profile_rejected_short_outlier",
+      "confidence": 0.8362621340867248,
+      "configuration_hash": "17284bba2dc6f60369a54376335dffcd7e2c307d1c48fbd0265888d09db1b374",
+      "message": "profile developed length is below 25 percent of the sequence median",
+      "method": "profile_detector",
+      "source_handles": [
+        "FA86"
+      ]
+    },
+    {
+      "category": "rollers_missing",
+      "confidence": 0.0,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "no roller tooling was detected for station",
+      "method": "roller_detector",
+      "source_handles": [
+        "FD74",
+        "FD75",
+        "FD76",
+        "FD77",
+        "FD78",
+        "FD79",
+        "FD7C",
+        "FD5E",
+        "FD6F",
+        "FD70",
+        "FD71",
+        "FD72",
+        "FD73"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "FDBE"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "FE16"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "FE8A"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "FEE6"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "FF5A"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "FFB6"
+      ]
+    },
+    {
+      "category": "rollers_missing",
+      "confidence": 0.0,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "no roller tooling was detected for station",
+      "method": "roller_detector",
+      "source_handles": [
+        "FFEA",
+        "FFFF"
+      ]
+    },
+    {
+      "category": "rollers_missing",
+      "confidence": 0.0,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "no roller tooling was detected for station",
+      "method": "roller_detector",
+      "source_handles": [
+        "F123",
+        "F13C",
+        "F13D",
+        "F13E",
+        "F13F",
+        "F140",
+        "F141",
+        "F142",
+        "F143",
+        "F144",
+        "F147"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F176"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F19D"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F1E6"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F20D"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F256"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F27F"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F2C9"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F2F6"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F341"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F36E"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F3B9"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F3E6"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F431"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F45E"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F4A9"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F4D6"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F521"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F93A"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F967"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F983"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F99F"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F9D0"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "F9FD"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "FA1C"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "FA38"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "FA6C"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "FA99"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "FAB5"
+      ]
+    },
+    {
+      "category": "weak_roller_role",
+      "confidence": 0.6,
+      "configuration_hash": "e0288af5959f4ccb30cb4b0bfd88bc519fa04b93d3bfab61a772042e6f614812",
+      "message": "roller is near the profile centreline",
+      "method": "roller_detector",
+      "source_handles": [
+        "FAD1"
+      ]
+    }
+  ],
+  "schema_version": 1
+}

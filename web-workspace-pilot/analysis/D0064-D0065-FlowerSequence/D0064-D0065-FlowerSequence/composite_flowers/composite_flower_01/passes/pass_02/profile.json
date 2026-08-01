@@ -1,0 +1,408 @@
+{
+  "active_bend_count": 2,
+  "automatically_inferred_order": 2,
+  "bend_count": 2,
+  "bend_signature": "BZ01:51.9;BZ02:-32.0",
+  "bend_zones": [
+    {
+      "absolute_bend_angle": 51.898,
+      "activation_status": "forming",
+      "bend_direction": "up",
+      "bend_id": "BZ01",
+      "bend_zone_id": "BZ01",
+      "centre_developed_coordinate": 42.510437183766896,
+      "confidence": 0.78,
+      "contributing_source_handles": [
+        "FB47"
+      ],
+      "contributing_vertex_count": 4,
+      "contributing_vertices": [
+        {
+          "developed_length_position": 41.201757049535885,
+          "point": [
+            548.2558047209959,
+            -5183.835792689664,
+            0.0
+          ],
+          "signed_turn_angle": 21.871,
+          "u": 0.4396145973693381,
+          "vertex_index": 1
+        },
+        {
+          "developed_length_position": 41.31189555722226,
+          "point": [
+            548.3642789829289,
+            -5183.816718482643,
+            0.0
+          ],
+          "signed_turn_angle": 10.025,
+          "u": 0.4407897534592396,
+          "vertex_index": 2
+        },
+        {
+          "developed_length_position": 43.04519999311443,
+          "point": [
+            549.9930682985664,
+            -5183.223937213752,
+            0.0
+          ],
+          "signed_turn_angle": 9.98,
+          "u": 0.45928376891559763,
+          "vertex_index": 3
+        },
+        {
+          "developed_length_position": 43.81911731799791,
+          "point": [
+            550.6634470645793,
+            -5182.837232758342,
+            0.0
+          ],
+          "signed_turn_angle": 10.021,
+          "u": 0.4675413136792047,
+          "vertex_index": 4
+        }
+      ],
+      "developed_length_position": 42.510437183766896,
+      "end_developed_coordinate": 43.81911731799791,
+      "estimated_radius": 2.889594483446245,
+      "incoming_tangent": -11.898087352358488,
+      "inside_radius": 2.889594483446245,
+      "neutral_line_radius": 2.889594483446245,
+      "outgoing_tangent": 39.99974734631845,
+      "outside_radius": 2.889594483446245,
+      "signed_bend_angle": 51.898,
+      "source_entity_handles": [
+        "FB47"
+      ],
+      "start_developed_coordinate": 41.201757049535885,
+      "total_absolute_turning_angle": 51.898,
+      "total_signed_turning_angle": 51.898,
+      "u": 0.45357795552427144,
+      "x": 549.3191497667676,
+      "y": -5183.4284202861,
+      "zone_length": 2.617360268462022
+    },
+    {
+      "absolute_bend_angle": 31.999,
+      "activation_status": "forming",
+      "bend_direction": "down",
+      "bend_id": "BZ02",
+      "bend_zone_id": "BZ02",
+      "centre_developed_coordinate": 56.371179719452016,
+      "confidence": 0.78,
+      "contributing_source_handles": [
+        "FB47"
+      ],
+      "contributing_vertex_count": 4,
+      "contributing_vertices": [
+        {
+          "developed_length_position": 55.06124176507218,
+          "point": [
+            559.2754458913928,
+            -5175.610972432941,
+            0.0
+          ],
+          "signed_turn_angle": -7.979,
+          "u": 0.5874925576621897,
+          "vertex_index": 5
+        },
+        {
+          "developed_length_position": 55.78407360309481,
+          "point": [
+            559.8883016573202,
+            -5175.22770532474,
+            0.0
+          ],
+          "signed_turn_angle": -8.021,
+          "u": 0.5952050303864964,
+          "vertex_index": 6
+        },
+        {
+          "developed_length_position": 57.51441181853804,
+          "point": [
+            561.4690430610669,
+            -5174.523910642816,
+            0.0
+          ],
+          "signed_turn_angle": -7.983,
+          "u": 0.6136673968574288,
+          "vertex_index": 7
+        },
+        {
+          "developed_length_position": 57.68111767383185,
+          "point": [
+            561.6292775631871,
+            -5174.477913398121,
+            0.0
+          ],
+          "signed_turn_angle": -8.017,
+          "u": 0.6154461153563994,
+          "vertex_index": 8
+        }
+      ],
+      "developed_length_position": 56.371179719452016,
+      "end_developed_coordinate": 57.68111767383185,
+      "estimated_radius": 4.690944496915803,
+      "incoming_tangent": 39.99974734631845,
+      "inside_radius": 4.690944496915803,
+      "neutral_line_radius": 4.690944496915803,
+      "outgoing_tangent": 8.000257154391683,
+      "outside_radius": 4.690944496915803,
+      "signed_bend_angle": -31.999,
+      "source_entity_handles": [
+        "FB47"
+      ],
+      "start_developed_coordinate": 55.06124176507218,
+      "total_absolute_turning_angle": 31.999,
+      "total_signed_turning_angle": -31.999,
+      "u": 0.6014693365092945,
+      "x": 560.5655170432417,
+      "y": -5174.960125449655,
+      "zone_length": 2.619875908759667
+    }
+  ],
+  "composite_flower_id": "composite_flower_01",
+  "contour_confidence": 0.82,
+  "developed_length_drawing_units": 94.14893097619716,
+  "developed_length_mm": null,
+  "duplicate_group_id": null,
+  "duplicate_of": null,
+  "engineer_confirmed_order": null,
+  "expected_neutral_length": 94.14893097619716,
+  "generated_neutral_length": 94.14893097619716,
+  "height": 15.369140625,
+  "individual_profile_matches": [
+    {
+      "confirmed_link": false,
+      "exact_match": true,
+      "geometric_difference": 1e-06,
+      "individual_profile_id": "Q2_S5-P1",
+      "mirrored_match": false,
+      "similarity_score": 0.999999
+    },
+    {
+      "confirmed_link": false,
+      "exact_match": false,
+      "geometric_difference": 0.058898,
+      "individual_profile_id": "Q2_S6-P1",
+      "mirrored_match": false,
+      "similarity_score": 0.941102
+    },
+    {
+      "confirmed_link": false,
+      "exact_match": false,
+      "geometric_difference": 0.047019,
+      "individual_profile_id": "Q2_S7-P1",
+      "mirrored_match": false,
+      "similarity_score": 0.952981
+    }
+  ],
+  "neutral_length_error": 0.0,
+  "neutral_length_error_percent": 0.0,
+  "neutral_line_confidence": 0.74,
+  "neutral_line_method": "paired_boundary_midline",
+  "order_confidence": 0.72,
+  "pass_id": "pass_02",
+  "physical_bends": [
+    {
+      "absolute_bend_angle": 51.898,
+      "activation_status": "forming",
+      "bend_direction": "up",
+      "bend_id": "BZ01",
+      "bend_zone_id": "BZ01",
+      "centre_developed_coordinate": 42.510437183766896,
+      "confidence": 0.78,
+      "contributing_source_handles": [
+        "FB47"
+      ],
+      "contributing_vertex_count": 4,
+      "contributing_vertices": [
+        {
+          "developed_length_position": 41.201757049535885,
+          "point": [
+            548.2558047209959,
+            -5183.835792689664,
+            0.0
+          ],
+          "signed_turn_angle": 21.871,
+          "u": 0.4396145973693381,
+          "vertex_index": 1
+        },
+        {
+          "developed_length_position": 41.31189555722226,
+          "point": [
+            548.3642789829289,
+            -5183.816718482643,
+            0.0
+          ],
+          "signed_turn_angle": 10.025,
+          "u": 0.4407897534592396,
+          "vertex_index": 2
+        },
+        {
+          "developed_length_position": 43.04519999311443,
+          "point": [
+            549.9930682985664,
+            -5183.223937213752,
+            0.0
+          ],
+          "signed_turn_angle": 9.98,
+          "u": 0.45928376891559763,
+          "vertex_index": 3
+        },
+        {
+          "developed_length_position": 43.81911731799791,
+          "point": [
+            550.6634470645793,
+            -5182.837232758342,
+            0.0
+          ],
+          "signed_turn_angle": 10.021,
+          "u": 0.4675413136792047,
+          "vertex_index": 4
+        }
+      ],
+      "developed_length_position": 42.510437183766896,
+      "end_developed_coordinate": 43.81911731799791,
+      "estimated_radius": 2.889594483446245,
+      "incoming_tangent": -11.898087352358488,
+      "inside_radius": 2.889594483446245,
+      "neutral_line_radius": 2.889594483446245,
+      "outgoing_tangent": 39.99974734631845,
+      "outside_radius": 2.889594483446245,
+      "signed_bend_angle": 51.898,
+      "source_entity_handles": [
+        "FB47"
+      ],
+      "start_developed_coordinate": 41.201757049535885,
+      "total_absolute_turning_angle": 51.898,
+      "total_signed_turning_angle": 51.898,
+      "u": 0.45357795552427144,
+      "x": 549.3191497667676,
+      "y": -5183.4284202861,
+      "zone_length": 2.617360268462022
+    },
+    {
+      "absolute_bend_angle": 31.999,
+      "activation_status": "forming",
+      "bend_direction": "down",
+      "bend_id": "BZ02",
+      "bend_zone_id": "BZ02",
+      "centre_developed_coordinate": 56.371179719452016,
+      "confidence": 0.78,
+      "contributing_source_handles": [
+        "FB47"
+      ],
+      "contributing_vertex_count": 4,
+      "contributing_vertices": [
+        {
+          "developed_length_position": 55.06124176507218,
+          "point": [
+            559.2754458913928,
+            -5175.610972432941,
+            0.0
+          ],
+          "signed_turn_angle": -7.979,
+          "u": 0.5874925576621897,
+          "vertex_index": 5
+        },
+        {
+          "developed_length_position": 55.78407360309481,
+          "point": [
+            559.8883016573202,
+            -5175.22770532474,
+            0.0
+          ],
+          "signed_turn_angle": -8.021,
+          "u": 0.5952050303864964,
+          "vertex_index": 6
+        },
+        {
+          "developed_length_position": 57.51441181853804,
+          "point": [
+            561.4690430610669,
+            -5174.523910642816,
+            0.0
+          ],
+          "signed_turn_angle": -7.983,
+          "u": 0.6136673968574288,
+          "vertex_index": 7
+        },
+        {
+          "developed_length_position": 57.68111767383185,
+          "point": [
+            561.6292775631871,
+            -5174.477913398121,
+            0.0
+          ],
+          "signed_turn_angle": -8.017,
+          "u": 0.6154461153563994,
+          "vertex_index": 8
+        }
+      ],
+      "developed_length_position": 56.371179719452016,
+      "end_developed_coordinate": 57.68111767383185,
+      "estimated_radius": 4.690944496915803,
+      "incoming_tangent": 39.99974734631845,
+      "inside_radius": 4.690944496915803,
+      "neutral_line_radius": 4.690944496915803,
+      "outgoing_tangent": 8.000257154391683,
+      "outside_radius": 4.690944496915803,
+      "signed_bend_angle": -31.999,
+      "source_entity_handles": [
+        "FB47"
+      ],
+      "start_developed_coordinate": 55.06124176507218,
+      "total_absolute_turning_angle": 31.999,
+      "total_signed_turning_angle": -31.999,
+      "u": 0.6014693365092945,
+      "x": 560.5655170432417,
+      "y": -5174.960125449655,
+      "zone_length": 2.619875908759667
+    }
+  ],
+  "physical_forming_bend_count": 2,
+  "physical_total_bend_angle": 83.897,
+  "profile_id": "Q2_S23-CF03",
+  "profile_type": "SOURCE_STRIP_OUTLINE",
+  "raw_geometry_corner_count": 15,
+  "raw_total_turning_angle": 449.199,
+  "requires_review": true,
+  "sheet_thickness_drawing_units": 0.9999519201927403,
+  "source_handles": [
+    "FB47"
+  ],
+  "source_layers": [
+    "0-CAD-polyline"
+  ],
+  "station_id": "Q2_S23",
+  "total_bend_angle": 83.897,
+  "transform_matrix_4x4": [
+    [
+      1.0,
+      0.0,
+      0.0,
+      -507.788047573858
+    ],
+    [
+      0.0,
+      1.0,
+      0.0,
+      5184.335792689664
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "vertex_turn_count": 8,
+  "width": 89.60137557983393
+}
