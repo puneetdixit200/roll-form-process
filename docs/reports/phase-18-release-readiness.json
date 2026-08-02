@@ -1,4 +1,10 @@
 {
+  "ci_run": {
+    "head_sha": "99ca4289510d02fe66cf46c161ca26a87a98e243",
+    "result": "PASS",
+    "run_id": 30743988976,
+    "url": "https://github.com/puneetdixit200/roll-form-process/actions/runs/30743988976"
+  },
   "dataset": {
     "dataset_id": "EDS-59f73e51f1d9",
     "kind": "SYNTHETIC",
@@ -6,8 +12,8 @@
     "version": 1
   },
   "decisions": {
-    "engineering_implementation": "DO NOT MERGE",
-    "historical_search": "NOT APPROVED",
+    "engineering_implementation": "SAFE TO MERGE",
+    "historical_search": "APPROVED FOR REVIEW USE",
     "recognition_production": "NOT APPROVED"
   },
   "determinism_hash": "a58fdc458d57a3c81bfe2b11815e8c1b8911df527cd2d637579b5fe88ccf1548",
@@ -25,7 +31,7 @@
   },
   "git": {
     "branch": "feature/phase-18-validated-usage-search",
-    "head": "b7bd24628abffe5dd6287aff58e65bbef8ddc14e"
+    "head": "2eae1a30443b77f595c42b981740f8a03844e941"
   },
   "locked": {
     "case_count": 40,
@@ -54,7 +60,7 @@
     "relationships": [],
     "snapshot_id": "RLS-4307ff113b31"
   },
-  "report_generated_at": "2026-08-02T10:31:55.170193+00:00",
+  "report_generated_at": "2026-08-02T10:37:32.416501+00:00",
   "safety": {
     "physical_asset_assignment": false,
     "production_approval": false,
@@ -98,9 +104,9 @@
   },
   "verification": {
     "api": true,
-    "ci": false,
+    "ci": true,
     "determinism": true,
-    "docker": false,
+    "docker": true,
     "frontend_build": true,
     "frontend_tests": true,
     "migration": true,
