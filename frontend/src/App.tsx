@@ -86,7 +86,7 @@ export default function App() {
           <h1>Rollform Extractor</h1>
           <p>Candidate extraction - not approved for production use</p>
         </div>
-        <nav>{["Dashboard", "New Project / Upload", "Processing Progress", "Project Summary", "Flower Viewer", "Pass Detail", "What Changed", "Bend-Zone Progression", "Warnings", "Engineer Review", "Exports", "Inventory", "Roller Recognition"].map((item) => <a href={`#${item.replaceAll(" ", "-")}`} key={item}>{item}</a>)}</nav>
+        <nav>{["Dashboard", "New Project / Upload", "Processing Progress", "Project Summary", "Flower Viewer", "Pass Detail", "What Changed", "Bend-Zone Progression", "Warnings", "Engineer Review", "Exports", "Inventory", "Roller Recognition", "Validation & Usage Search"].map((item) => <a href={`#${item.replaceAll(" ", "-")}`} key={item}>{item}</a>)}</nav>
       </header>
       <section id="Dashboard" className="panel"><Dashboard project={project} report={report} /></section>
       <section id="New-Project-/-Upload" className="panel"><Upload onUpload={onUpload} /></section>
@@ -103,6 +103,7 @@ export default function App() {
       <section id="Exports" className="panel"><Exports projectId={projectId} artifacts={artifacts} /></section>
       <section id="Inventory" className="panel"><Inventory /></section>
       <section id="Roller-Recognition" className="panel"><RollerRecognition projectId={projectId} /></section>
+      <section id="Validation-&-Usage-Search" className="panel"><ValidatedUsage /></section>
     </main>
   );
 }
@@ -126,6 +127,10 @@ function RollerRecognition({ projectId }: { projectId: string }) {
   async function run() { if (!projectId) return; setMessage("Running candidate recognition..."); await createRecognitionRun(projectId); await refresh(); setMessage("Candidate run completed. Physical asset identity was not assigned."); }
   async function review(candidateId: number, decision: string) { if (!projectId) return; await reviewRecognitionCandidate(projectId, candidateId, { decision, reviewer: "engineer", reason_code: decision === "ACCEPT_CANDIDATE" ? "GEOMETRY_MATCH" : "OTHER" }); setMessage(`Review recorded: ${decision}`); }
   return <><h2>Roller Recognition</h2><p><strong>Candidate design recognition only.</strong> Physical asset identity is not automatically determined.</p><button onClick={run} disabled={!projectId}>Run recognition</button><span>{message}</span><div className="metrics"><Metric label="Occurrences evaluated" value={runs[0]?.occurrence_count ?? 0} /><Metric label="Candidates" value={runs[0]?.candidate_count ?? 0} /><Metric label="Pending review" value={candidates.filter((item) => ["HIGH_SIMILARITY_CANDIDATE", "MEDIUM_SIMILARITY_CANDIDATE", "AMBIGUOUS"].includes(item.candidate_status)).length} /></div><table><thead><tr><th>Occurrence</th><th>Rank</th><th>Design</th><th>Revision</th><th>Score</th><th>Confidence</th><th>Status</th><th>Review</th></tr></thead><tbody>{candidates.map((item) => <tr key={item.id}><td>{item.occurrence_id ?? "-"}</td><td>{item.rank}</td><td>{item.design_id}</td><td>{item.geometry_revision_id}</td><td>{item.overall_score.toFixed(3)}</td><td>{item.confidence.toFixed(3)}</td><td>{item.candidate_status}</td><td><button onClick={() => review(item.id, "ACCEPT_CANDIDATE")}>Accept design</button><button onClick={() => review(item.id, "REJECT_CANDIDATE")}>Reject</button></td></tr>)}</tbody></table></>;
+}
+
+function ValidatedUsage() {
+  return <><h2>Validation &amp; Usage Search</h2><p className="notice"><strong>Historical design evidence only.</strong> A confirmed design relationship does not identify a physical roller asset and does not constitute a tooling recommendation.</p><div className="metrics"><Metric label="Datasets" value="Review governed" /><Metric label="Ground truth" value="Adjudicated" /><Metric label="Search" value="Offline evidence" /></div><p>Use independent engineer labels, explicit adjudication, locked dataset versions, and confirmed historical design usage to explore evidence. Synthetic fixtures are excluded from operational search by default.</p></>;
 }
 
 function Dashboard({ project, report }: { project: ProjectRecord | null; report: ReportData | null }) {

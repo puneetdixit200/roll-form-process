@@ -260,6 +260,28 @@ ZIP export is available from:
 GET /api/projects/{project_id}/exports/package.zip
 ```
 
+Phase 18 adds engineer-labelled validation and historical design evidence. Use
+the `recognition-dataset-*`, `recognition-label-submit`,
+`recognition-adjudicate`, `recognition-threshold-*`, `usage-promote`, and
+`usage-search` CLI commands against a project SQLite database. Dataset versions
+are locked before promotion; two independent assertions and explicit
+adjudication are required. Confirmed usage records identify reusable designs
+only. They never identify a physical asset or recommend tooling.
+
+The offline evidence report is generated with:
+
+```bash
+python scripts/run_phase18_synthetic.py --output /tmp/phase18-evidence.json
+python scripts/generate_phase18_release_report.py /tmp/phase18-evidence.json \
+  --json docs/reports/phase-18-release-readiness.json \
+  --html docs/reports/phase-18-release-readiness.html
+```
+
+Read [the Phase 18 specification](docs/specs/phase-18-validated-usage-search.md)
+and [the release evidence report](docs/reports/phase-18-release-readiness.html)
+before using historical search. Historical association is evidence for review,
+not compatibility, availability, or a tooling recommendation.
+
 Pilot acceptance for `D0064-D0065-FlowerSequence` currently shows:
 
 ```text

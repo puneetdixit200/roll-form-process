@@ -22,6 +22,21 @@ from rollform_extractor.roller_inventory import (
     write_inventory_template,
 )
 from rollform_extractor.roller_recognition import export_recognition_run, review_candidate, recognize_project
+from rollform_extractor.validated_usage import (
+    add_evaluation_case,
+    adjudicate_case,
+    approve_threshold_profile,
+    build_usage_relationship_snapshot,
+    create_evaluation_dataset,
+    detect_stale_confirmations,
+    evaluate_threshold_profile,
+    export_evaluation_dataset,
+    lock_dataset_version,
+    promote_confirmed_usage,
+    search_historical_usage,
+    submit_label_assertion,
+    validate_dataset,
+)
 from rollform_extractor.database import create_project_database
 from rollform_extractor.pipeline import ExtractionRequest, extract_project, reprocess_project
 from rollform_extractor.review_apply import ReviewApplyError, apply_review_decisions
@@ -98,6 +113,68 @@ def main(argv: list[str] | None = None) -> int:
     recognition_evaluate_cmd = sub.add_parser("roller-recognition-evaluate")
     recognition_evaluate_cmd.add_argument("labels", type=Path)
     recognition_evaluate_cmd.add_argument("--database", type=Path, required=True)
+    dataset_create_cmd = sub.add_parser("recognition-dataset-create")
+    dataset_create_cmd.add_argument("--name", required=True)
+    dataset_create_cmd.add_argument("--kind", required=True)
+    dataset_create_cmd.add_argument("--created-by", required=True)
+    dataset_create_cmd.add_argument("--database", type=Path, required=True)
+    dataset_create_cmd.add_argument("--description", default="")
+    dataset_validate_cmd = sub.add_parser("recognition-dataset-validate")
+    dataset_validate_cmd.add_argument("dataset_id")
+    dataset_validate_cmd.add_argument("--database", type=Path, required=True)
+    dataset_lock_cmd = sub.add_parser("recognition-dataset-lock")
+    dataset_lock_cmd.add_argument("dataset_id")
+    dataset_lock_cmd.add_argument("--reviewer", required=True)
+    dataset_lock_cmd.add_argument("--database", type=Path, required=True)
+    dataset_export_cmd = sub.add_parser("recognition-dataset-export")
+    dataset_export_cmd.add_argument("dataset_id")
+    dataset_export_cmd.add_argument("output", type=Path)
+    dataset_export_cmd.add_argument("--database", type=Path, required=True)
+    label_submit_cmd = sub.add_parser("recognition-label-submit")
+    label_submit_cmd.add_argument("case_id", type=int)
+    label_submit_cmd.add_argument("--outcome", required=True)
+    label_submit_cmd.add_argument("--design-id")
+    label_submit_cmd.add_argument("--revision-id")
+    label_submit_cmd.add_argument("--reviewer", required=True)
+    label_submit_cmd.add_argument("--reason", required=True)
+    label_submit_cmd.add_argument("--database", type=Path, required=True)
+    adjudicate_cmd = sub.add_parser("recognition-adjudicate")
+    adjudicate_cmd.add_argument("case_id", type=int)
+    adjudicate_cmd.add_argument("--outcome", required=True)
+    adjudicate_cmd.add_argument("--design-id")
+    adjudicate_cmd.add_argument("--revision-id")
+    adjudicate_cmd.add_argument("--adjudicator", required=True)
+    adjudicate_cmd.add_argument("--reason", required=True)
+    adjudicate_cmd.add_argument("--database", type=Path, required=True)
+    threshold_eval_cmd = sub.add_parser("recognition-threshold-evaluate")
+    threshold_eval_cmd.add_argument("dataset_id")
+    threshold_eval_cmd.add_argument("--profile", type=Path, required=True)
+    threshold_eval_cmd.add_argument("--output", type=Path)
+    threshold_eval_cmd.add_argument("--database", type=Path, required=True)
+    threshold_approve_cmd = sub.add_parser("recognition-threshold-approve")
+    threshold_approve_cmd.add_argument("profile_id")
+    threshold_approve_cmd.add_argument("--reviewer", required=True)
+    threshold_approve_cmd.add_argument("--notes", required=True)
+    threshold_approve_cmd.add_argument("--database", type=Path, required=True)
+    usage_promote_cmd = sub.add_parser("usage-promote")
+    usage_promote_cmd.add_argument("case_id", type=int)
+    usage_promote_cmd.add_argument("--reviewer", required=True)
+    usage_promote_cmd.add_argument("--notes", default="")
+    usage_promote_cmd.add_argument("--database", type=Path, required=True)
+    usage_search_cmd = sub.add_parser("usage-search")
+    usage_search_cmd.add_argument("--design-id")
+    usage_search_cmd.add_argument("--role")
+    usage_search_cmd.add_argument("--project-id", type=int)
+    usage_search_cmd.add_argument("--mode", default="DESIGN_HISTORY")
+    usage_search_cmd.add_argument("--include-synthetic", action="store_true")
+    usage_search_cmd.add_argument("--include-stale", action="store_true")
+    usage_search_cmd.add_argument("--database", type=Path, required=True)
+    usage_relationships_cmd = sub.add_parser("usage-relationships-build")
+    usage_relationships_cmd.add_argument("--database", type=Path, required=True)
+    usage_relationships_cmd.add_argument("--output", type=Path)
+    usage_stale_cmd = sub.add_parser("usage-stale-check")
+    usage_stale_cmd.add_argument("--project-id", type=int)
+    usage_stale_cmd.add_argument("--database", type=Path, required=True)
     args = parser.parse_args(argv)
 
     if args.command == "inspect":
@@ -277,4 +354,94 @@ def main(argv: list[str] | None = None) -> int:
             result = {"run_id": run.id, "dataset_kind": "ENGINEER_LABELLED", "sample_count": len(labelled), "top_1_accuracy": top1 / len(labelled) if labelled else 0.0, "top_3_recall": top3 / len(labelled) if labelled else 0.0, "mean_reciprocal_rank": reciprocal / len(labelled) if labelled else 0.0, "abstention_rate": abstained / len(labelled) if labelled else 0.0, "coverage": accepted / len(labelled) if labelled else 0.0, "accuracy_non_abstained": sum(rows and rows[0].design_id == expected for _, rows, expected in labelled if rows and rows[0].candidate_status != "AMBIGUOUS") / accepted if accepted else 0.0, "false_high_confidence_count": sum(bool(rows and rows[0].confidence >= .9 and rows[0].design_id != expected) for _, rows, expected in labelled)}
             print(json.dumps(result, sort_keys=True))
             return 0
+    if args.command == "recognition-dataset-create":
+        try:
+            print(json.dumps(create_evaluation_dataset(create_project_database(args.database), args.name, args.kind, args.created_by, args.description), sort_keys=True))
+            return 0
+        except (ValueError, LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "recognition-dataset-validate":
+        try:
+            result = validate_dataset(create_project_database(args.database), args.dataset_id)
+            print(json.dumps(result, sort_keys=True))
+            return 0 if result["valid"] else 1
+        except (ValueError, LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "recognition-dataset-lock":
+        try:
+            print(json.dumps(lock_dataset_version(create_project_database(args.database), args.dataset_id, args.reviewer), sort_keys=True))
+            return 0
+        except (ValueError, LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "recognition-dataset-export":
+        try:
+            print(export_evaluation_dataset(create_project_database(args.database), args.dataset_id, args.output))
+            return 0
+        except (ValueError, LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "recognition-label-submit":
+        try:
+            print(json.dumps(submit_label_assertion(create_project_database(args.database), args.case_id, args.reviewer, args.outcome, args.reason, args.design_id, args.revision_id), sort_keys=True))
+            return 0
+        except (ValueError, LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "recognition-adjudicate":
+        try:
+            print(json.dumps(adjudicate_case(create_project_database(args.database), args.case_id, args.adjudicator, args.outcome, args.reason, args.design_id, args.revision_id), sort_keys=True))
+            return 0
+        except (ValueError, LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "recognition-threshold-evaluate":
+        try:
+            configuration = json.loads(args.profile.read_text(encoding="utf-8"))
+            print(json.dumps(evaluate_threshold_profile(create_project_database(args.database), args.dataset_id, configuration, args.output), sort_keys=True))
+            return 0
+        except (ValueError, LookupError, OSError, json.JSONDecodeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "recognition-threshold-approve":
+        try:
+            print(json.dumps(approve_threshold_profile(create_project_database(args.database), args.profile_id, args.reviewer, args.notes), sort_keys=True))
+            return 0
+        except (ValueError, LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "usage-promote":
+        try:
+            print(json.dumps(promote_confirmed_usage(create_project_database(args.database), args.case_id, args.reviewer, args.notes), sort_keys=True))
+            return 0
+        except (ValueError, LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "usage-search":
+        try:
+            print(json.dumps(search_historical_usage(create_project_database(args.database), args.mode, args.design_id, args.project_id, args.role, include_synthetic=args.include_synthetic, include_stale=args.include_stale), sort_keys=True))
+            return 0
+        except (ValueError, LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "usage-relationships-build":
+        try:
+            result = build_usage_relationship_snapshot(create_project_database(args.database))
+            if args.output:
+                args.output.mkdir(parents=True, exist_ok=True)
+                (args.output / "snapshot.json").write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        except (ValueError, LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "usage-stale-check":
+        try:
+            print(json.dumps({"stale": detect_stale_confirmations(create_project_database(args.database), args.project_id)}, sort_keys=True))
+            return 0
+        except (ValueError, LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
     return 2

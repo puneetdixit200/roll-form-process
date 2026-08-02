@@ -17,10 +17,17 @@ from rollform_extractor.database import (
     RollerAsset, RollerAuditEvent, RollerCompatibility, RollerConditionHistory,
     RollerDesign, RollerFileAsset, RollerGeometryRevision, RollerImportBatch,
     RollerImportRow, RollerLocation, RollerReviewDecision, RollerRegrindHistory,
-    Project, RollerRecognitionCandidate, RollerRecognitionInput, RollerRecognitionReview, RollerRecognitionRun, create_project_database,
+    Project, RollerRecognitionCandidate, RollerRecognitionInput, RollerRecognitionReview, RollerRecognitionRun,
+    RecognitionEvaluationDataset, RecognitionEvaluationCase, RecognitionLabelAssertion, RecognitionAdjudication,
+    RecognitionThresholdProfile, ConfirmedRollerDesignUsage, RollerUsageRelationship, create_project_database,
 )
 from rollform_extractor.roller_inventory import export_inventory, import_inventory, inventory_stats, validate_inventory
 from rollform_extractor.roller_recognition import recognize_project, review_candidate
+from rollform_extractor.validated_usage import (
+    add_evaluation_case, adjudicate_case, calculate_review_agreement, create_evaluation_dataset,
+    lock_dataset_version, promote_confirmed_usage, search_historical_usage, submit_label_assertion,
+    validate_dataset,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -44,7 +51,10 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         return create_project_database(inventory_database)
 
     def recognition_engine(project_id: str):
-        project_path = store.project_output_path(project_id)
+        try:
+            project_path = store.project_output_path(project_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Project database not found") from exc
         if project_path is None or not (project_path / "project.sqlite").is_file():
             raise HTTPException(status_code=404, detail="Project database not found")
         return create_project_database(project_path / "project.sqlite")
@@ -213,6 +223,115 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"review_id": review_id, "candidate_id": candidate_id}
+
+    @app.get("/api/projects/{project_id}/recognition-evaluation/datasets")
+    def evaluation_datasets(project_id: str) -> list[dict[str, Any]]:
+        engine = recognition_engine(project_id)
+        numeric_id = recognition_project_row(project_id, engine)
+        with Session(engine) as session:
+            rows = session.scalars(select(RecognitionEvaluationDataset).order_by(RecognitionEvaluationDataset.id.desc())).all()
+            return [{"dataset_id": row.dataset_id, "name": row.name, "kind": row.kind, "version": row.version, "status": row.status, "case_count": row.case_count, "content_hash": row.content_hash} for row in rows]
+
+    @app.post("/api/projects/{project_id}/recognition-evaluation/datasets")
+    def evaluation_dataset_create(project_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        engine = recognition_engine(project_id)
+        recognition_project_row(project_id, engine)
+        try:
+            return create_evaluation_dataset(engine, str(body.get("name") or ""), str(body.get("kind") or "ENGINEER_LABELLED"), str(body.get("created_by") or ""), str(body.get("description") or ""), str(body.get("inventory_snapshot_hash") or ""))
+        except (ValueError, LookupError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/recognition-evaluation/datasets/{dataset_id}")
+    def evaluation_dataset(project_id: str, dataset_id: str) -> dict[str, Any]:
+        engine = recognition_engine(project_id)
+        with Session(engine) as session:
+            row = session.scalar(select(RecognitionEvaluationDataset).where(RecognitionEvaluationDataset.dataset_id == dataset_id))
+            if row is None:
+                raise HTTPException(status_code=404, detail="Evaluation dataset not found")
+            validation = validate_dataset(engine, dataset_id)
+            return {"dataset_id": row.dataset_id, "name": row.name, "kind": row.kind, "version": row.version, "status": row.status, "content_hash": row.content_hash, "validation": validation}
+
+    @app.post("/api/projects/{project_id}/recognition-evaluation/datasets/{dataset_id}/cases")
+    def evaluation_case_create(project_id: str, dataset_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        engine = recognition_engine(project_id)
+        numeric_id = recognition_project_row(project_id, engine)
+        try:
+            if int(body.get("project_id", numeric_id)) != numeric_id:
+                raise HTTPException(status_code=404, detail="Project ownership mismatch")
+            return add_evaluation_case(engine, dataset_id, numeric_id, str(body.get("occurrence_id") or ""), body.get("recognition_input_id"), str(body.get("split") or "CALIBRATION"))
+        except HTTPException:
+            raise
+        except (ValueError, LookupError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/projects/{project_id}/recognition-evaluation/cases/{case_id}/labels")
+    def evaluation_label(project_id: str, case_id: int, body: dict[str, Any]) -> dict[str, Any]:
+        engine = recognition_engine(project_id)
+        numeric_id = recognition_project_row(project_id, engine)
+        with Session(engine) as session:
+            case = session.get(RecognitionEvaluationCase, case_id)
+            if case is None or case.project_id != numeric_id:
+                raise HTTPException(status_code=404, detail="Evaluation case not found")
+        try:
+            result = submit_label_assertion(engine, case_id, str(body.get("reviewer") or ""), str(body.get("outcome") or ""), str(body.get("reason_code") or ""), body.get("expected_design_id"), body.get("expected_revision_id"), body.get("confidence"), body.get("evidence"), body.get("notes"))
+            result["agreement"] = calculate_review_agreement(engine, case_id).to_dict()
+            return result
+        except (ValueError, LookupError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/projects/{project_id}/recognition-evaluation/cases/{case_id}/adjudications")
+    def evaluation_adjudicate(project_id: str, case_id: int, body: dict[str, Any]) -> dict[str, Any]:
+        engine = recognition_engine(project_id)
+        numeric_id = recognition_project_row(project_id, engine)
+        with Session(engine) as session:
+            case = session.get(RecognitionEvaluationCase, case_id)
+            if case is None or case.project_id != numeric_id:
+                raise HTTPException(status_code=404, detail="Evaluation case not found")
+        try:
+            return adjudicate_case(engine, case_id, str(body.get("adjudicator") or ""), str(body.get("final_outcome") or ""), str(body.get("reason_code") or ""), body.get("selected_design_id"), body.get("selected_revision_id"), body.get("evidence"), body.get("notes"))
+        except (ValueError, LookupError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/projects/{project_id}/recognition-evaluation/datasets/{dataset_id}/lock")
+    def evaluation_dataset_lock(project_id: str, dataset_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        engine = recognition_engine(project_id)
+        recognition_project_row(project_id, engine)
+        try:
+            return lock_dataset_version(engine, dataset_id, str(body.get("reviewer") or ""))
+        except (ValueError, LookupError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/projects/{project_id}/confirmed-roller-usages/promote")
+    def usage_promote(project_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        engine = recognition_engine(project_id)
+        numeric_id = recognition_project_row(project_id, engine)
+        case_id = int(body.get("case_id") or 0)
+        with Session(engine) as session:
+            case = session.get(RecognitionEvaluationCase, case_id)
+            if case is None or case.project_id != numeric_id:
+                raise HTTPException(status_code=404, detail="Evaluation case not found")
+        try:
+            return promote_confirmed_usage(engine, case_id, str(body.get("reviewer") or ""), str(body.get("notes") or ""))
+        except (ValueError, LookupError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/confirmed-roller-usages")
+    def project_usages(project_id: str, limit: int = 100, offset: int = 0) -> dict[str, Any]:
+        engine = recognition_engine(project_id)
+        numeric_id = recognition_project_row(project_id, engine)
+        with Session(engine) as session:
+            rows = session.scalars(select(ConfirmedRollerDesignUsage).where(ConfirmedRollerDesignUsage.project_id == numeric_id).order_by(ConfirmedRollerDesignUsage.id).offset(offset).limit(min(limit, 500))).all()
+            return {"results": [{"usage_id": row.usage_id, "occurrence_id": row.occurrence_id, "design_id": row.design_id, "geometry_revision_id": row.geometry_revision_id, "station_id": row.station_id, "role": row.role, "confirmation_status": row.confirmation_status, "physical_asset_id": None} for row in rows], "offset": offset, "limit": limit}
+
+    @app.get("/api/historical-roller-search")
+    def historical_search(database: str | None = None, design_id: str | None = None, role: str | None = None, mode: str = "DESIGN_HISTORY", include_synthetic: bool = False, include_stale: bool = False, limit: int = 100, offset: int = 0) -> dict[str, Any]:
+        target = Path(database) if database else inventory_database
+        if database is not None and root.resolve() not in target.resolve().parents and target.resolve() != root.resolve():
+            raise HTTPException(status_code=400, detail="Database path is outside the offline workspace")
+        try:
+            return search_historical_usage(create_project_database(target), mode, design_id, role=role, include_synthetic=include_synthetic, include_stale=include_stale, limit=min(limit, 500), offset=max(0, offset))
+        except (ValueError, LookupError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @app.post("/api/projects", status_code=202)
     async def upload_project(background: BackgroundTasks, file: UploadFile = File(...)) -> dict[str, str]:

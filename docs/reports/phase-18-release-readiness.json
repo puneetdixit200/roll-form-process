@@ -1,0 +1,116 @@
+{
+  "ci_run": {
+    "head_sha": "99ca4289510d02fe66cf46c161ca26a87a98e243",
+    "result": "PASS",
+    "run_id": 30743988976,
+    "url": "https://github.com/puneetdixit200/roll-form-process/actions/runs/30743988976"
+  },
+  "dataset": {
+    "dataset_id": "EDS-59f73e51f1d9",
+    "kind": "SYNTHETIC",
+    "status": "DRAFT",
+    "version": 1
+  },
+  "decisions": {
+    "engineering_implementation": "SAFE TO MERGE",
+    "historical_search": "APPROVED FOR REVIEW USE",
+    "recognition_production": "NOT APPROVED"
+  },
+  "determinism_hash": "a58fdc458d57a3c81bfe2b11815e8c1b8911df527cd2d637579b5fe88ccf1548",
+  "fixture": {
+    "ambiguous_cases": 1,
+    "designs": 12,
+    "geometry_revisions": 15,
+    "hard_negatives": 6,
+    "invalid_cases": 1,
+    "occurrences": 40,
+    "physical_assets": 12,
+    "projects": 8,
+    "stations": 30,
+    "unknown_unit_cases": 1
+  },
+  "git": {
+    "branch": "feature/phase-18-validated-usage-search",
+    "head": "2eae1a30443b77f595c42b981740f8a03844e941"
+  },
+  "locked": {
+    "case_count": 40,
+    "content_hash": "4c7b285ddcc47500cfc47949e8a9399a544ac1e27b1941788fa2c936abe3b777",
+    "dataset_id": "EDS-59f73e51f1d9",
+    "status": "LOCKED"
+  },
+  "operational_search": {
+    "limit": 100,
+    "mode": "DESIGN_HISTORY",
+    "offset": 0,
+    "results": [],
+    "total": 0
+  },
+  "phase": "Phase 18",
+  "promoted_design_usages": 1,
+  "promotion_example": {
+    "confirmation_status": null,
+    "design_id": "SYN-DESIGN-000",
+    "physical_asset_id": null,
+    "usage_id": "USE-547ce50d70ae"
+  },
+  "relationships": {
+    "content_hash": "4307ff113b312021db82027accd57929edb1c8b06c79730e3d4f433f26044c11",
+    "relationship_count": 0,
+    "relationships": [],
+    "snapshot_id": "RLS-4307ff113b31"
+  },
+  "report_generated_at": "2026-08-02T10:37:32.416501+00:00",
+  "safety": {
+    "physical_asset_assignment": false,
+    "production_approval": false,
+    "tooling_recommendation": false
+  },
+  "synthetic_search": {
+    "limit": 100,
+    "mode": "DESIGN_HISTORY",
+    "offset": 0,
+    "results": [
+      {
+        "classification": "CONFIRMED HISTORICAL FACT",
+        "confirmation_status": "CONFIRMED",
+        "design_id": "SYN-DESIGN-000",
+        "geometry_revision_id": null,
+        "limitations": [
+          "Design evidence only; no physical asset assignment or tooling recommendation"
+        ],
+        "occurrence_id": "SYN-OCC-00-00",
+        "physical_asset_id": null,
+        "project_id": 1,
+        "role": "BACKUP",
+        "source_dataset_hash": "4c7b285ddcc47500cfc47949e8a9399a544ac1e27b1941788fa2c936abe3b777",
+        "source_handles": [
+          "H-0-0"
+        ],
+        "station_id": "S00",
+        "usage_id": "USE-547ce50d70ae"
+      }
+    ],
+    "total": 1
+  },
+  "validation_before_lock": {
+    "case_count": 40,
+    "content_hash": "4c7b285ddcc47500cfc47949e8a9399a544ac1e27b1941788fa2c936abe3b777",
+    "dataset_id": "EDS-59f73e51f1d9",
+    "issues": [],
+    "project_count": 8,
+    "status": "DRAFT",
+    "valid": true
+  },
+  "verification": {
+    "api": true,
+    "ci": true,
+    "determinism": true,
+    "docker": true,
+    "frontend_build": true,
+    "frontend_tests": true,
+    "migration": true,
+    "python_compile": true,
+    "python_tests": true
+  }
+}

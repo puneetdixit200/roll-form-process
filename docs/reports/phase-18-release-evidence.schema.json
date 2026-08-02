@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["phase", "fixture", "dataset", "safety", "determinism_hash"],
+  "properties": {
+    "phase": {"const": "Phase 18"},
+    "fixture": {"type": "object", "required": ["designs", "geometry_revisions", "physical_assets", "projects", "occurrences"]},
+    "dataset": {"type": "object", "required": ["dataset_id"]},
+    "safety": {"type": "object", "required": ["physical_asset_assignment", "tooling_recommendation", "production_approval"]},
+    "determinism_hash": {"type": "string", "minLength": 64, "maxLength": 64}
+  }
+}
