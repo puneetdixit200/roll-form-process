@@ -24,3 +24,30 @@ features:
   mirror_canonicalization: true
   vector_rounding_decimals: 6
   closure_tolerance: 0.05
+roller_recognition:
+  schema_version: 1
+  candidate_pool_size: 20
+  result_limit: 5
+  weights:
+    shape_similarity: 0.35
+    physical_profile_similarity: 0.20
+    diameter_similarity: 0.10
+    bore_similarity: 0.10
+    width_similarity: 0.10
+    groove_similarity: 0.05
+    curvature_similarity: 0.05
+    role_compatibility: 0.05
+  tolerances:
+    diameter_absolute_mm: 1.0
+    diameter_relative: 0.01
+    bore_absolute_mm: 0.5
+    width_absolute_mm: 1.0
+    shape_distance_max: 0.20
+  thresholds:
+    exact_candidate: 0.995
+    high_candidate: 0.90
+    medium_candidate: 0.75
+    minimum_candidate: 0.55
+    minimum_evidence_coverage: 0.40
+    automatic_abstention_margin: 0.05
+  allow_unknown_unit_shape_matching: true

@@ -42,6 +42,10 @@ keys. Stage hashes are derived from only the configuration sections used by
 that stage, so unrelated tolerance edits do not invalidate every stage.
 The `features` section controls Phase 15 schema version, material sample count,
 curvature and symmetry tolerances, mirror canonicalization, and vector rounding.
+The `roller_recognition` section controls Phase 17 candidate-pool size,
+component weights, dimensional tolerances, evidence thresholds, and abstention
+margin. Recognition is explicit CLI/API work and does not run during normal
+extraction.
 
 ## Commands
 
@@ -60,6 +64,10 @@ rollform-extractor roller-inventory-validate INVENTORY.csv [--database inventory
 rollform-extractor roller-inventory-import INVENTORY.csv [--database inventory.sqlite]
 rollform-extractor roller-inventory-export OUTPUT_DIR [--database inventory.sqlite]
 rollform-extractor roller-inventory-stats [--database inventory.sqlite]
+rollform-extractor roller-recognition-run PROJECT_DIR --inventory DATABASE --output OUTPUT_DIR
+rollform-extractor roller-recognition-show RUN_ID --database DATABASE
+rollform-extractor roller-recognition-review CANDIDATE_ID --decision DECISION --reviewer NAME --database DATABASE
+rollform-extractor roller-recognition-export RUN_ID OUTPUT_DIR --database DATABASE
 ```
 
 `inspect` prints JSON-safe drawing metadata. `extract` writes a project under
@@ -121,6 +129,12 @@ CSV/XLSX imports are hashed, staged, provenance-preserving, unit-safe, and
 reviewable. Unknown units cannot support verified dimensional claims. Phase 17
 recognition, similarity claims, tooling recommendations, and sequence generation
 remain disabled. See `docs/specs/phase-16-roller-inventory.md`.
+
+Phase 17 adds deterministic, explainable candidate design recognition. It
+prepares drawing occurrences, filters eligible inventory revisions, scores
+available evidence, abstains on weak or ambiguous evidence, persists rankings,
+and supports append-only engineer review. It never assigns a physical asset or
+recommends tooling. See `docs/specs/phase-17-roller-recognition.md`.
 
 ## Review Overrides
 

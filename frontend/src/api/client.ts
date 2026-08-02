@@ -38,3 +38,10 @@ export const getInventoryDesigns = () => request<InventoryDesign[]>("/api/invent
 export const validateInventory = (file: File) => { const form = new FormData(); form.append("file", file); return request<any>("/api/inventory/validate", { method: "POST", body: form }); };
 export const importInventory = (file: File) => { const form = new FormData(); form.append("file", file); return request<any>("/api/inventory/import", { method: "POST", body: form }); };
 export const inventoryExportUrl = () => `${API_ROOT}/api/inventory/export`;
+
+export type RecognitionRun = { id: number; status: string; algorithm_version: string; occurrence_count: number; candidate_count: number; configuration_hash?: string };
+export type RecognitionCandidate = { id: number; occurrence_id?: string; design_id: string; geometry_revision_id: string; rank: number; overall_score: number; confidence: number; evidence_coverage: number; candidate_status: string; components: Record<string, unknown>; hard_filters: Record<string, unknown>; explanation: Record<string, unknown> };
+export const createRecognitionRun = (projectId: string, options: Record<string, unknown> = {}) => request<{ run_id: number; occurrence_count: number; candidate_count: number }>(`/api/projects/${projectId}/roller-recognition/runs`, { method: "POST", body: JSON.stringify(options), headers: { "Content-Type": "application/json" } });
+export const getRecognitionRuns = (projectId: string) => request<RecognitionRun[]>(`/api/projects/${projectId}/roller-recognition/runs`);
+export const getRecognitionCandidates = (projectId: string, runId: number) => request<RecognitionCandidate[]>(`/api/projects/${projectId}/roller-recognition/runs/${runId}/candidates`);
+export const reviewRecognitionCandidate = (projectId: string, candidateId: number, decision: Record<string, unknown>) => request<{ review_id: number }>(`/api/projects/${projectId}/roller-recognition/candidates/${candidateId}/review`, { method: "POST", body: JSON.stringify(decision), headers: { "Content-Type": "application/json" } });

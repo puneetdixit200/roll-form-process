@@ -25,6 +25,12 @@ jobs:
       - run: python -m pip install -e ".[backend,test]"
       - run: python -m compileall src backend
       - run: pytest -q
+      - run: pytest -q tests/test_roller_recognition.py tests/test_roller_recognition_api.py
+      - name: Synthetic recognition acceptance and determinism
+        run: |
+          python scripts/run_phase17_synthetic.py --output /tmp/phase17-recognition-a.json
+          python scripts/run_phase17_synthetic.py --output /tmp/phase17-recognition-b.json
+          cmp --silent /tmp/phase17-recognition-a.json /tmp/phase17-recognition-b.json
 
   frontend:
     runs-on: ubuntu-latest
