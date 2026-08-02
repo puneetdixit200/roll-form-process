@@ -1,0 +1,74 @@
+{
+  "benchmark": {
+    "case_count": 6,
+    "maximum_shape_rms": 0.0435651242817757,
+    "mean_shape_rms": 0.020147823163770895,
+    "median_shape_rms": 0.018132691176429565,
+    "pass_acceptance_count": 6,
+    "review_required_count": 0
+  },
+  "candidates": [
+    {
+      "candidate_id": "fgc-013e06eda372fe90",
+      "candidate_type": "TEMPLATE_ADAPTATION",
+      "confidence": 0.85,
+      "shape_rms": 0.0,
+      "station_count": 17,
+      "status": "PASS_PROTOTYPE_GEOMETRY"
+    },
+    {
+      "candidate_id": "fgc-ac7cea0dafe33080",
+      "candidate_type": "ALTERNATIVE_TEMPLATE_ADAPTATION",
+      "confidence": 0.7491192281699014,
+      "shape_rms": 0.0,
+      "station_count": 14,
+      "status": "PASS_PROTOTYPE_GEOMETRY"
+    }
+  ],
+  "docker": {
+    "github_runner": "must be verified by CI",
+    "stage": "backend ca-certificates apt-get update",
+    "status": "BLOCKED_ENVIRONMENT",
+    "tls_verification_weakened": false
+  },
+  "flowers": [
+    {
+      "flower_id": "PRIVATE-FLOWER-001",
+      "quality_flags": [],
+      "station_count": 14,
+      "topology": "CLOSED_SINGLE_LOOP"
+    },
+    {
+      "flower_id": "PRIVATE-FLOWER-002",
+      "quality_flags": [],
+      "station_count": 17,
+      "topology": "CLOSED_SINGLE_LOOP"
+    }
+  ],
+  "limitations": [
+    "Only two complete private flowers; no calibrated probability claims",
+    "Generated candidate is engineer-review evidence, not manufacturing approval",
+    "Partial roller drawings do not identify a physical asset",
+    "Local Docker build blocked by captive portal; no insecure workaround used"
+  ],
+  "private_data": {
+    "source_files_committed": false,
+    "source_files_discovered": 4,
+    "source_hashes_recorded_locally": true,
+    "source_paths_redacted": true
+  },
+  "summary": {
+    "classification": "PRIVATE_PROTOTYPE",
+    "dataset_hash": "a8aa57fb08ba94d2a3e2690ab61cbb9bbca798786d844c37f013869fac316a03",
+    "dataset_id": "fpd-a8aa57fb08ba94d2",
+    "prototype_status": "READY",
+    "roller_evidence_count": 2,
+    "software_status": "PASS"
+  },
+  "tests": {
+    "docker": "BLOCKED locally by captive portal at Debian apt endpoint",
+    "frontend": "2 passed",
+    "frontend_build": "passed",
+    "python": "238 passed"
+  }
+}

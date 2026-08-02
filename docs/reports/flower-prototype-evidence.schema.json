@@ -1,0 +1,1 @@
+{"type":"object","required":["summary","flowers","candidates","benchmark"],"properties":{"summary":{"type":"object"},"flowers":{"type":"array"},"candidates":{"type":"array"},"benchmark":{"type":"object"}}}

@@ -70,6 +70,21 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     def health() -> dict[str, str]:
         return {"status": "ok", "mode": "offline"}
 
+    @app.get("/api/flower-prototype/status")
+    def flower_prototype_status() -> dict[str, Any]:
+        """Return only redacted prototype metadata when a local dataset is configured."""
+        configured = os.environ.get("ROLLFORM_FLOWER_PROTOTYPE_DATASET")
+        if not configured:
+            return {"available": False, "reason": "no local prototype dataset configured"}
+        dataset_path = Path(configured).expanduser().resolve()
+        if not dataset_path.is_file() or dataset_path.name != "dataset.json":
+            raise HTTPException(status_code=404, detail="prototype dataset not found")
+        try:
+            payload = json.loads(dataset_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=422, detail="prototype dataset is invalid") from exc
+        return {"available": True, "dataset_id": payload.get("dataset_id"), "dataset_hash": payload.get("dataset_hash"), "source_classification": payload.get("source_classification"), "flowers": [{"flower_id": item.get("flower_id"), "station_count": len(item.get("passes", [])), "topology": item.get("topology"), "quality_flags": item.get("quality_flags", [])} for item in payload.get("flowers", [])], "roller_evidence_count": len(payload.get("roller_evidence", [])), "private_paths_redacted": True}
+
     @app.get("/api/inventory/stats")
     def inventory_statistics() -> dict[str, int]:
         return inventory_stats(inventory_engine())

@@ -37,6 +37,11 @@ from rollform_extractor.validated_usage import (
     submit_label_assertion,
     validate_dataset,
 )
+from rollform_extractor.flower_prototype_dataset import build_dataset, ingest_private_flower, ingest_private_roller_evidence, persist_dataset
+from rollform_extractor.flower_retrieval import target_from_pass, retrieve_historical_flowers
+from rollform_extractor.flower_generation import generate_candidates
+from rollform_extractor.flower_reconstruction_benchmark import benchmark_dataset
+from rollform_extractor.flower_exports import export_generation, export_prototype_dataset, export_benchmark
 from rollform_extractor.database import create_project_database
 from rollform_extractor.pipeline import ExtractionRequest, extract_project, reprocess_project
 from rollform_extractor.review_apply import ReviewApplyError, apply_review_decisions
@@ -175,6 +180,22 @@ def main(argv: list[str] | None = None) -> int:
     usage_stale_cmd = sub.add_parser("usage-stale-check")
     usage_stale_cmd.add_argument("--project-id", type=int)
     usage_stale_cmd.add_argument("--database", type=Path, required=True)
+    flower_ingest_cmd = sub.add_parser("flower-prototype-ingest")
+    flower_ingest_cmd.add_argument("source_root", type=Path)
+    flower_ingest_cmd.add_argument("output_root", type=Path)
+    flower_ingest_cmd.add_argument("--database", type=Path)
+    flower_ingest_cmd.add_argument("--json", action="store_true")
+    flower_generate_cmd = sub.add_parser("flower-generate")
+    flower_generate_cmd.add_argument("dataset", type=Path)
+    flower_generate_cmd.add_argument("--flower-id", required=True)
+    flower_generate_cmd.add_argument("--output", type=Path, required=True)
+    flower_generate_cmd.add_argument("--scale-x", type=float, default=1.0)
+    flower_generate_cmd.add_argument("--scale-y", type=float, default=1.0)
+    flower_generate_cmd.add_argument("--json", action="store_true")
+    flower_benchmark_cmd = sub.add_parser("flower-benchmark")
+    flower_benchmark_cmd.add_argument("dataset", type=Path)
+    flower_benchmark_cmd.add_argument("--output", type=Path, required=True)
+    flower_benchmark_cmd.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
     if args.command == "inspect":
@@ -442,6 +463,54 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"stale": detect_stale_confirmations(create_project_database(args.database), args.project_id)}, sort_keys=True))
             return 0
         except (ValueError, LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "flower-prototype-ingest":
+        try:
+            root = args.source_root.resolve()
+            args.output_root.mkdir(parents=True, exist_ok=True)
+            flowers = (
+                ingest_private_flower(root / "flower 1.dwg", args.output_root / "private-flower-001", "PRIVATE-FLOWER-001"),
+                ingest_private_flower(root / "flower2.dwg", args.output_root / "private-flower-002", "PRIVATE-FLOWER-002"),
+            )
+            rollers = (
+                ingest_private_roller_evidence(root / "roller1_sequnece aprtial.dwg", args.output_root / "private-roller-001", "PRIVATE-ROLLER-PARTIAL-001"),
+                ingest_private_roller_evidence(root / "roller2_sequence partial.dwg", args.output_root / "private-roller-002", "PRIVATE-ROLLER-PARTIAL-002"),
+            )
+            dataset = build_dataset(flowers, rollers)
+            export_prototype_dataset(dataset, args.output_root / "dataset")
+            if args.database:
+                persist_dataset(create_project_database(args.database), dataset)
+            result = {"dataset_id": dataset.dataset_id, "dataset_hash": dataset.dataset_hash, "flowers": [{"flower_id": f.flower_id, "station_count": len(f.passes)} for f in flowers], "roller_evidence": len(rollers), "private_paths_redacted": True}
+            print(json.dumps(result, sort_keys=True) if args.json else f"dataset={dataset.dataset_id} flowers=2 stations={[len(f.passes) for f in flowers]} rollers=2")
+            return 0
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "flower-generate":
+        try:
+            payload = json.loads((args.dataset / "dataset.json").read_text(encoding="utf-8"))
+            from rollform_extractor.flower_prototype_dataset import _dataset_from_dict
+            dataset = _dataset_from_dict(payload)
+            flower = next(item for item in dataset.flowers if item.flower_id == args.flower_id)
+            target = target_from_pass(flower.passes[-1], target_id="SYNTHETIC-TARGET-001", scale_x=args.scale_x, scale_y=args.scale_y)
+            candidates = generate_candidates(dataset, target)
+            export_generation(candidates, args.output)
+            result = {"target_id": target.target_id, "candidate_count": len(candidates), "candidates": [c.to_dict() for c in candidates]}
+            print(json.dumps(result, sort_keys=True) if args.json else f"candidates={len(candidates)} output={args.output}")
+            return 0
+        except (OSError, RuntimeError, ValueError, StopIteration, KeyError, json.JSONDecodeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "flower-benchmark":
+        try:
+            payload = json.loads((args.dataset / "dataset.json").read_text(encoding="utf-8"))
+            from rollform_extractor.flower_prototype_dataset import _dataset_from_dict
+            result = benchmark_dataset(_dataset_from_dict(payload).flowers)
+            export_benchmark(_dataset_from_dict(payload).flowers, args.output)
+            print(json.dumps(result, sort_keys=True) if args.json else f"cases={result['case_count']} output={args.output}")
+            return 0
+        except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
             print(str(exc), file=sys.stderr)
             return 2
     return 2

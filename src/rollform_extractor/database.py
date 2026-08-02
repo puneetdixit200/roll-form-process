@@ -1035,6 +1035,171 @@ class RollerUsageRelationship(Base):
     limitations_json: Mapped[list[str]] = mapped_column(JSON, default=list)
 
 
+class FlowerPrototypeDatasetRow(Base):
+    __tablename__ = "flower_prototype_datasets"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String, unique=True)
+    dataset_hash: Mapped[str] = mapped_column(String)
+    schema_version: Mapped[int] = mapped_column(Integer)
+    algorithm_version: Mapped[str] = mapped_column(String)
+    source_classification: Mapped[str] = mapped_column(String)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    quality_flags_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class FlowerPrototypeSourceRow(Base):
+    __tablename__ = "flower_prototype_sources"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("flower_prototype_datasets.dataset_id", ondelete="CASCADE"))
+    source_id: Mapped[str] = mapped_column(String)
+    source_sha256: Mapped[str] = mapped_column(String)
+    source_classification: Mapped[str] = mapped_column(String)
+    raw_profile_count: Mapped[int] = mapped_column(Integer)
+    entity_count: Mapped[int] = mapped_column(Integer)
+    association_status: Mapped[str | None] = mapped_column(String)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class HistoricalFlowerRow(Base):
+    __tablename__ = "historical_flowers"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("flower_prototype_datasets.dataset_id", ondelete="CASCADE"))
+    flower_id: Mapped[str] = mapped_column(String)
+    source_sha256: Mapped[str] = mapped_column(String)
+    topology: Mapped[str] = mapped_column(String)
+    pass_count: Mapped[int] = mapped_column(Integer)
+    quality_flags_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    __table_args__ = (UniqueConstraint("dataset_id", "flower_id"),)
+
+
+class HistoricalFlowerPassRow(Base):
+    __tablename__ = "historical_flower_passes"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    flower_id: Mapped[str] = mapped_column(String)
+    pass_id: Mapped[str] = mapped_column(String)
+    source_handle: Mapped[str] = mapped_column(String)
+    inferred_order: Mapped[int] = mapped_column(Integer)
+    geometry_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    feature_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    __table_args__ = (UniqueConstraint("dataset_id", "flower_id", "pass_id"),)
+
+
+class HistoricalPassTransitionRow(Base):
+    __tablename__ = "historical_pass_transitions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    flower_id: Mapped[str] = mapped_column(String)
+    from_pass_id: Mapped[str] = mapped_column(String)
+    to_pass_id: Mapped[str] = mapped_column(String)
+    transition_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class HistoricalBendProgressionRow(Base):
+    __tablename__ = "historical_bend_progressions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    flower_id: Mapped[str] = mapped_column(String)
+    bend_key: Mapped[str] = mapped_column(String)
+    progression_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class FlowerGenerationRunRow(Base):
+    __tablename__ = "flower_generation_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String, unique=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    algorithm_version: Mapped[str] = mapped_column(String)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    input_hash: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    candidate_count: Mapped[int] = mapped_column(Integer, default=0)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class FlowerGenerationInputRow(Base):
+    __tablename__ = "flower_generation_inputs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String)
+    target_id: Mapped[str] = mapped_column(String)
+    input_hash: Mapped[str] = mapped_column(String)
+    input_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class FlowerGenerationCandidateRow(Base):
+    __tablename__ = "flower_generation_candidates"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String)
+    candidate_id: Mapped[str] = mapped_column(String)
+    candidate_type: Mapped[str] = mapped_column(String)
+    station_count: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String)
+    confidence: Mapped[float] = mapped_column(Float)
+    candidate_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class FlowerGenerationPassRow(Base):
+    __tablename__ = "flower_generation_passes"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(String)
+    pass_id: Mapped[str] = mapped_column(String)
+    inferred_order: Mapped[int] = mapped_column(Integer)
+    pass_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class FlowerGenerationProvenanceRow(Base):
+    __tablename__ = "flower_generation_provenance"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(String)
+    pass_id: Mapped[str | None] = mapped_column(String)
+    source_flower_id: Mapped[str | None] = mapped_column(String)
+    source_pass_ids_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    transformation_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class FlowerGenerationValidationRow(Base):
+    __tablename__ = "flower_generation_validations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    warnings_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class FlowerGenerationReviewRow(Base):
+    __tablename__ = "flower_generation_reviews"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(String)
+    decision: Mapped[str] = mapped_column(String)
+    reviewer: Mapped[str] = mapped_column(String)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class FlowerReconstructionBenchmarkRow(Base):
+    __tablename__ = "flower_reconstruction_benchmarks"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    benchmark_id: Mapped[str] = mapped_column(String, unique=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    summary_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class FlowerReconstructionMetricRow(Base):
+    __tablename__ = "flower_reconstruction_metrics"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    benchmark_id: Mapped[str] = mapped_column(String)
+    flower_id: Mapped[str] = mapped_column(String)
+    pass_id: Mapped[str] = mapped_column(String)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
 def create_project_database(path: Path) -> Engine:
     engine = create_engine(f"sqlite:///{path}")
 
