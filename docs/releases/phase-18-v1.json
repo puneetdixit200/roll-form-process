@@ -1,0 +1,45 @@
+{
+  "phase": "Phase 18: Engineer-Validated Historical Roller Usage",
+  "repository": "puneetdixit200/roll-form-process",
+  "pull_request": 5,
+  "implementation_feature_sha": "a8e4758b9bb33f66e998b780ea4887dbeaa2cc6c",
+  "implementation_merge_sha": "2675d145f72a72ae306c2daa5c7b5b7a58d0be58",
+  "implementation_main_workflow": {
+    "run_id": 30744366658,
+    "url": "https://github.com/puneetdixit200/roll-form-process/actions/runs/30744366658",
+    "head_sha": "2675d145f72a72ae306c2daa5c7b5b7a58d0be58",
+    "result": "PASS"
+  },
+  "tag": "phase-18-v1",
+  "tag_target_sha": "2675d145f72a72ae306c2daa5c7b5b7a58d0be58",
+  "tag_object_sha": "92ae699974776eb28c23c97d2d48f975fed382e9",
+  "release_record_commit_sha": "PENDING_THIS_COMMIT",
+  "release_record_workflow": {
+    "run_id": null,
+    "url": null,
+    "head_sha": "PENDING_THIS_COMMIT",
+    "result": "PENDING"
+  },
+  "readiness_report": "docs/reports/phase-18-release-readiness.html",
+  "production_recognition_status": "NOT APPROVED",
+  "historical_search_status": "APPROVED FOR REVIEW USE ONLY",
+  "synthetic_fixture": {
+    "designs": 12,
+    "geometry_revisions": 15,
+    "physical_assets": 12,
+    "projects": 8,
+    "stations": 30,
+    "occurrences": 40,
+    "locked_cases": 40,
+    "default_operational_search_synthetic_results": 0,
+    "deterministic": true
+  },
+  "limitations": [
+    "Confirmed usage identifies roller designs only and never assigns physical assets.",
+    "Synthetic evidence is regression evidence, not factory performance evidence.",
+    "Recognition production use requires an approved engineer-labelled dataset and threshold profile.",
+    "Historical associations are descriptive evidence, not compatibility or tooling recommendations.",
+    "Local Docker was blocked by a captive portal; GitHub-hosted Docker build and smoke passed.",
+    "Phase 19 tooling-set retrieval has not started."
+  ]
+}
