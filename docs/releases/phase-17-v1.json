@@ -1,0 +1,29 @@
+{
+  "phase": "Phase 17: Explainable Roller Design Recognition",
+  "repository": "puneetdixit200/roll-form-process",
+  "pull_request": 4,
+  "feature_sha": "894b2f232c556779ef543a3754f44bd87c35f3c8",
+  "merge_sha": "6c57595f4fbfd7442db40928a6f7116d59d3bcff",
+  "tag": "phase-17-v1",
+  "tag_object_sha": "106b5b4cbd5b71585de4e4952f568eb0216df0d4",
+  "final_main_workflow": {
+    "run_id": 30740442111,
+    "url": "https://github.com/puneetdixit200/roll-form-process/actions/runs/30740442111",
+    "result": "PASS"
+  },
+  "evidence_report": "docs/reports/phase-17-release-readiness.html",
+  "local_docker_note": "The local Docker build was blocked by a captive portal rewriting Debian repository traffic; the GitHub-hosted build and smoke test passed with TLS verification enabled.",
+  "synthetic_evaluation": {
+    "top_1_accuracy": 1.0,
+    "top_3_recall": 1.0,
+    "false_high_confidence_count": 0,
+    "deterministic": true
+  },
+  "production_status": "NOT APPROVED",
+  "limitations": [
+    "Recognition targets roller designs and geometry revisions, never automatic physical asset identity.",
+    "Synthetic metrics are regression evidence, not factory performance.",
+    "Engineer-labelled evaluation and threshold approval are still required.",
+    "Phase 18 must address approved historical relationship learning and operational search only after review."
+  ]
+}
