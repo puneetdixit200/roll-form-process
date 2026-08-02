@@ -21,17 +21,25 @@ from rollform_extractor.config import FeaturesConfig
 from rollform_extractor.transition_analysis import bend_change_events, profile_step_changes, segment_change_events
 
 
-PASS_FEATURE_SCHEMA_VERSION = 1
+PASS_FEATURE_SCHEMA_VERSION = 2
 FeatureKey = tuple[str, str]
 
+# These fields remain available in structured audit geometry, but may never
+# enter comparison-oriented vectors. Drawing placement is not profile shape.
+FORBIDDEN_COMPARISON_FIELDS = frozenset({
+    "bbox_min_x", "bbox_min_y", "bbox_max_x", "bbox_max_y",
+    "bbox_center_x", "bbox_center_y", "polygon_centroid_x", "polygon_centroid_y",
+    "neutral_centroid_x", "neutral_centroid_y",
+})
+
 SCALAR_FEATURE_FIELDS = (
-    "bbox_min_x", "bbox_min_y", "bbox_max_x", "bbox_max_y", "width", "height",
-    "bbox_area", "bbox_perimeter", "aspect_ratio", "bbox_diagonal", "bbox_center_x", "bbox_center_y",
-    "outline_area", "outline_perimeter", "polygon_centroid_x", "polygon_centroid_y", "convex_hull_area",
+    "bbox_width_normalized", "bbox_height_normalized", "bbox_area_normalized", "width", "height",
+    "bbox_area", "bbox_perimeter", "aspect_ratio", "bbox_diagonal", "outline_area", "outline_area_normalized", "outline_perimeter",
+    "convex_hull_area",
     "convex_hull_perimeter", "solidity", "compactness", "number_of_holes", "neutral_line_developed_length",
     "expected_neutral_length", "absolute_neutral_length_error", "neutral_length_error_percent",
     "neutral_point_count", "chord_length", "tortuosity", "maximum_distance_from_chord", "rms_distance_from_chord",
-    "neutral_centroid_x", "neutral_centroid_y", "start_tangent_angle", "end_tangent_angle", "net_profile_rotation",
+    "neutral_centroid_normalized_x", "neutral_centroid_normalized_y", "start_point_normalized_x", "start_point_normalized_y", "end_point_normalized_x", "end_point_normalized_y", "start_tangent_angle", "end_tangent_angle", "net_profile_rotation",
     "maximum_local_curvature", "mean_absolute_curvature", "curvature_stddev", "segment_count", "min_segment_length",
     "max_segment_length", "mean_segment_length", "segment_length_stddev", "longest_segment_ratio", "active_bend_count",
     "positive_bend_count", "negative_bend_count", "total_absolute_bend_angle", "total_signed_bend_angle",
@@ -159,7 +167,7 @@ def extract_composite_pass_features(
     units: Mapping[str, Any] | None = None,
 ) -> dict[str, PassFeatureSet]:
     """Extract all pass features, with sequence-relative values in one pass."""
-    ordered = tuple(sorted(composite.passes, key=lambda item: item.inferred_order))
+    ordered = tuple(sorted(composite.passes, key=_effective_order))
     units = units or {}
     rows: dict[str, PassFeatureSet] = {}
     transitions = profile_step_changes(ordered)
@@ -168,7 +176,8 @@ def extract_composite_pass_features(
     previous: PassFeatureSet | None = None
     first: PassFeatureSet | None = None
     for item in ordered:
-        previous_item = ordered[item.inferred_order - 1] if item.inferred_order > 0 and item.inferred_order - 1 < len(ordered) else None
+        current_order = _effective_order(item)
+        previous_item = ordered[current_order - 1] if current_order > 0 and current_order - 1 < len(ordered) else None
         current = _extract_one(drawing_id, composite.composite_flower_id, item, configuration_hash, features_config, units, previous, first, None, previous_item, None, None, None, len(ordered) - 1)
         rows[item.pass_id] = current
         first = first or current
@@ -178,7 +187,8 @@ def extract_composite_pass_features(
         for item in ordered:
             if item.pass_id not in rows:
                 continue
-            previous_item = ordered[item.inferred_order - 1] if item.inferred_order > 0 and item.inferred_order - 1 < len(ordered) else None
+            current_order = _effective_order(item)
+            previous_item = ordered[current_order - 1] if current_order > 0 and current_order - 1 < len(ordered) else None
             previous_features = rows.get(previous_item.pass_id) if previous_item else None
             transition = next((value for value in transitions if value["to_pass_id"] == item.pass_id), None)
             rows[item.pass_id] = _extract_one(drawing_id, composite.composite_flower_id, item, configuration_hash, features_config, units, previous_features, rows.get(ordered[0].pass_id), final, previous_item, transition, bend_events, segment_events, len(ordered) - 1)
@@ -192,6 +202,10 @@ def extract_composite_pass_features(
 
 def _replace_sequence(row: PassFeatureSet, sequence: SequenceFeatures) -> PassFeatureSet:
     return replace(row, sequence=sequence)
+
+
+def _effective_order(item) -> int:
+    return int(item.confirmed_order if item.confirmed_order is not None else item.inferred_order)
 
 
 def _extract_one(drawing_id, flower_id, item, config_hash, cfg, units, previous, first, final, previous_item=None, transition=None, bend_events=(), segment_events=(), final_order=0):
@@ -224,7 +238,7 @@ def _extract_one(drawing_id, flower_id, item, config_hash, cfg, units, previous,
         mapping["unit_status"] = unit_status
         mapping["conversion_factor_to_mm"] = factor
     sequence = _sequence_features(item, previous, first, final, previous_item, manufacturing, transition, bend_events, segment_events, final_order)
-    scalar_values = _scalar_values(bbox, outline, neutral, segments, bends, manufacturing, symmetry, sequence)
+    scalar_values = _scalar_values(bbox, outline, neutral, normalized, segments, bends, manufacturing, symmetry, sequence)
     scalar = _vector(SCALAR_FEATURE_FIELDS, scalar_values, cfg.vector_rounding_decimals, {"units_status": unit_status})
     shape_names = tuple(f"{axis}_{index:03d}" for index in range(cfg.material_sample_count) for axis in ("x", "y"))
     shape_values = tuple(value for point in normalized["normalized_points"] for value in point[:2])
@@ -238,7 +252,7 @@ def _extract_one(drawing_id, flower_id, item, config_hash, cfg, units, previous,
     structural_flags = {"EMPTY_NEUTRAL_LINE", "DEGENERATE_PATH", "ZERO_NORMALIZATION_SCALE", "INVALID_OUTLINE"}
     quality = FeatureQuality(confidence, tuple(sorted(set(flags))), unit_status, bool(item.requires_review or flags), not bool(set(flags) & structural_flags))
     provenance = FeatureProvenance(tuple(item.source_handles), "composite_pass_neutral_line_v1", "rollform-extractor/0.1.0", config_hash)
-    return PassFeatureSet(PASS_FEATURE_SCHEMA_VERSION, drawing_id, flower_id, item.pass_id, item.profile_id, item.station_id, item.inferred_order, item.confirmed_order, config_hash, tuple(item.source_handles), provenance, quality, GeometryFeatures(bbox, outline, neutral | {"normalized_shape": normalized["metadata"]}, symmetry), tuple(segments), tuple(bends), ManufacturingFeatures(manufacturing), SequenceFeatures(sequence, ()), scalar, shape, full, fingerprints)
+    return PassFeatureSet(PASS_FEATURE_SCHEMA_VERSION, drawing_id, flower_id, item.pass_id, item.profile_id, item.station_id, _effective_order(item), item.confirmed_order, config_hash, tuple(item.source_handles), provenance, quality, GeometryFeatures(bbox, outline, neutral | {"normalized_shape": normalized["metadata"]}, symmetry), tuple(segments), tuple(bends), ManufacturingFeatures(manufacturing), SequenceFeatures(sequence, ()), scalar, shape, full, fingerprints)
 
 
 def _bbox(points, item, outline):
@@ -426,11 +440,21 @@ def _sequence_features(item, previous, first, final, previous_item=None, current
         previous_values["maximum_material_point_displacement"] = transition.get("maximum_material_point_displacement")
         previous_values["mean_contour_displacement"] = transition.get("mean_contour_distance")
         previous_values["centroid_movement_previous"] = transition.get("centroid_movement")
-    return {**previous_values, "progress_ratio": _safe_ratio(item.inferred_order, total_order), "width_ratio_final": _safe_ratio(item.width, final_width), "height_ratio_final": _safe_ratio(item.height, final_height), "bend_angle_ratio_final": _safe_ratio(item.physical_total_bend_angle, final_angle), "formedness_ratio_final": _safe_ratio(current_formedness, final_formedness), "width_delta_from_first": item.width - first_width if first_width is not None else None, "height_delta_from_first": item.height - first_height if first_height is not None else None, "developed_length_delta_from_first": item.developed_length - first_length if first_length is not None else None, "formedness_delta_from_first": current_formedness - first_formedness if current_formedness is not None and first_formedness is not None else None}
+    return {**previous_values, "progress_ratio": _safe_ratio(_effective_order(item), total_order), "width_ratio_final": _safe_ratio(item.width, final_width), "height_ratio_final": _safe_ratio(item.height, final_height), "bend_angle_ratio_final": _safe_ratio(item.physical_total_bend_angle, final_angle), "formedness_ratio_final": _safe_ratio(current_formedness, final_formedness), "width_delta_from_first": item.width - first_width if first_width is not None else None, "height_delta_from_first": item.height - first_height if first_height is not None else None, "developed_length_delta_from_first": item.developed_length - first_length if first_length is not None else None, "formedness_delta_from_first": current_formedness - first_formedness if current_formedness is not None and first_formedness is not None else None}
 
 
-def _scalar_values(bbox, outline, neutral, segments, bends, manufacturing, symmetry, sequence):
-    values = {"bbox_min_x": bbox["min_x"], "bbox_min_y": bbox["min_y"], "bbox_max_x": bbox["max_x"], "bbox_max_y": bbox["max_y"], "width": bbox["width"], "height": bbox["height"], "bbox_area": bbox["area"], "bbox_perimeter": bbox["perimeter"], "aspect_ratio": bbox["aspect_ratio"], "bbox_diagonal": bbox["diagonal"], "bbox_center_x": bbox["center_x"], "bbox_center_y": bbox["center_y"], "outline_area": outline["area"], "outline_perimeter": outline["perimeter"], "polygon_centroid_x": outline["centroid_x"], "polygon_centroid_y": outline["centroid_y"], "convex_hull_area": outline["convex_hull_area"], "convex_hull_perimeter": outline["convex_hull_perimeter"], "solidity": outline["solidity"], "compactness": outline["compactness"], "number_of_holes": outline["number_of_holes"], "neutral_line_developed_length": neutral["developed_length"], "expected_neutral_length": neutral["expected_neutral_length"], "absolute_neutral_length_error": neutral["absolute_error"], "neutral_length_error_percent": neutral["error_percent"], "neutral_point_count": neutral["point_count"], "chord_length": neutral["chord_length"], "tortuosity": neutral["tortuosity"], "maximum_distance_from_chord": neutral["maximum_distance_from_chord"], "rms_distance_from_chord": neutral["rms_distance_from_chord"], "neutral_centroid_x": neutral["centroid_x"], "neutral_centroid_y": neutral["centroid_y"], "start_tangent_angle": neutral["start_tangent_angle"], "end_tangent_angle": neutral["end_tangent_angle"], "net_profile_rotation": neutral["net_profile_rotation"], "maximum_local_curvature": neutral["maximum_local_curvature"], "mean_absolute_curvature": neutral["mean_absolute_curvature"], "curvature_stddev": neutral["curvature_stddev"], "segment_count": len(segments), "min_segment_length": min((row.length for row in segments), default=None), "max_segment_length": max((row.length for row in segments), default=None), "mean_segment_length": mean([row.length for row in segments]) if segments else None, "segment_length_stddev": pstdev([row.length for row in segments]) if len(segments) > 1 else 0.0, "longest_segment_ratio": _safe_ratio(max((row.length for row in segments), default=None), neutral["developed_length"])}
+def _scalar_values(bbox, outline, neutral, normalized, segments, bends, manufacturing, symmetry, sequence):
+    scale = normalized.get("metadata", {}).get("scale") or 1.0
+    normalized_points = normalized.get("normalized_points") or ()
+    first = normalized_points[0] if normalized_points else (None, None, None)
+    last = normalized_points[-1] if normalized_points else (None, None, None)
+    neutral_centroid = neutral.get("centroid_x"), neutral.get("centroid_y")
+    origin = normalized_points[0] if normalized_points else (0.0, 0.0, 0.0)
+    centroid_normalized = (
+        (neutral_centroid[0] - origin[0]) / scale if neutral_centroid[0] is not None else None,
+        (neutral_centroid[1] - origin[1]) / scale if neutral_centroid[1] is not None else None,
+    )
+    values = {"bbox_width_normalized": _safe_ratio(bbox["width"], scale), "bbox_height_normalized": _safe_ratio(bbox["height"], scale), "bbox_area_normalized": _safe_ratio(bbox["area"], scale * scale), "width": bbox["width"], "height": bbox["height"], "bbox_area": bbox["area"], "bbox_perimeter": bbox["perimeter"], "aspect_ratio": bbox["aspect_ratio"], "bbox_diagonal": bbox["diagonal"], "outline_area": outline["area"], "outline_area_normalized": _safe_ratio(outline["area"], scale * scale), "outline_perimeter": outline["perimeter"], "convex_hull_area": outline["convex_hull_area"], "convex_hull_perimeter": outline["convex_hull_perimeter"], "solidity": outline["solidity"], "compactness": outline["compactness"], "number_of_holes": outline["number_of_holes"], "neutral_line_developed_length": neutral["developed_length"], "expected_neutral_length": neutral["expected_neutral_length"], "absolute_neutral_length_error": neutral["absolute_error"], "neutral_length_error_percent": neutral["error_percent"], "neutral_point_count": neutral["point_count"], "chord_length": neutral["chord_length"], "tortuosity": neutral["tortuosity"], "maximum_distance_from_chord": neutral["maximum_distance_from_chord"], "rms_distance_from_chord": neutral["rms_distance_from_chord"], "neutral_centroid_normalized_x": centroid_normalized[0], "neutral_centroid_normalized_y": centroid_normalized[1], "start_point_normalized_x": first[0], "start_point_normalized_y": first[1], "end_point_normalized_x": last[0], "end_point_normalized_y": last[1], "start_tangent_angle": neutral["start_tangent_angle"], "end_tangent_angle": neutral["end_tangent_angle"], "net_profile_rotation": neutral["net_profile_rotation"], "maximum_local_curvature": neutral["maximum_local_curvature"], "mean_absolute_curvature": neutral["mean_absolute_curvature"], "curvature_stddev": neutral["curvature_stddev"], "segment_count": len(segments), "min_segment_length": min((row.length for row in segments), default=None), "max_segment_length": max((row.length for row in segments), default=None), "mean_segment_length": mean([row.length for row in segments]) if segments else None, "segment_length_stddev": pstdev([row.length for row in segments]) if len(segments) > 1 else 0.0, "longest_segment_ratio": _safe_ratio(max((row.length for row in segments), default=None), neutral["developed_length"])}
     values.update({key: manufacturing.get(key) for key in SCALAR_FEATURE_FIELDS if key not in values})
     values.update({key: symmetry.get(key.replace("symmetry_score", "score")) for key in ("symmetry_score",) if key not in values})
     values["vertical_symmetry_score"] = symmetry.get("vertical_score")
@@ -487,7 +511,7 @@ def _fingerprints(item, neutral, normalized, bends, decimals):
 
 def _bend_histories(passes):
     rows: dict[str, dict[str, Any]] = {}
-    ordered = tuple(sorted(passes, key=lambda value: value.inferred_order))
+    ordered = tuple(sorted(passes, key=_effective_order))
     all_ids = sorted({str(bend.get("bend_id")) for item in ordered for bend in item.physical_bends})
     for bend_id in all_ids:
         angles, radii, active_rows = [], [], []
@@ -498,7 +522,7 @@ def _bend_histories(passes):
             angles.append(_num(bend.get("signed_bend_angle")) if is_active else None)
             radii.append(_num(bend.get("neutral_line_radius")) if is_active else None)
             if is_active:
-                active_rows.append(item.inferred_order)
+                active_rows.append(_effective_order(item))
                 confidence = max(confidence, float(bend.get("confidence", 0.0)))
         active_angles = [value for value in angles if value is not None]
         active_radii = [value for value in radii if value is not None]

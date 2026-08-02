@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Canonical extraction reliability remediation</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:1180px;margin:0 auto;padding:24px;background:#f4f6f8;color:#17202a;line-height:1.45}
+header,section,aside{background:#fff;border:1px solid #d8dee4;border-radius:10px;padding:20px;margin:16px 0}
+h1,h2{line-height:1.2} table{border-collapse:collapse;width:100%}th,td{border:1px solid #d8dee4;padding:8px;text-align:left}
+.badge{display:inline-block;padding:5px 10px;border-radius:999px;font-weight:700}.pass{background:#d9f7e6;color:#075b32}.fail{background:#ffe0e0;color:#8a1010}.warn{background:#fff1c2;color:#6b4d00}
+code,pre{background:#f1f3f5;border-radius:5px;padding:2px 4px}pre{padding:12px;overflow:auto}@media print{body{background:#fff}header,section,aside{break-inside:avoid}}
+</style></head><body>
+<header><h1>Canonical Extraction Reliability Remediation</h1>
+<p><strong>Software remediation:</strong> <span class="badge pass">PASS</span>
+<strong>Pilot structural validity:</strong> <span class="badge pass">PASS</span></p>
+<p><strong>Pilot engineering confirmation:</strong> NOT CONFIRMED<br>
+<strong>Pilot dataset readiness:</strong> <span class="badge warn">BLOCKED</span><br>
+<strong>Remaining drawings:</strong> KEEP QUARANTINED</p>
+<p>Generated 2026-08-02T15:18:46.610500+00:00 from Git SHA <code>c428714507eda2d9f6a98ee35280a13875b8c0e3</code>.</p></header>
+<section><h2>Baseline and corrected evidence</h2><table><thead><tr><th>Metric</th><th>Baseline</th><th>Corrected</th></tr></thead><tbody><tr><th>hash_mismatches</th><td>2</td><td>0</td></tr><tr><th>accepted_composite_flowers</th><td>2</td><td>1</td></tr><tr><th>accepted_composite_passes</th><td>19</td><td>12</td></tr><tr><th>feature_sets</th><td>12</td><td>12</td></tr></tbody></table>
+<p>The baseline is preserved as a reproduction record; corrected artifacts were regenerated from source geometry and configuration.</p></section>
+<section><h2>Validation</h2><p>Validator: <span class="badge pass">PASS</span></p>
+<pre>{
+  &quot;counts&quot;: {
+    &quot;composite_flowers&quot;: 1,
+    &quot;composite_passes&quot;: 12,
+    &quot;database_composite_flowers&quot;: 1,
+    &quot;database_composite_passes&quot;: 12,
+    &quot;database_feature_sets&quot;: 12,
+    &quot;feature_sets&quot;: 12,
+    &quot;sequences&quot;: 2,
+    &quot;stations&quot;: 30
+  },
+  &quot;exit_code&quot;: 0,
+  &quot;issues&quot;: [],
+  &quot;project_path&quot;: &quot;output/D0064-D0065-FlowerSequence&quot;,
+  &quot;readiness&quot;: {
+    &quot;deterministic&quot;: true,
+    &quot;eligible_for_corpus_import&quot;: false,
+    &quot;order_confirmed&quot;: false,
+    &quot;units_confirmed&quot;: false
+  },
+  &quot;valid&quot;: true
+}</pre></section>
+<section><h2>Dataset-readiness gate</h2><p>Status: <span class="badge warn">BLOCKED</span></p>
+<ul><li>drawing units are not engineer-confirmed</li><li>pass order is not engineer-confirmed</li></ul><pre>{
+  &quot;blockers&quot;: [
+    &quot;drawing units are not engineer-confirmed&quot;,
+    &quot;pass order is not engineer-confirmed&quot;
+  ],
+  &quot;canonical_geometry&quot;: &quot;PASS&quot;,
+  &quot;counts&quot;: {
+    &quot;composite_flowers&quot;: 1,
+    &quot;composite_passes&quot;: 12,
+    &quot;feature_sets&quot;: 12
+  },
+  &quot;determinism&quot;: &quot;PASS&quot;,
+  &quot;eligible_for_corpus_import&quot;: false,
+  &quot;exit_code&quot;: 1,
+  &quot;feature_completeness&quot;: &quot;PASS&quot;,
+  &quot;manifest_validation&quot;: &quot;PASS&quot;,
+  &quot;pass_order_confirmation&quot;: &quot;BLOCKED&quot;,
+  &quot;status&quot;: &quot;BLOCKED&quot;,
+  &quot;structural_validation&quot;: &quot;PASS&quot;,
+  &quot;units_confirmation&quot;: &quot;BLOCKED&quot;
+}</pre></section>
+<section><h2>Two-run determinism</h2><pre>{
+  &quot;equal&quot;: true,
+  &quot;left_hash&quot;: &quot;16eda59094f4b1a3a136c8bc18ffa38cdcbe1b320f7a261199956625ead837b3&quot;,
+  &quot;mismatches&quot;: [],
+  &quot;right_hash&quot;: &quot;16eda59094f4b1a3a136c8bc18ffa38cdcbe1b320f7a261199956625ead837b3&quot;
+}</pre></section>
+<section><h2>Qualified length examples</h2><table><thead><tr><th>Pass</th><th>Outline perimeter</th><th>Generated neutral</th><th>Expected neutral</th><th>Error</th></tr></thead><tbody><tr><td>pass_00_flat</td><td>190.0022964477539</td><td>94.00114822387695</td><td>94.00114822387695</td><td>0.0</td></tr><tr><td>pass_01</td><td>190.16527097614545</td><td>94.080799716601</td><td>94.0823686655228</td><td>-0.0015689489217862729</td></tr><tr><td>pass_02</td><td>190.29776579277984</td><td>94.1256907638869</td><td>94.14893097619716</td><td>-0.02324021231027018</td></tr></tbody></table></section>
+<section><h2>Root-cause corrections</h2><ul>
+<li>Manifest diagnostics now include expected and actual SHA-256 values.</li>
+<li>Incomplete composite regions are auditable and excluded from accepted flowers.</li>
+<li>Pass features are checked one-for-one against accepted canonical passes.</li>
+<li>Alignment is a domain-level monotonic optimization, not report first-match selection.</li>
+<li>Outline perimeter and generated neutral developed length are separate fields.</li>
+<li>Neutral-length error is calculated from independently retained values.</li>
+<li>Comparison vectors reject absolute CAD placement fields.</li>
+<li>Review application regenerates SQLite and dependent artifacts through an atomic path.</li>
+</ul></section>
+<section><h2>Safety boundary</h2><p>These artifacts are candidate engineering extraction only. Unconfirmed units/order block trusted corpus import. No retrieval, automatic roller assignment, tooling recommendation, forming-sequence generation, or production approval is implemented.</p></section>
+<section><h2>Known limitations and required decisions</h2><ul><li>Drawing units are not engineer-confirmed in the current pilot.</li><li>Pass order and station alignment require engineer confirmation.</li><li>Normalized descriptors are engineering features, not trusted retrieval data.</li><li>The remaining drawing corpus remains quarantined.</li><li>No production approval is implied.</li></ul></section>
+</body></html>

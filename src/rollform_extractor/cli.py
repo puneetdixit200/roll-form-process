@@ -41,6 +41,7 @@ from rollform_extractor.database import create_project_database
 from rollform_extractor.pipeline import ExtractionRequest, extract_project, reprocess_project
 from rollform_extractor.review_apply import ReviewApplyError, apply_review_decisions
 from rollform_extractor.validation import validate_project
+from rollform_extractor.dataset_readiness import assess_dataset_readiness
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -60,6 +61,13 @@ def main(argv: list[str] | None = None) -> int:
     reprocess_cmd.add_argument("--config", type=Path)
     validate_cmd = sub.add_parser("validate")
     validate_cmd.add_argument("project", type=Path)
+    validate_cmd.add_argument("--json", action="store_true", dest="json_output")
+    readiness_cmd = sub.add_parser("dataset-readiness")
+    readiness_cmd.add_argument("project", type=Path)
+    readiness_cmd.add_argument("--json", action="store_true", dest="json_output")
+    regenerate_cmd = sub.add_parser("regenerate")
+    regenerate_cmd.add_argument("project", type=Path)
+    regenerate_cmd.add_argument("--config", type=Path)
     batch_extract_cmd = sub.add_parser("batch-extract")
     batch_extract_cmd.add_argument("source_root", type=Path)
     batch_extract_cmd.add_argument("output_root", type=Path)
@@ -75,6 +83,7 @@ def main(argv: list[str] | None = None) -> int:
     apply_review_cmd = sub.add_parser("apply-review")
     apply_review_cmd.add_argument("project", type=Path)
     apply_review_cmd.add_argument("decisions", type=Path)
+    apply_review_cmd.add_argument("--dry-run", action="store_true")
     inventory_template_cmd = sub.add_parser("roller-inventory-template")
     inventory_template_cmd.add_argument("output", type=Path)
     inventory_validate_cmd = sub.add_parser("roller-inventory-validate")
@@ -207,8 +216,28 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "validate":
         report = validate_project(args.project)
-        print("valid" if report.valid else "\n".join(f"{issue.code}: {issue.message}" for issue in report.issues))
+        if args.json_output:
+            print(json.dumps(report.to_dict(args.project), indent=2, sort_keys=True))
+        else:
+            print("valid" if report.valid else "\n".join(f"{issue.code}: {issue.message}" for issue in report.issues))
         return 0 if report.valid else 1
+    if args.command == "dataset-readiness":
+        readiness = assess_dataset_readiness(args.project)
+        if args.json_output:
+            print(json.dumps(readiness.to_dict(), indent=2, sort_keys=True))
+        else:
+            print(readiness.status)
+            if readiness.blockers:
+                print("\n".join(f"blocker: {item}" for item in readiness.blockers))
+        return 0 if readiness.status == "READY" else 1
+    if args.command == "regenerate":
+        try:
+            summary = reprocess_project(args.project, args.config)
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(f"{summary.project_path} drawing_stages={summary.station_count} warnings={summary.warning_count}")
+        return 0
     if args.command == "batch-extract":
         summary = batch_extract(BatchRequest(args.source_root, args.output_root, resume=args.resume, skip_unchanged=args.skip_unchanged))
         print(
@@ -234,11 +263,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if not summary.unmatched and not summary.conflicts else 1
     if args.command == "apply-review":
         try:
-            path = apply_review_decisions(args.project, args.decisions)
+            result = apply_review_decisions(args.project, args.decisions, dry_run=args.dry_run)
         except (OSError, json.JSONDecodeError, ReviewApplyError) as exc:
             print(str(exc), file=sys.stderr)
             return 2
-        print(path)
+        if isinstance(result, dict):
+            print(json.dumps(result, indent=2, sort_keys=True))
+        else:
+            print(result)
         return 0
     if args.command == "roller-inventory-template":
         print(write_inventory_template(args.output))
@@ -445,3 +477,7 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc), file=sys.stderr)
             return 2
     return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

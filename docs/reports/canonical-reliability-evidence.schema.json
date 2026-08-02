@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Canonical reliability evidence",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "current_validation", "current_readiness", "decisions", "before_after"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "generated_at": {"type": "string"},
+    "current_validation": {"type": "object"},
+    "current_readiness": {"type": "object"},
+    "decisions": {"type": "object"},
+    "before_after": {"type": "object"},
+    "blockers": {"type": "array", "items": {"type": "string"}}
+  }
+}

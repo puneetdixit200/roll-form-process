@@ -293,6 +293,28 @@ Bend change events:      36
 Segment change events:   47
 Confirmed transitions:    0
 Units:                    unconfirmed
-Neutral length error:     0.0 percent for every pass
+Neutral length error:     independently calculated; varies by pass and may be UNKNOWN
 Review item:              Pass 03 -> Pass 04 unresolved
 ```
+
+## Canonical extraction reliability
+
+The reliability remediation adds qualified outline-perimeter and generated
+neutral-length fields, global monotonic pass/station alignment, explicit
+rejected composite-region evidence, schema-v2 comparison vectors without
+absolute CAD placement fields, atomic review regeneration, and a strict
+dataset-readiness gate.
+
+Validate a project with:
+
+```bash
+rollform-extractor validate PROJECT --json
+rollform-extractor dataset-readiness PROJECT --json
+rollform-extractor apply-review PROJECT review.json --dry-run
+rollform-extractor regenerate PROJECT
+```
+
+`dataset-readiness` remains `BLOCKED` until units and pass order are engineer
+confirmed and deterministic regeneration is recorded. The remaining drawing
+corpus must remain quarantined. Open
+`docs/reports/canonical-reliability-remediation.html` for the evidence report.

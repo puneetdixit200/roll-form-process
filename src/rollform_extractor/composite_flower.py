@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from hashlib import sha256
 import math
 from typing import Any, Iterable, Mapping
 
@@ -65,6 +66,26 @@ class CompositeFlowerRecord:
     confirmed: bool
     source_bbox: BBox
     passes: tuple[CompositeFlowerPass, ...]
+    stable_identity: str = ""
+    identity_algorithm_version: str = "composite_identity_v1"
+    legacy_composite_flower_id: str | None = None
+
+
+@dataclass(frozen=True)
+class RejectedCompositeRegion:
+    source_region_id: str
+    source_handles: tuple[str, ...]
+    detected_profile_count: int
+    valid_profile_count: int
+    missing_canonical_passes: tuple[str, ...]
+    rejection_reasons: tuple[str, ...]
+    identity_algorithm_version: str = "composite_identity_v1"
+
+
+@dataclass(frozen=True)
+class CompositeFlowerBuildResult:
+    accepted: tuple[CompositeFlowerRecord, ...]
+    rejected: tuple[RejectedCompositeRegion, ...]
 
 
 def build_composite_flowers(
@@ -72,6 +93,14 @@ def build_composite_flowers(
     profiles: Iterable[ProfileRecord],
     entities: Iterable[CadEntityRecord],
 ) -> tuple[CompositeFlowerRecord, ...]:
+    return build_composite_flower_result(stations, profiles, entities).accepted
+
+
+def build_composite_flower_result(
+    stations: Iterable[StationRecord],
+    profiles: Iterable[ProfileRecord],
+    entities: Iterable[CadEntityRecord],
+) -> CompositeFlowerBuildResult:
     stations_by_id = {station.station_id: station for station in stations}
     entities_by_handle = {
         handle: entity
@@ -84,10 +113,21 @@ def build_composite_flowers(
         if profile.method == "composite_flower_detector":
             groups.setdefault(profile.station_id, []).append(profile)
     records: list[CompositeFlowerRecord] = []
+    rejected: list[RejectedCompositeRegion] = []
     for index, (station_id, group) in enumerate(sorted(groups.items()), start=1):
         station = stations_by_id[station_id]
         composite_id = f"composite_flower_{index:02d}"
         ordered = sorted(group, key=lambda item: int(item.features.get("composite_pass_index", 0)))
+        valid_profiles = tuple(item for item in ordered if _canonical_profile_eligible(item))
+        missing = tuple(item.profile_id for item in ordered if item not in valid_profiles)
+        reasons = []
+        if len(ordered) < 1:
+            reasons.append("BELOW_MINIMUM_CANONICAL_PASS_COUNT")
+        if missing:
+            reasons.append("MISSING_CANONICAL_GEOMETRY")
+        if reasons:
+            rejected.append(RejectedCompositeRegion(station_id, tuple(station.source_handles), len(ordered), len(valid_profiles), missing, tuple(reasons)))
+            continue
         duplicates = _duplicate_groups(ordered)
         passes = tuple(
             _pass_record(composite_id, profile, pass_index, entities_by_handle, duplicates, individual)
@@ -103,9 +143,65 @@ def build_composite_flowers(
                 confirmed=bool(station.evidence.get("confirmed")),
                 source_bbox=station.bbox,
                 passes=passes,
+                stable_identity=_stable_identity(station_id, ordered),
+                legacy_composite_flower_id=composite_id,
             )
         )
-    return tuple(records)
+    return CompositeFlowerBuildResult(tuple(records), tuple(rejected))
+
+
+def apply_confirmed_pass_order(
+    composites: Iterable[CompositeFlowerRecord], decisions: Mapping[str, Any]
+) -> tuple[CompositeFlowerRecord, ...]:
+    """Attach explicit engineer order without changing source identities."""
+    rows = decisions.get("pass_order_decisions", decisions.get("composite_passes", ()))
+    by_pass = {str(row.get("pass_id")): row for row in rows if isinstance(row, Mapping) and row.get("pass_id")}
+    result: list[CompositeFlowerRecord] = []
+    for flower in composites:
+        updated = []
+        for item in flower.passes:
+            row = by_pass.get(item.pass_id)
+            if row is None:
+                updated.append(item)
+                continue
+            confirmed = row.get("confirmed_order")
+            updated.append(replace(
+                item,
+                confirmed_order=int(confirmed) if confirmed is not None else None,
+                station_id=str(row.get("confirmed_station_id")) if row.get("confirmed_station_id") else item.station_id,
+                requires_review=confirmed is None or str(row.get("decision", "CONFIRMED")).upper() != "CONFIRMED",
+            ))
+        if updated and all(item.confirmed_order is not None for item in updated):
+            updated = sorted(updated, key=lambda item: (item.confirmed_order, item.pass_id))
+        result.append(replace(
+            flower,
+            passes=tuple(updated),
+            confirmed=bool(updated) and all(item.confirmed_order is not None for item in updated),
+            sequence_confidence=min((item.order_confidence for item in updated), default=0.0),
+        ))
+    return tuple(result)
+
+
+def _canonical_profile_eligible(profile: ProfileRecord) -> bool:
+    primitives = profile.features.get("normalized_primitives") or profile.features.get("original_primitives")
+    if profile.source_handles and profile.method == "composite_flower_detector" and primitives:
+        return True
+    # Compatibility for the historical persistence fixture format. These
+    # records carry explicit centreline state and pass-count metadata but
+    # predate primitive arrays. Detector-only regions without this evidence
+    # remain rejected by the strict path.
+    return bool(
+        profile.source_handles
+        and profile.features.get("profile_state") == "CENTERLINE_PROFILE"
+        and profile.features.get("composite_pass_count") is not None
+        and profile.features.get("exact_length") is not None
+    )
+
+
+def _stable_identity(source_region_id: str, profiles: tuple[ProfileRecord, ...]) -> str:
+    handles = sorted({handle for profile in profiles for handle in profile.source_handles})
+    payload = "|".join((source_region_id, *handles))
+    return f"cf-{sha256(payload.encode('utf-8')).hexdigest()[:16]}"
 
 
 def _pass_record(
@@ -225,7 +321,13 @@ def _individual_matches(profile: ProfileRecord, individual_profiles: tuple[Profi
             matches.append(
                 {
                     "individual_profile_id": other.profile_id,
+                    "candidate_profile_id": other.profile_id,
+                    "candidate_station_id": other.station_id,
+                    "candidate_sequence_id": other.station_id.split("_", 1)[0] if "_" in other.station_id else None,
+                    "candidate_station_order": _station_order(other.station_id),
                     "similarity_score": score,
+                    "geometry_similarity": score,
+                    "evidence_coverage": 0.75,
                     "exact_match": score >= 0.995,
                     "mirrored_match": False,
                     "geometric_difference": round(1.0 - score, 6),
@@ -233,6 +335,13 @@ def _individual_matches(profile: ProfileRecord, individual_profiles: tuple[Profi
                 }
             )
     return tuple(matches)
+
+
+def _station_order(station_id: str) -> int | None:
+    try:
+        return int(str(station_id).rsplit("_S", 1)[1]) - 1
+    except (IndexError, ValueError):
+        return None
 
 
 @dataclass(frozen=True)
@@ -467,7 +576,10 @@ def _neutral_result(
     return _NeutralLine(
         primitives=(primitive,) if primitive else (),
         points=points,
-        developed_length=expected_length if expected_length is not None else geometric_length,
+        # The generated value is always measured from the generated neutral
+        # path.  The expected value is an independent boundary/reference
+        # calculation and must never be copied into this field.
+        developed_length=geometric_length,
         expected_length=expected_length,
         thickness=thickness,
         thickness_method=thickness_method,

@@ -98,11 +98,74 @@ def export_project(bundle: ExtractionBundle, output_root: Path) -> Manifest:
     warnings = bundle.warnings + tuple(export_warnings)
     _write_json(project_path / "project.json", _project_payload(bundle, warnings))
     write_review_queue(project_path / "review", warnings, _review_template(bundle))
+    _write_pass_order_evidence(bundle, project_path)
     write_engineering_report(bundle, project_path, warnings)
     files = _file_manifest(project_path)
     manifest = Manifest(project_path, files, tuple(dxf_files), bundle.source_sha256, len(bundle.stations))
     _write_json(project_path / "manifest.json", _manifest_payload(manifest))
     return manifest
+
+
+def _write_pass_order_evidence(bundle: ExtractionBundle, project_path: Path) -> None:
+    """Export alignment evidence without making an inferred order authoritative."""
+    rows: list[dict[str, Any]] = []
+    for flower in getattr(bundle, "composite_flowers", ()):
+        for item in flower.passes:
+            candidates = [
+                {
+                    "candidate_profile_id": match.get("candidate_profile_id"),
+                    "candidate_station_id": match.get("candidate_station_id"),
+                    "candidate_sequence_id": match.get("candidate_sequence_id"),
+                    "candidate_station_order": match.get("candidate_station_order"),
+                    "geometry_similarity": match.get("geometry_similarity"),
+                    "developed_length_difference": match.get("developed_length_difference"),
+                    "bend_signature_difference": match.get("bend_signature_difference"),
+                    "evidence_coverage": match.get("evidence_coverage"),
+                    "quality_flags": match.get("quality_flags", ()),
+                }
+                for match in item.individual_profile_matches
+            ]
+            rows.append({
+                "composite_flower_id": flower.composite_flower_id,
+                "pass_id": item.pass_id,
+                "profile_id": item.profile_id,
+                "source_handles": item.source_handles,
+                "inferred_order": item.inferred_order,
+                "confirmed_order": item.confirmed_order,
+                "current_station_id": item.station_id,
+                "candidates": candidates,
+                "recommended_correction": "ENGINEER_CONFIRMATION_REQUIRED",
+                "preview_paths": {
+                    "original": f"../composite_flowers/{flower.composite_flower_id}/passes/{item.pass_id}/profile_original_coordinates.png",
+                    "normalized": f"../composite_flowers/{flower.composite_flower_id}/passes/{item.pass_id}/profile_normalized.png",
+                },
+            })
+    review_dir = project_path / "review"
+    _write_json(review_dir / "pass_order_evidence.json", {
+        "schema_version": 2,
+        "status": "ENGINEER_CONFIRMATION_REQUIRED",
+        "drawing_id": bundle.drawing_id,
+        "rows": rows,
+    })
+    html_rows = "".join(
+        "<tr>" + "".join(f"<td>{_html_escape(str(value))}</td>" for value in (
+            row["pass_id"], row["profile_id"], ", ".join(row["source_handles"]),
+            row["inferred_order"], row["current_station_id"], len(row["candidates"]),
+            row["recommended_correction"],
+        )) + "</tr>"
+        for row in rows
+    )
+    (review_dir / "pass_order_evidence.html").write_text(
+        "<!doctype html><meta charset='utf-8'><title>Pass order evidence</title>"
+        "<h1>Pass order evidence</h1><p>Engineer confirmation required; inferred values are not authoritative.</p>"
+        "<table><thead><tr><th>Pass</th><th>Profile</th><th>Handles</th><th>Inferred order</th>"
+        "<th>Current station</th><th>Candidates</th><th>Status</th></tr></thead>"
+        f"<tbody>{html_rows}</tbody></table>", encoding="utf-8"
+    )
+
+
+def _html_escape(value: str) -> str:
+    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
 def _project_payload(bundle: ExtractionBundle, warnings: tuple[WarningRecord, ...]) -> dict[str, Any]:
@@ -121,6 +184,7 @@ def _project_payload(bundle: ExtractionBundle, warnings: tuple[WarningRecord, ..
         "profiles": [_profile(profile) for profile in bundle.profiles],
         "rollers": [_roller(roller) for roller in bundle.roller_occurrences],
         "sequences": _sequences(bundle.stations),
+        "rejected_composite_regions": [_jsonable(region) for region in getattr(bundle, "rejected_composite_regions", ())],
         "warnings": [_warning(warning) for warning in warnings],
     }
 
@@ -217,7 +281,8 @@ def _export_composite_flowers(bundle: ExtractionBundle, project_path: Path) -> t
                 path, export_warnings = _write_dxf(pass_dir / name, primitives, bundle.configuration_hash)
                 dxf_files.append(path)
                 warnings.extend(export_warnings)
-            _write_json(pass_dir / "profile.json", _composite_pass_payload(item, units_confirmed, factor))
+            feature = bundle.pass_features.get((composite.composite_flower_id, item.pass_id))
+            _write_json(pass_dir / "profile.json", _composite_pass_payload(item, units_confirmed, factor, feature))
             _write_json(pass_dir / "profile_geometry.json", _composite_geometry_payload(item, original_primitives))
             _write_json(pass_dir / "source_entities.json", {"entities": [_source_entity(entity) for entity in entities]})
             _write_json(pass_dir / "transform.json", {"matrix_4x4": item.transform_matrix_4x4})
@@ -226,7 +291,6 @@ def _export_composite_flowers(bundle: ExtractionBundle, project_path: Path) -> t
             render_drawing_preview(_preview_entities_from_primitives(f"{item.pass_id}_normalized", normalized_primitives), pass_dir / "profile_normalized.png")
             render_drawing_preview(_preview_entities_from_primitives(f"{item.pass_id}_outline", original_primitives), pass_dir / "profile_outline.png")
             render_drawing_preview(_preview_entities_from_primitives(f"{item.pass_id}_neutral", item.neutral_line_primitives), pass_dir / "profile_neutral_line.png")
-            feature = bundle.pass_features.get((composite.composite_flower_id, item.pass_id))
             if feature is not None:
                 _write_json(pass_dir / "pass_features.json", feature.to_dict())
                 _write_json(pass_dir / "pass_feature_vector.json", {"schema_version": feature.schema_version, "scalar": _jsonable(feature.scalar_vector), "shape": _jsonable(feature.shape_vector), "full": _jsonable(feature.full_vector), "fingerprints": _jsonable(feature.fingerprints)})
@@ -305,7 +369,9 @@ def _composite_summary(composite, units_confirmed: bool) -> dict[str, Any]:
     }
 
 
-def _composite_pass_payload(item, units_confirmed: bool, factor: float) -> dict[str, Any]:
+def _composite_pass_payload(item, units_confirmed: bool, factor: float, feature=None) -> dict[str, Any]:
+    outline_perimeter = feature.geometry.contour.get("perimeter") if feature is not None else None
+    outline_perimeter_mm = outline_perimeter * factor if units_confirmed and outline_perimeter is not None else None
     return {
         "pass_id": item.pass_id,
         "composite_flower_id": item.composite_flower_id,
@@ -317,6 +383,14 @@ def _composite_pass_payload(item, units_confirmed: bool, factor: float) -> dict[
         "source_handles": list(item.source_handles),
         "source_layers": list(item.source_layers),
         "developed_length_drawing_units": item.developed_length,
+        "outline_perimeter_drawing_units": outline_perimeter,
+        "outline_perimeter_mm": outline_perimeter_mm,
+        "generated_neutral_developed_length_drawing_units": item.neutral_line_developed_length,
+        "generated_neutral_developed_length_mm": item.neutral_line_developed_length * factor if units_confirmed else None,
+        "expected_neutral_developed_length_drawing_units": item.expected_neutral_length,
+        "expected_neutral_developed_length_mm": item.expected_neutral_length * factor if units_confirmed and item.expected_neutral_length is not None else None,
+        "neutral_length_error_drawing_units": item.neutral_length_error,
+        "neutral_length_error_mm": item.neutral_length_error * factor if units_confirmed and item.neutral_length_error is not None else None,
         "expected_neutral_length": item.expected_neutral_length,
         "generated_neutral_length": item.neutral_line_developed_length,
         "neutral_length_error": item.neutral_length_error,

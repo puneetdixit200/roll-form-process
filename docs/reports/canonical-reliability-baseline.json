@@ -1,0 +1,36 @@
+{
+  "captured_at": "2026-08-02",
+  "repository": "puneetdixit200/roll-form-process",
+  "working_tree": "main before remediation branch; generated pilot output had been locally augmented by the prior offline report experiment",
+  "starting_sha": "c428714507eda2d9f6a98ee35280a13875b8c0e3",
+  "pilot_project_path": "/home/pd/rollform-extractor/.worktrees/implementation/output/D0064-D0065-FlowerSequence",
+  "source_drawing": "/home/pd/Downloads/D0064-D0065-FlowerSequence.dwg",
+  "command": "rollform-extractor validate /home/pd/rollform-extractor/.worktrees/implementation/output/D0064-D0065-FlowerSequence",
+  "exit_code": 1,
+  "validator_output": [
+    "hash_mismatch: report.html",
+    "hash_mismatch: report_data.json",
+    "feature_pass_count: 12 feature sets for 19 composite passes"
+  ],
+  "manifest_hash_details": {
+    "available_from_baseline_validator": false,
+    "note": "The pre-remediation validator emitted only paths, not expected/actual digests. The remediation adds those digests to JSON diagnostics; no hash values are fabricated here.",
+    "mismatches": ["report.html", "report_data.json"]
+  },
+  "baseline_counts": {
+    "composite_flowers_reported": 2,
+    "composite_passes_reported": 19,
+    "feature_sets_reported": 12,
+    "stations": 30,
+    "drawing_sequences": 2,
+    "units_confirmed": false,
+    "pass_order_confirmed": false
+  },
+  "root_cause_observed": [
+    "report_data.json and report.html had been manually augmented with a derived second flower viewer without canonical domain records",
+    "manifest was generated before those generated files were changed",
+    "the validator did not expose expected and actual hash values",
+    "the project had no readiness gate for engineer-confirmed units/order"
+  ],
+  "evidence_status": "BASELINE_FAILURE_RECORDED"
+}

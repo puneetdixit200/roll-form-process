@@ -5,13 +5,13 @@ from typing import Any, Iterable, Mapping
 
 
 def profile_step_changes(passes: Iterable[Any]) -> tuple[dict[str, Any], ...]:
-    ordered = tuple(sorted(passes, key=lambda item: item.inferred_order))
+    ordered = tuple(sorted(passes, key=_effective_order))
     return tuple(_profile_step_change(left, right) for left, right in zip(ordered, ordered[1:]))
 
 
 def bend_change_events(passes: Iterable[Any]) -> tuple[dict[str, Any], ...]:
     rows: list[dict[str, Any]] = []
-    ordered = tuple(sorted(passes, key=lambda item: item.inferred_order))
+    ordered = tuple(sorted(passes, key=_effective_order))
     for left, right in zip(ordered, ordered[1:]):
         previous = {str(bend["bend_id"]): bend for bend in left.physical_bends}
         current = {str(bend["bend_id"]): bend for bend in right.physical_bends}
@@ -24,7 +24,7 @@ def bend_change_events(passes: Iterable[Any]) -> tuple[dict[str, Any], ...]:
 
 def segment_change_events(passes: Iterable[Any]) -> tuple[dict[str, Any], ...]:
     rows: list[dict[str, Any]] = []
-    ordered = tuple(sorted(passes, key=lambda item: item.inferred_order))
+    ordered = tuple(sorted(passes, key=_effective_order))
     for left, right in zip(ordered, ordered[1:]):
         left_segments = _segments(left)
         right_segments = _segments(right)
@@ -319,3 +319,8 @@ def _num(value: Any) -> float | None:
 
 def _distance(left: tuple[float, float, float], right: tuple[float, float, float]) -> float:
     return math.hypot(float(right[0]) - float(left[0]), float(right[1]) - float(left[1]))
+
+
+def _effective_order(item: Any) -> int:
+    confirmed = getattr(item, "confirmed_order", None)
+    return int(confirmed if confirmed is not None else getattr(item, "inferred_order", 0))

@@ -57,6 +57,7 @@ class ExtractionBundle:
     assemblies: tuple[Any, ...] = ()
     transitions: tuple[StationTransitionRecord, ...] = ()
     composite_flowers: tuple[Any, ...] = ()
+    rejected_composite_regions: tuple[Any, ...] = ()
     pass_features: Mapping[FeatureKey, PassFeatureSet] = field(default_factory=dict)
     warnings: tuple[WarningRecord, ...] = ()
 
@@ -237,6 +238,22 @@ class CompositeFlower(Base):
     sequence_confidence: Mapped[float | None] = mapped_column(Float)
     confirmed: Mapped[bool] = mapped_column(Integer)
     source_bbox_json: Mapped[dict[str, float] | None] = mapped_column(JSON)
+    stable_identity: Mapped[str | None] = mapped_column(String)
+    identity_algorithm_version: Mapped[str] = mapped_column(String, default="composite_identity_v1")
+    legacy_composite_flower_id: Mapped[str | None] = mapped_column(String)
+
+
+class RejectedCompositeRegion(Base):
+    __tablename__ = "rejected_composite_regions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    source_region_id: Mapped[str] = mapped_column(String)
+    source_handles_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    detected_profile_count: Mapped[int] = mapped_column(Integer)
+    valid_profile_count: Mapped[int] = mapped_column(Integer)
+    missing_canonical_passes_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    rejection_reasons_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    identity_algorithm_version: Mapped[str] = mapped_column(String)
 
 
 class CompositeFlowerPass(Base):
@@ -530,6 +547,22 @@ class ResultProvenance(Base):
     configuration_hash: Mapped[str] = mapped_column(String)
     confidence: Mapped[float] = mapped_column(Float)
     warning: Mapped[str | None] = mapped_column(Text)
+
+
+class EngineeringReviewEvent(Base):
+    __tablename__ = "engineering_review_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    review_id: Mapped[str] = mapped_column(String)
+    schema_version: Mapped[int] = mapped_column(Integer)
+    action: Mapped[str] = mapped_column(String)
+    reviewer: Mapped[str] = mapped_column(String)
+    review_sha256: Mapped[str] = mapped_column(String)
+    source_sha256: Mapped[str] = mapped_column(String)
+    starting_manifest_sha256: Mapped[str | None] = mapped_column(String)
+    resulting_manifest_sha256: Mapped[str | None] = mapped_column(String)
+    payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 
 class ProjectCode(Base):
@@ -1067,6 +1100,14 @@ def _upgrade_schema(engine: Engine) -> None:
         "thickness_confidence": "FLOAT",
         "engineer_confirmed_thickness": "FLOAT",
     }
+    composite_flower_columns = {
+        "stable_identity": "VARCHAR",
+        "identity_algorithm_version": "VARCHAR",
+        "legacy_composite_flower_id": "VARCHAR",
+    }
+    provenance_columns = {
+        "warning": "TEXT",
+    }
     with engine.begin() as connection:
         table_names = {row[0] for row in connection.exec_driver_sql("select name from sqlite_master where type='table'")}
         if "composite_flower_passes" in table_names:
@@ -1074,6 +1115,16 @@ def _upgrade_schema(engine: Engine) -> None:
             for name, sql_type in composite_pass_columns.items():
                 if name not in existing:
                     connection.exec_driver_sql(f"ALTER TABLE composite_flower_passes ADD COLUMN {name} {sql_type}")
+        if "composite_flowers" in table_names:
+            existing = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(composite_flowers)")}
+            for name, sql_type in composite_flower_columns.items():
+                if name not in existing:
+                    connection.exec_driver_sql(f"ALTER TABLE composite_flowers ADD COLUMN {name} {sql_type}")
+        if "result_provenance" in table_names:
+            existing = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(result_provenance)")}
+            for name, sql_type in provenance_columns.items():
+                if name not in existing:
+                    connection.exec_driver_sql(f"ALTER TABLE result_provenance ADD COLUMN {name} {sql_type}")
     _migrate_legacy_roller_catalog(engine)
 
 
@@ -1131,6 +1182,17 @@ def persist_extraction(engine: Engine, bundle: ExtractionBundle) -> int:
             entity_rows = {row.handle: row for row in session.scalars(select(CadEntity).where(CadEntity.project_id == project_id))}
             for composite in bundle.composite_flowers:
                 _add_composite_flower(session, project_id, composite, entity_rows, bundle.pass_features)
+            for region in bundle.rejected_composite_regions:
+                session.add(RejectedCompositeRegion(
+                    project_id=project_id,
+                    source_region_id=region.source_region_id,
+                    source_handles_json=list(region.source_handles),
+                    detected_profile_count=region.detected_profile_count,
+                    valid_profile_count=region.valid_profile_count,
+                    missing_canonical_passes_json=list(region.missing_canonical_passes),
+                    rejection_reasons_json=list(region.rejection_reasons),
+                    identity_algorithm_version=region.identity_algorithm_version,
+                ))
             for warning in bundle.warnings:
                 session.add(_warning(project_id, warning))
     except Exception as exc:
@@ -1177,6 +1239,7 @@ def _clear_current_project_results(session: Session, project_id: int) -> None:
     ):
         session.execute(delete(model))
     session.execute(delete(CompositeFlower).where(CompositeFlower.project_id == project_id))
+    session.execute(delete(RejectedCompositeRegion).where(RejectedCompositeRegion.project_id == project_id))
     for model in (
         ProjectRollUsage,
         RollerOccurrence,
@@ -1362,6 +1425,9 @@ def _add_composite_flower(session: Session, project_id: int, composite: Any, ent
         sequence_confidence=composite.sequence_confidence,
         confirmed=bool(composite.confirmed),
         source_bbox_json=_bbox(composite.source_bbox),
+        stable_identity=composite.stable_identity or None,
+        identity_algorithm_version=composite.identity_algorithm_version,
+        legacy_composite_flower_id=composite.legacy_composite_flower_id or composite.composite_flower_id,
     )
     session.add(row)
     session.flush()

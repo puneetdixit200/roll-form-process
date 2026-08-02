@@ -11,7 +11,7 @@ from rollform_extractor.models import BBox, CadEntityRecord, STAGE_TYPES, Statio
 
 
 SCHEMA_VERSION = 1
-VALID_UNITS = {"mm", "millimeter", "millimetre", "in", "inch", "inches"}
+VALID_UNITS = {"mm", "millimeter", "millimeters", "millimetre", "millimetres", "in", "inch", "inches"}
 VALID_ROLLER_ROLES = {
     "upper",
     "lower",

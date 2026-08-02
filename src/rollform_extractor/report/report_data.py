@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -7,6 +8,7 @@ from rollform_extractor.database import ExtractionBundle
 from rollform_extractor.models import BBox, CadPrimitive, ProfileRecord, RollerOccurrenceRecord, StationRecord, WarningRecord
 from rollform_extractor.transition_analysis import bend_change_events, profile_step_changes, segment_change_events
 from rollform_extractor.pass_features import PASS_FEATURE_SCHEMA_VERSION, FeatureKey
+from rollform_extractor.pass_alignment import align_passes_to_stations, build_alignment_candidates
 
 
 def build_report_data(bundle: ExtractionBundle, project_path: Path, warnings: tuple[WarningRecord, ...]) -> dict[str, Any]:
@@ -31,17 +33,31 @@ def build_report_data(bundle: ExtractionBundle, project_path: Path, warnings: tu
             "confirmed_transitions": len(getattr(bundle, "transitions", ())),
             "feature_summary": _feature_summary(bundle),
         },
+        "manual_review_decisions": _latest_review_decisions(project_path),
         "sequences": _individual_sequences(stations, profiles_by_station, rollers_by_station, project_path),
         "composite_flowers": [
             _composite_flower(composite, project_path, getattr(bundle, "pass_features", {}))
             for composite in getattr(bundle, "composite_flowers", ())
         ],
+        "rejected_composite_regions": [_jsonable(region) for region in getattr(bundle, "rejected_composite_regions", ())],
         "stages": [_stage(station, profiles_by_station[station.station_id], rollers_by_station[station.station_id], project_path, stations) for station in stations],
         "roller_candidates": [_roller(roller) for roller in bundle.roller_occurrences],
         "assemblies": [_jsonable(assembly) for assembly in getattr(bundle, "assemblies", ())],
         "transitions": [_jsonable(transition) for transition in getattr(bundle, "transitions", ())],
         "warnings": [_warning(warning) for warning in warnings],
     }
+
+
+def _latest_review_decisions(project_path: Path) -> dict[str, Any]:
+    review_dir = project_path / "review"
+    candidates = sorted(review_dir.glob("applied_review*.json")) if review_dir.exists() else []
+    if not candidates:
+        return {}
+    try:
+        value = json.loads(candidates[-1].read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return value if isinstance(value, dict) else {}
 
 
 def _individual_sequences(stations, profiles_by_station, rollers_by_station, project_path: Path) -> list[dict[str, Any]]:
@@ -133,6 +149,14 @@ def _composite_pass(item, pass_root: Path, project_path: Path, feature=None) -> 
         "source_layers": list(item.source_layers),
         "developed_length_drawing_units": item.developed_length,
         "developed_length_mm": None,
+        "outline_perimeter_drawing_units": (feature.geometry.contour.get("perimeter") if feature is not None else None),
+        "outline_perimeter_mm": (feature.geometry.contour.get("perimeter_mm") if feature is not None else None),
+        "generated_neutral_developed_length_drawing_units": item.neutral_line_developed_length,
+        "generated_neutral_developed_length_mm": None,
+        "expected_neutral_developed_length_drawing_units": item.expected_neutral_length,
+        "expected_neutral_developed_length_mm": None,
+        "neutral_length_error_drawing_units": item.neutral_length_error,
+        "neutral_length_error_mm": None,
         "expected_neutral_length": item.expected_neutral_length,
         "generated_neutral_length": item.neutral_line_developed_length,
         "neutral_length_error": item.neutral_length_error,
@@ -242,30 +266,47 @@ def _length_classification(percent: float | None) -> str:
 
 
 def _station_alignment(passes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    rows = []
-    last_order = -1
+    raw = []
     for item in passes:
-        match = next(iter(item.get("individual_profile_matches", ())), None)
+        for match in item.get("individual_profile_matches", ()):
+            if match.get("candidate_station_id"):
+                raw.append({**match, "composite_flower_id": item["sequence_id"], "pass_id": item["pass_id"], "profile_id": item.get("profile_id"), "pass_order": item.get("inferred_order", 0)})
+    station_ids = sorted(
+        [row["candidate_station_id"] for row in raw if row.get("candidate_station_id")],
+        key=lambda station: (_station_sort_key(station), station),
+    )
+    index_by_station = {station: index for index, station in enumerate(dict.fromkeys(station_ids))}
+    candidates = build_alignment_candidates([{**row, "candidate_station_order": index_by_station[row["candidate_station_id"]]} for row in raw])
+    result = align_passes_to_stations([item["pass_id"] for item in passes], station_ids, candidates, minimum_pair_score=0.0)
+    by_pass = {candidate.pass_id: candidate for candidate in result.matches}
+    rows = []
+    for item in passes:
+        match = by_pass.get(item["pass_id"])
         if match is None:
             rows.append(_unmatched_alignment(item))
             continue
-        last_order = max(last_order + 1, item["inferred_order"])
-        rows.append(
-            {
-                "composite_pass_id": item["pass_id"],
-                "individual_profile_id": match.get("individual_profile_id"),
-                "sequence_id": item["sequence_id"],
-                "drawing_stage_id": match.get("individual_profile_id"),
-                "inferred_station_order": last_order,
-                "similarity_score": match.get("similarity_score"),
-                "contour_difference": match.get("geometric_difference"),
-                "bend_signature_difference": None,
-                "developed_length_difference": None,
-                "link_status": "EXACT_CANDIDATE" if match.get("exact_match") else "SIMILAR_CANDIDATE",
-                "engineer_confirmed": False,
-            }
-        )
+        rows.append({
+            "composite_pass_id": item["pass_id"],
+            "individual_profile_id": match.candidate_profile_id,
+            "sequence_id": match.candidate_sequence_id,
+            "drawing_stage_id": match.candidate_station_id,
+            "inferred_station_order": match.candidate_station_order,
+            "similarity_score": match.score,
+            "contour_difference": 1.0 - match.score,
+            "bend_signature_difference": match.bend_signature_difference,
+            "developed_length_difference": match.developed_length_difference,
+            "link_status": "EXACT_CANDIDATE" if match.score >= 0.995 else "SIMILAR_CANDIDATE",
+            "engineer_confirmed": False,
+            "alignment_status": result.status,
+        })
     return rows
+
+
+def _station_sort_key(station_id: str) -> tuple[int, str]:
+    try:
+        return int(str(station_id).rsplit("_S", 1)[1]), str(station_id)
+    except (IndexError, ValueError):
+        return (10**9, str(station_id))
 
 
 def _unmatched_alignment(item: dict[str, Any]) -> dict[str, Any]:

@@ -1,0 +1,155 @@
+{
+  "baseline": {
+    "baseline_counts": {
+      "composite_flowers_reported": 2,
+      "composite_passes_reported": 19,
+      "drawing_sequences": 2,
+      "feature_sets_reported": 12,
+      "pass_order_confirmed": false,
+      "stations": 30,
+      "units_confirmed": false
+    },
+    "captured_at": "2026-08-02",
+    "command": "rollform-extractor validate /home/pd/rollform-extractor/.worktrees/implementation/output/D0064-D0065-FlowerSequence",
+    "evidence_status": "BASELINE_FAILURE_RECORDED",
+    "exit_code": 1,
+    "manifest_hash_details": {
+      "available_from_baseline_validator": false,
+      "mismatches": [
+        "report.html",
+        "report_data.json"
+      ],
+      "note": "The pre-remediation validator emitted only paths, not expected/actual digests. The remediation adds those digests to JSON diagnostics; no hash values are fabricated here."
+    },
+    "pilot_project_path": "/home/pd/rollform-extractor/.worktrees/implementation/output/D0064-D0065-FlowerSequence",
+    "repository": "puneetdixit200/roll-form-process",
+    "root_cause_observed": [
+      "report_data.json and report.html had been manually augmented with a derived second flower viewer without canonical domain records",
+      "manifest was generated before those generated files were changed",
+      "the validator did not expose expected and actual hash values",
+      "the project had no readiness gate for engineer-confirmed units/order"
+    ],
+    "source_drawing": "/home/pd/Downloads/D0064-D0065-FlowerSequence.dwg",
+    "starting_sha": "c428714507eda2d9f6a98ee35280a13875b8c0e3",
+    "validator_output": [
+      "hash_mismatch: report.html",
+      "hash_mismatch: report_data.json",
+      "feature_pass_count: 12 feature sets for 19 composite passes"
+    ],
+    "working_tree": "main before remediation branch; generated pilot output had been locally augmented by the prior offline report experiment"
+  },
+  "before_after": {
+    "accepted_composite_flowers": {
+      "baseline": 2,
+      "corrected": 1
+    },
+    "accepted_composite_passes": {
+      "baseline": 19,
+      "corrected": 12
+    },
+    "feature_sets": {
+      "baseline": 12,
+      "corrected": 12
+    },
+    "hash_mismatches": {
+      "baseline": 2,
+      "corrected": 0
+    }
+  },
+  "blockers": [
+    "drawing units are not engineer-confirmed",
+    "pass order is not engineer-confirmed"
+  ],
+  "branch": "fix/canonical-extraction-reliability",
+  "current_readiness": {
+    "blockers": [
+      "drawing units are not engineer-confirmed",
+      "pass order is not engineer-confirmed"
+    ],
+    "canonical_geometry": "PASS",
+    "counts": {
+      "composite_flowers": 1,
+      "composite_passes": 12,
+      "feature_sets": 12
+    },
+    "determinism": "PASS",
+    "eligible_for_corpus_import": false,
+    "exit_code": 1,
+    "feature_completeness": "PASS",
+    "manifest_validation": "PASS",
+    "pass_order_confirmation": "BLOCKED",
+    "status": "BLOCKED",
+    "structural_validation": "PASS",
+    "units_confirmation": "BLOCKED"
+  },
+  "current_validation": {
+    "counts": {
+      "composite_flowers": 1,
+      "composite_passes": 12,
+      "database_composite_flowers": 1,
+      "database_composite_passes": 12,
+      "database_feature_sets": 12,
+      "feature_sets": 12,
+      "sequences": 2,
+      "stations": 30
+    },
+    "exit_code": 0,
+    "issues": [],
+    "project_path": "output/D0064-D0065-FlowerSequence",
+    "readiness": {
+      "deterministic": true,
+      "eligible_for_corpus_import": false,
+      "order_confirmed": false,
+      "units_confirmed": false
+    },
+    "valid": true
+  },
+  "decisions": {
+    "pilot_dataset_readiness": "BLOCKED",
+    "pilot_engineering_confirmation": "NOT CONFIRMED",
+    "pilot_structural_validity": "PASS",
+    "remaining_drawings": "KEEP QUARANTINED",
+    "software_remediation": "PASS"
+  },
+  "determinism_evidence": {
+    "equal": true,
+    "left_hash": "16eda59094f4b1a3a136c8bc18ffa38cdcbe1b320f7a261199956625ead837b3",
+    "mismatches": [],
+    "right_hash": "16eda59094f4b1a3a136c8bc18ffa38cdcbe1b320f7a261199956625ead837b3"
+  },
+  "generated_at": "2026-08-02T15:18:46.610500+00:00",
+  "length_examples": [
+    {
+      "expected_neutral_length": 94.00114822387695,
+      "generated_neutral_length": 94.00114822387695,
+      "neutral_length_error": 0.0,
+      "outline_perimeter": 190.0022964477539,
+      "pass_id": "pass_00_flat"
+    },
+    {
+      "expected_neutral_length": 94.0823686655228,
+      "generated_neutral_length": 94.080799716601,
+      "neutral_length_error": -0.0015689489217862729,
+      "outline_perimeter": 190.16527097614545,
+      "pass_id": "pass_01"
+    },
+    {
+      "expected_neutral_length": 94.14893097619716,
+      "generated_neutral_length": 94.1256907638869,
+      "neutral_length_error": -0.02324021231027018,
+      "outline_perimeter": 190.29776579277984,
+      "pass_id": "pass_02"
+    }
+  ],
+  "limitations": [
+    "Drawing units are not engineer-confirmed in the current pilot.",
+    "Pass order and station alignment require engineer confirmation.",
+    "Normalized descriptors are engineering features, not trusted retrieval data.",
+    "The remaining drawing corpus remains quarantined.",
+    "No production approval is implied."
+  ],
+  "project_path": "output/D0064-D0065-FlowerSequence",
+  "repository": "puneetdixit200/roll-form-process",
+  "schema_version": 1,
+  "starting_sha": "c428714507eda2d9f6a98ee35280a13875b8c0e3"
+}
