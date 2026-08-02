@@ -9,7 +9,9 @@ Phase 18 is merged and tagged as `phase-18-v1`.
 - Tag: `phase-18-v1`
 - Tag target: `2675d145f72a72ae306c2daa5c7b5b7a58d0be58`
 - Tag object: `92ae699974776eb28c23c97d2d48f975fed382e9`
-- Release-record workflow: pending until this documentation commit executes on `main`.
+- Release-record commit: `3049ea5e3b79b1aa13b049667589c0dbf3f57012`
+- Release-record workflow: [30744498852](https://github.com/puneetdixit200/roll-form-process/actions/runs/30744498852) — PASS
+- This post-release documentation correction records the exact release-record commit and workflow above; the correction commit is the current post-release `main` documentation state.
 - Readiness report: [Phase 18 HTML evidence](../reports/phase-18-release-readiness.html)
 
 The release provides versioned engineer-labelled datasets, independent review,
