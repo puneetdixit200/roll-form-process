@@ -1,0 +1,25 @@
+{
+  "dataset_kind": "SYNTHETIC",
+  "designs": [
+    {"design_id": "RDES-001", "assets": ["SYN-ASSET-001", "SYN-ASSET-002"], "revisions": ["RREV-001", "RREV-001-REGROUND"], "shape": [0.0, 1.0, 0.0, 1.0], "diameter": 100.0, "bore": 40.0, "width": 60.0, "role": "upper_upper"},
+    {"design_id": "RDES-002", "assets": ["SYN-ASSET-003"], "revisions": ["RREV-002"], "shape": [0.0, 0.8, 0.2, 1.0], "diameter": 110.0, "bore": 40.0, "width": 60.0, "role": "lower_lower"},
+    {"design_id": "RDES-003", "assets": ["SYN-ASSET-004"], "revisions": ["RREV-003"], "shape": [0.1, 0.9, 0.1, 0.9], "diameter": 120.0, "bore": 45.0, "width": 65.0, "role": "upper_left"},
+    {"design_id": "RDES-004", "assets": ["SYN-ASSET-005"], "revisions": ["RREV-004"], "shape": [0.2, 0.7, 0.3, 0.8], "diameter": 90.0, "bore": 35.0, "width": 55.0, "role": "lower_right"},
+    {"design_id": "RDES-005", "assets": ["SYN-ASSET-006"], "revisions": ["RREV-005"], "shape": [0.3, 0.6, 0.4, 0.7], "diameter": 130.0, "bore": 50.0, "width": 70.0, "role": "upper_right"},
+    {"design_id": "RDES-006", "assets": ["SYN-ASSET-007"], "revisions": ["RREV-006"], "shape": [0.4, 0.5, 0.5, 0.6], "diameter": 80.0, "bore": 30.0, "width": 50.0, "role": "lower_left"},
+    {"design_id": "RDES-007", "assets": ["SYN-ASSET-008"], "revisions": ["RREV-007"], "shape": [0.5, 0.4, 0.6, 0.5], "diameter": 140.0, "bore": 55.0, "width": 75.0, "role": "upper_upper"},
+    {"design_id": "RDES-008", "assets": ["SYN-ASSET-009"], "revisions": ["RREV-008-SUPERSEDED"], "shape": [0.6, 0.3, 0.7, 0.4], "diameter": 150.0, "bore": 60.0, "width": 80.0, "role": "lower_lower", "superseded": true}
+  ],
+  "cases": [
+    {"occurrence_id": "CASE-EXACT-ID", "expected_design_id": "RDES-001", "kind": "exact_identifier", "units_status": "CONFIRMED"},
+    {"occurrence_id": "CASE-EXACT-FP", "expected_design_id": "RDES-002", "kind": "exact_fingerprint", "units_status": "CONFIRMED"},
+    {"occurrence_id": "CASE-NEAR", "expected_design_id": "RDES-003", "kind": "near_geometry", "units_status": "CONFIRMED"},
+    {"occurrence_id": "CASE-MIRROR", "expected_design_id": "RDES-004", "kind": "mirrored_profile", "units_status": "CONFIRMED"},
+    {"occurrence_id": "CASE-WRONG-BORE", "expected_design_id": "RDES-005", "kind": "hard_negative_wrong_bore", "units_status": "CONFIRMED", "bore": 22.0},
+    {"occurrence_id": "CASE-ROLE", "expected_design_id": "RDES-006", "kind": "role_mismatch", "units_status": "CONFIRMED", "role": "upper_upper"},
+    {"occurrence_id": "CASE-UNKNOWN-UNITS", "expected_design_id": "RDES-007", "kind": "unknown_units", "units_status": "UNKNOWN"},
+    {"occurrence_id": "CASE-NO-MATCH", "expected_design_id": null, "kind": "true_no_match", "units_status": "CONFIRMED", "diameter": 999.0},
+    {"occurrence_id": "CASE-AMBIGUOUS", "expected_design_id": null, "kind": "ambiguous_pair", "units_status": "CONFIRMED"},
+    {"occurrence_id": "CASE-INVALID", "expected_design_id": null, "kind": "invalid_geometry", "units_status": "CONFIRMED"}
+  ]
+}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { applyReview, artifactUrl, getArtifacts, getInventoryDesigns, getInventoryStats, getJob, getProject, getReportData, inventoryExportUrl, importInventory, uploadDrawing, validateInventory } from "./api/client";
+import { applyReview, artifactUrl, createRecognitionRun, getArtifacts, getInventoryDesigns, getInventoryStats, getJob, getProject, getRecognitionCandidates, getRecognitionRuns, getReportData, inventoryExportUrl, importInventory, reviewRecognitionCandidate, uploadDrawing, validateInventory } from "./api/client";
 import type { CompositeFlower, FlowerPass, JobRecord, ProjectRecord, ReportData, StepChange } from "./types/report";
 import "./styles.css";
 
@@ -86,7 +86,7 @@ export default function App() {
           <h1>Rollform Extractor</h1>
           <p>Candidate extraction - not approved for production use</p>
         </div>
-        <nav>{["Dashboard", "New Project / Upload", "Processing Progress", "Project Summary", "Flower Viewer", "Pass Detail", "What Changed", "Bend-Zone Progression", "Warnings", "Engineer Review", "Exports", "Inventory"].map((item) => <a href={`#${item.replaceAll(" ", "-")}`} key={item}>{item}</a>)}</nav>
+        <nav>{["Dashboard", "New Project / Upload", "Processing Progress", "Project Summary", "Flower Viewer", "Pass Detail", "What Changed", "Bend-Zone Progression", "Warnings", "Engineer Review", "Exports", "Inventory", "Roller Recognition"].map((item) => <a href={`#${item.replaceAll(" ", "-")}`} key={item}>{item}</a>)}</nav>
       </header>
       <section id="Dashboard" className="panel"><Dashboard project={project} report={report} /></section>
       <section id="New-Project-/-Upload" className="panel"><Upload onUpload={onUpload} /></section>
@@ -102,6 +102,7 @@ export default function App() {
       <section id="Engineer-Review" className="panel"><EngineerReview onExport={exportReview} onApplyUnits={applyUnitReview} flower={flower} /></section>
       <section id="Exports" className="panel"><Exports projectId={projectId} artifacts={artifacts} /></section>
       <section id="Inventory" className="panel"><Inventory /></section>
+      <section id="Roller-Recognition" className="panel"><RollerRecognition projectId={projectId} /></section>
     </main>
   );
 }
@@ -114,6 +115,17 @@ function Inventory() {
   async function onFile(file: File, action: "validate" | "import") { setValidation(action === "validate" ? await validateInventory(file) : await importInventory(file)); await refresh(); }
   useEffect(() => { refresh().catch(() => undefined); }, []);
   return <><h2>Physical Roller Inventory</h2><p>Phase 16 inventory knowledge base. Candidate records only; no automatic recognition or tooling recommendation.</p><div className="metrics"><Metric label="Designs" value={stats?.designs ?? 0} /><Metric label="Physical assets" value={stats?.assets ?? 0} /><Metric label="Geometry revisions" value={stats?.geometry_revisions ?? 0} /><Metric label="Review rows" value={stats?.review_rows ?? 0} /></div><label>Validate CSV/XLSX <input type="file" accept=".csv,.xlsx,.xlsm" onChange={(event) => event.target.files?.[0] && onFile(event.target.files[0], "validate")} /></label><label>Import accepted rows <input type="file" accept=".csv,.xlsx,.xlsm" onChange={(event) => event.target.files?.[0] && onFile(event.target.files[0], "import")} /></label><a href={inventoryExportUrl()}>Export inventory CSV</a>{validation && <pre>{JSON.stringify(validation, null, 2)}</pre>}<h3>Roller designs</h3><table><thead><tr><th>Design</th><th>Name</th><th>Status</th></tr></thead><tbody>{designs.map((design) => <tr key={design.design_id}><td>{design.design_id}</td><td>{design.name ?? "-"}</td><td>{design.status}</td></tr>)}</tbody></table></>;
+}
+
+function RollerRecognition({ projectId }: { projectId: string }) {
+  const [runs, setRuns] = useState<{ id: number; status: string; algorithm_version: string; occurrence_count: number; candidate_count: number }[]>([]);
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [message, setMessage] = useState("");
+  async function refresh() { if (!projectId) return; const nextRuns = await getRecognitionRuns(projectId); setRuns(Array.isArray(nextRuns) ? nextRuns : []); if (nextRuns[0]) setCandidates(await getRecognitionCandidates(projectId, nextRuns[0].id)); }
+  useEffect(() => { refresh().catch(() => undefined); }, [projectId]);
+  async function run() { if (!projectId) return; setMessage("Running candidate recognition..."); await createRecognitionRun(projectId); await refresh(); setMessage("Candidate run completed. Physical asset identity was not assigned."); }
+  async function review(candidateId: number, decision: string) { if (!projectId) return; await reviewRecognitionCandidate(projectId, candidateId, { decision, reviewer: "engineer", reason_code: decision === "ACCEPT_CANDIDATE" ? "GEOMETRY_MATCH" : "OTHER" }); setMessage(`Review recorded: ${decision}`); }
+  return <><h2>Roller Recognition</h2><p><strong>Candidate design recognition only.</strong> Physical asset identity is not automatically determined.</p><button onClick={run} disabled={!projectId}>Run recognition</button><span>{message}</span><div className="metrics"><Metric label="Occurrences evaluated" value={runs[0]?.occurrence_count ?? 0} /><Metric label="Candidates" value={runs[0]?.candidate_count ?? 0} /><Metric label="Pending review" value={candidates.filter((item) => ["HIGH_SIMILARITY_CANDIDATE", "MEDIUM_SIMILARITY_CANDIDATE", "AMBIGUOUS"].includes(item.candidate_status)).length} /></div><table><thead><tr><th>Occurrence</th><th>Rank</th><th>Design</th><th>Revision</th><th>Score</th><th>Confidence</th><th>Status</th><th>Review</th></tr></thead><tbody>{candidates.map((item) => <tr key={item.id}><td>{item.occurrence_id ?? "-"}</td><td>{item.rank}</td><td>{item.design_id}</td><td>{item.geometry_revision_id}</td><td>{item.overall_score.toFixed(3)}</td><td>{item.confidence.toFixed(3)}</td><td>{item.candidate_status}</td><td><button onClick={() => review(item.id, "ACCEPT_CANDIDATE")}>Accept design</button><button onClick={() => review(item.id, "REJECT_CANDIDATE")}>Reject</button></td></tr>)}</tbody></table></>;
 }
 
 function Dashboard({ project, report }: { project: ProjectRecord | null; report: ReportData | null }) {

@@ -17,9 +17,10 @@ from rollform_extractor.database import (
     RollerAsset, RollerAuditEvent, RollerCompatibility, RollerConditionHistory,
     RollerDesign, RollerFileAsset, RollerGeometryRevision, RollerImportBatch,
     RollerImportRow, RollerLocation, RollerReviewDecision, RollerRegrindHistory,
-    create_project_database,
+    Project, RollerRecognitionCandidate, RollerRecognitionInput, RollerRecognitionReview, RollerRecognitionRun, create_project_database,
 )
 from rollform_extractor.roller_inventory import export_inventory, import_inventory, inventory_stats, validate_inventory
+from rollform_extractor.roller_recognition import recognize_project, review_candidate
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -41,6 +42,19 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
 
     def inventory_engine():
         return create_project_database(inventory_database)
+
+    def recognition_engine(project_id: str):
+        project_path = store.project_output_path(project_id)
+        if project_path is None or not (project_path / "project.sqlite").is_file():
+            raise HTTPException(status_code=404, detail="Project database not found")
+        return create_project_database(project_path / "project.sqlite")
+
+    def recognition_project_row(project_id: str, engine):
+        with Session(engine) as session:
+            row = session.scalar(select(Project).where(Project.drawing_id == project_id))
+            if row is None:
+                raise HTTPException(status_code=404, detail="Project not found")
+            return row.id
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
@@ -135,6 +149,70 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
             row.status = "ACCEPTED" if decision["decision"] == "ACCEPT" else "REJECTED"
             session.add(RollerReviewDecision(batch_id=batch_id, row_id=row_id, decision=decision["decision"], reviewer=str(decision.get("reviewer") or "engineer"), notes=decision.get("notes")))
             return {"row_id": row.id, "status": row.status}
+
+    @app.post("/api/projects/{project_id}/roller-recognition/runs")
+    def create_recognition_run(project_id: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
+        engine = recognition_engine(project_id)
+        numeric_id = recognition_project_row(project_id, engine)
+        options = options or {}
+        run_id, results = recognize_project(engine, numeric_id, units_status=str(options.get("units_status") or "UNKNOWN"), configuration_hash=str(options.get("configuration_hash") or ""))
+        return {"run_id": run_id, "project_id": project_id, "occurrence_count": len(results), "candidate_count": sum(len(item.candidates) for item in results)}
+
+    @app.get("/api/projects/{project_id}/roller-recognition/runs")
+    def recognition_runs(project_id: str) -> list[dict[str, Any]]:
+        engine = recognition_engine(project_id)
+        numeric_id = recognition_project_row(project_id, engine)
+        with Session(engine) as session:
+            return [{"id": row.id, "run_key": row.run_key, "status": row.status, "algorithm_version": row.algorithm_version, "configuration_hash": row.configuration_hash, "occurrence_count": row.occurrence_count, "candidate_count": row.candidate_count} for row in session.scalars(select(RollerRecognitionRun).where(RollerRecognitionRun.project_id == numeric_id).order_by(RollerRecognitionRun.id.desc()))]
+
+    @app.get("/api/projects/{project_id}/roller-recognition/runs/{run_id}")
+    def recognition_run(project_id: str, run_id: int) -> dict[str, Any]:
+        engine = recognition_engine(project_id)
+        numeric_id = recognition_project_row(project_id, engine)
+        with Session(engine) as session:
+            row = session.get(RollerRecognitionRun, run_id)
+            if row is None or row.project_id != numeric_id:
+                raise HTTPException(status_code=404, detail="Recognition run not found")
+            return {"id": row.id, "project_id": project_id, "status": row.status, "algorithm_version": row.algorithm_version, "feature_schema_version": row.feature_schema_version, "configuration_hash": row.configuration_hash, "inventory_snapshot_hash": row.inventory_snapshot_hash, "occurrence_count": row.occurrence_count, "candidate_count": row.candidate_count, "diagnostics": row.diagnostics_json}
+
+    @app.get("/api/projects/{project_id}/roller-recognition/runs/{run_id}/candidates")
+    def recognition_candidates(project_id: str, run_id: int) -> list[dict[str, Any]]:
+        engine = recognition_engine(project_id)
+        numeric_id = recognition_project_row(project_id, engine)
+        with Session(engine) as session:
+            run = session.get(RollerRecognitionRun, run_id)
+            if run is None or run.project_id != numeric_id:
+                raise HTTPException(status_code=404, detail="Recognition run not found")
+            rows = session.scalars(select(RollerRecognitionCandidate).where(RollerRecognitionCandidate.run_id == run_id).order_by(RollerRecognitionCandidate.input_id, RollerRecognitionCandidate.rank)).all()
+            return [{"id": row.id, "occurrence_id": session.get(RollerRecognitionInput, row.input_id).occurrence_id, "design_id": row.design_id, "geometry_revision_id": row.geometry_revision_id, "rank": row.rank, "overall_score": row.overall_score, "confidence": row.confidence, "evidence_coverage": row.evidence_coverage, "candidate_status": row.candidate_status, "components": row.component_scores_json, "hard_filters": row.hard_filter_results_json, "explanation": row.explanation_json} for row in rows]
+
+    @app.get("/api/projects/{project_id}/roller-recognition/occurrences/{occurrence_id}")
+    def recognition_occurrence(project_id: str, occurrence_id: str) -> dict[str, Any]:
+        engine = recognition_engine(project_id)
+        numeric_id = recognition_project_row(project_id, engine)
+        with Session(engine) as session:
+            run = session.scalar(select(RollerRecognitionRun).where(RollerRecognitionRun.project_id == numeric_id).order_by(RollerRecognitionRun.id.desc()))
+            if run is None:
+                raise HTTPException(status_code=404, detail="Recognition run not found")
+            input_row = session.scalar(select(RollerRecognitionInput).where(RollerRecognitionInput.run_id == run.id, RollerRecognitionInput.occurrence_id == occurrence_id))
+            if input_row is None:
+                raise HTTPException(status_code=404, detail="Recognition occurrence not found")
+            return {"input": input_row.feature_json, "candidates": [{"id": row.id, "design_id": row.design_id, "geometry_revision_id": row.geometry_revision_id, "rank": row.rank, "overall_score": row.overall_score, "confidence": row.confidence, "candidate_status": row.candidate_status, "components": row.component_scores_json, "hard_filters": row.hard_filter_results_json, "explanation": row.explanation_json} for row in session.scalars(select(RollerRecognitionCandidate).where(RollerRecognitionCandidate.input_id == input_row.id).order_by(RollerRecognitionCandidate.rank))]}
+
+    @app.post("/api/projects/{project_id}/roller-recognition/candidates/{candidate_id}/review")
+    def review_recognition_candidate(project_id: str, candidate_id: int, decision: dict[str, Any]) -> dict[str, Any]:
+        engine = recognition_engine(project_id)
+        numeric_id = recognition_project_row(project_id, engine)
+        with Session(engine) as session:
+            candidate = session.get(RollerRecognitionCandidate, candidate_id)
+            run = session.get(RollerRecognitionRun, candidate.run_id) if candidate else None
+            if candidate is None or run is None or run.project_id != numeric_id:
+                raise HTTPException(status_code=404, detail="Recognition candidate not found")
+        try:
+            review_id = review_candidate(engine, candidate_id, str(decision.get("decision") or ""), str(decision.get("reviewer") or "engineer"), selected_design_id=decision.get("selected_design_id"), selected_revision_id=decision.get("selected_revision_id"), reason_code=decision.get("reason_code"), notes=decision.get("notes"))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"review_id": review_id, "candidate_id": candidate_id}
 
     @app.post("/api/projects", status_code=202)
     async def upload_project(background: BackgroundTasks, file: UploadFile = File(...)) -> dict[str, str]:

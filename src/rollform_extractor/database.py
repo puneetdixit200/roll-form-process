@@ -735,6 +735,108 @@ class RollerAuditEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 
+class RollerRecognitionRun(Base):
+    __tablename__ = "roller_recognition_runs"
+    __table_args__ = (UniqueConstraint("project_id", "run_key"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    run_key: Mapped[str] = mapped_column(String)
+    algorithm_version: Mapped[str] = mapped_column(String)
+    feature_schema_version: Mapped[int] = mapped_column(Integer)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    inventory_snapshot_hash: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, default="COMPLETED")
+    occurrence_count: Mapped[int] = mapped_column(Integer, default=0)
+    candidate_count: Mapped[int] = mapped_column(Integer, default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    finished_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    diagnostics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class RollerRecognitionInput(Base):
+    __tablename__ = "roller_recognition_inputs"
+    __table_args__ = (UniqueConstraint("run_id", "occurrence_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("roller_recognition_runs.id", ondelete="CASCADE"))
+    occurrence_id: Mapped[str] = mapped_column(String)
+    station_id: Mapped[str | None] = mapped_column(String)
+    role: Mapped[str | None] = mapped_column(String)
+    feature_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    scalar_vector_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    shape_vector_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    missing_mask_json: Mapped[list[bool]] = mapped_column(JSON, default=list)
+    quality_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    physical_fingerprint: Mapped[str | None] = mapped_column(String)
+    shape_fingerprint: Mapped[str | None] = mapped_column(String)
+    source_handles_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    input_hash: Mapped[str] = mapped_column(String)
+
+
+class RollerRecognitionCandidate(Base):
+    __tablename__ = "roller_recognition_candidates"
+    __table_args__ = (UniqueConstraint("run_id", "input_id", "design_id", "geometry_revision_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("roller_recognition_runs.id", ondelete="CASCADE"))
+    input_id: Mapped[int] = mapped_column(ForeignKey("roller_recognition_inputs.id", ondelete="CASCADE"))
+    design_id: Mapped[str] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="CASCADE"))
+    geometry_revision_id: Mapped[str] = mapped_column(ForeignKey("roller_geometry_revisions.revision_id", ondelete="CASCADE"))
+    rank: Mapped[int] = mapped_column(Integer)
+    overall_score: Mapped[float] = mapped_column(Float)
+    confidence: Mapped[float] = mapped_column(Float)
+    evidence_coverage: Mapped[float] = mapped_column(Float)
+    candidate_status: Mapped[str] = mapped_column(String)
+    component_scores_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    hard_filter_results_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    explanation_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    algorithm_version: Mapped[str] = mapped_column(String)
+    configuration_hash: Mapped[str] = mapped_column(String)
+
+
+class RollerRecognitionReview(Base):
+    __tablename__ = "roller_recognition_reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("roller_recognition_candidates.id", ondelete="CASCADE"))
+    decision: Mapped[str] = mapped_column(String)
+    selected_design_id: Mapped[str | None] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="SET NULL"))
+    selected_revision_id: Mapped[str | None] = mapped_column(ForeignKey("roller_geometry_revisions.revision_id", ondelete="SET NULL"))
+    reviewer: Mapped[str] = mapped_column(String)
+    reason_code: Mapped[str | None] = mapped_column(String)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    supersedes_review_id: Mapped[int | None] = mapped_column(ForeignKey("roller_recognition_reviews.id", ondelete="SET NULL"))
+
+
+class RollerRecognitionLabel(Base):
+    __tablename__ = "roller_recognition_labels"
+    __table_args__ = (UniqueConstraint("occurrence_id", "expected_design_id", "label_source"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    occurrence_id: Mapped[str] = mapped_column(String)
+    expected_design_id: Mapped[str] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="CASCADE"))
+    expected_revision_id: Mapped[str | None] = mapped_column(ForeignKey("roller_geometry_revisions.revision_id", ondelete="SET NULL"))
+    label_source: Mapped[str] = mapped_column(String)
+    reviewer: Mapped[str | None] = mapped_column(String)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+
+class RollerRecognitionMetric(Base):
+    __tablename__ = "roller_recognition_metrics"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("roller_recognition_runs.id", ondelete="CASCADE"))
+    evaluation_set_hash: Mapped[str] = mapped_column(String)
+    metric_name: Mapped[str] = mapped_column(String)
+    metric_value: Mapped[float] = mapped_column(Float)
+    breakdown_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
 def create_project_database(path: Path) -> Engine:
     engine = create_engine(f"sqlite:///{path}")
 

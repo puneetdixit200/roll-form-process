@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["summary", "architecture", "algorithm", "synthetic_dataset", "evaluation", "tests", "determinism", "database", "api_frontend", "ci", "security", "risks", "decisions", "limitations"],
+  "properties": {
+    "summary": {"type": "object", "required": ["technical_result", "production_status", "branch", "feature_sha"]},
+    "architecture": {"type": "object"},
+    "algorithm": {"type": "object"},
+    "synthetic_dataset": {"type": "object"},
+    "evaluation": {"type": "object"},
+    "tests": {"type": "array"},
+    "determinism": {"type": "object"},
+    "database": {"type": "object"},
+    "api_frontend": {"type": "array"},
+    "ci": {"type": "object"},
+    "security": {"type": "array"},
+    "risks": {"type": "array"},
+    "decisions": {"type": "array"},
+    "limitations": {"type": "object"}
+  }
+}

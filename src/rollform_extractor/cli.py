@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 import sqlite3
@@ -9,6 +10,7 @@ import tempfile
 
 from rollform_extractor.batch import BatchRequest, batch_extract, validate_batch, write_batch_report
 from rollform_extractor.converter import stage_input
+from rollform_extractor.config import ExtractionConfig
 from rollform_extractor.dxf_reader import inspect_drawing
 from rollform_extractor.metadata_import import import_metadata
 from rollform_extractor.roller_inventory import (
@@ -19,6 +21,7 @@ from rollform_extractor.roller_inventory import (
     validate_inventory,
     write_inventory_template,
 )
+from rollform_extractor.roller_recognition import export_recognition_run, review_candidate, recognize_project
 from rollform_extractor.database import create_project_database
 from rollform_extractor.pipeline import ExtractionRequest, extract_project, reprocess_project
 from rollform_extractor.review_apply import ReviewApplyError, apply_review_decisions
@@ -72,6 +75,29 @@ def main(argv: list[str] | None = None) -> int:
     inventory_export_cmd.add_argument("output", type=Path)
     inventory_stats_cmd = sub.add_parser("roller-inventory-stats")
     inventory_stats_cmd.add_argument("--database", type=Path, default=Path("roller_inventory.sqlite"))
+    recognition_run_cmd = sub.add_parser("roller-recognition-run")
+    recognition_run_cmd.add_argument("project", type=Path)
+    recognition_run_cmd.add_argument("--inventory", type=Path, required=True)
+    recognition_run_cmd.add_argument("--output", type=Path, required=True)
+    recognition_show_cmd = sub.add_parser("roller-recognition-show")
+    recognition_show_cmd.add_argument("run_id", type=int)
+    recognition_show_cmd.add_argument("--database", type=Path, required=True)
+    recognition_review_cmd = sub.add_parser("roller-recognition-review")
+    recognition_review_cmd.add_argument("candidate_id", type=int)
+    recognition_review_cmd.add_argument("--decision", required=True)
+    recognition_review_cmd.add_argument("--reviewer", required=True)
+    recognition_review_cmd.add_argument("--database", type=Path, required=True)
+    recognition_review_cmd.add_argument("--selected-design")
+    recognition_review_cmd.add_argument("--selected-revision")
+    recognition_review_cmd.add_argument("--reason-code")
+    recognition_review_cmd.add_argument("--notes")
+    recognition_export_cmd = sub.add_parser("roller-recognition-export")
+    recognition_export_cmd.add_argument("run_id", type=int)
+    recognition_export_cmd.add_argument("output", type=Path)
+    recognition_export_cmd.add_argument("--database", type=Path, required=True)
+    recognition_evaluate_cmd = sub.add_parser("roller-recognition-evaluate")
+    recognition_evaluate_cmd.add_argument("labels", type=Path)
+    recognition_evaluate_cmd.add_argument("--database", type=Path, required=True)
     args = parser.parse_args(argv)
 
     if args.command == "inspect":
@@ -169,4 +195,86 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "roller-inventory-stats":
         print(json.dumps(inventory_stats(create_project_database(args.database)), sort_keys=True))
         return 0
+    if args.command == "roller-recognition-run":
+        try:
+            project_db = args.project / "project.sqlite"
+            if not project_db.exists():
+                raise ValueError(f"project database is missing: {project_db}")
+            if not args.inventory.exists():
+                raise ValueError(f"inventory database is missing: {args.inventory}")
+            # Recognition persistence is intentionally co-located with the
+            # project database so occurrence ownership and foreign keys remain
+            # enforceable. Inventory must have been migrated/imported into this
+            # database for a persisted run.
+            from sqlalchemy import select
+            from sqlalchemy.orm import Session
+            from rollform_extractor.database import Project
+            project_engine = create_project_database(project_db)
+            with Session(project_engine) as session:
+                project_row = session.scalar(select(Project).order_by(Project.id))
+            if project_row is None:
+                raise ValueError("project database has no project record")
+            recognition_config = ExtractionConfig.load()
+            run_id, results = recognize_project(project_engine, project_row.id, inventory_engine=create_project_database(args.inventory), configuration_hash=recognition_config.hash_for("roller_recognition"), config=recognition_config.roller_recognition)
+            args.output.mkdir(parents=True, exist_ok=True)
+            (args.output / "run_summary.json").write_text(json.dumps({"run_id": run_id, "results": [result.to_dict() for result in results]}, indent=2, sort_keys=True), encoding="utf-8")
+            print(json.dumps({"run_id": run_id, "occurrences": len(results), "output": str(args.output)}, sort_keys=True))
+            return 0
+        except (OSError, ValueError, RuntimeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "roller-recognition-review":
+        try:
+            review_id = review_candidate(create_project_database(args.database), args.candidate_id, args.decision, args.reviewer, selected_design_id=args.selected_design, selected_revision_id=args.selected_revision, reason_code=args.reason_code, notes=args.notes)
+        except (LookupError, ValueError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(json.dumps({"review_id": review_id, "decision": args.decision}, sort_keys=True))
+        return 0
+    if args.command == "roller-recognition-show":
+        from sqlalchemy import select
+        from sqlalchemy.orm import Session
+        from rollform_extractor.database import RollerRecognitionCandidate, RollerRecognitionRun
+        with Session(create_project_database(args.database)) as session:
+            run = session.get(RollerRecognitionRun, args.run_id)
+            if run is None:
+                print("recognition run not found", file=sys.stderr)
+                return 1
+            candidates = session.scalars(select(RollerRecognitionCandidate).where(RollerRecognitionCandidate.run_id == args.run_id).order_by(RollerRecognitionCandidate.rank)).all()
+            print(json.dumps({"run_id": run.id, "status": run.status, "algorithm_version": run.algorithm_version, "configuration_hash": run.configuration_hash, "candidates": [{"id": item.id, "design_id": item.design_id, "revision_id": item.geometry_revision_id, "rank": item.rank, "score": item.overall_score, "status": item.candidate_status} for item in candidates]}, sort_keys=True))
+            return 0
+    if args.command == "roller-recognition-export":
+        try:
+            print(export_recognition_run(create_project_database(args.database), args.run_id, args.output))
+        except (LookupError, OSError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        return 0
+    if args.command == "roller-recognition-evaluate":
+        from sqlalchemy import select
+        from sqlalchemy.orm import Session
+        from rollform_extractor.database import RollerRecognitionCandidate, RollerRecognitionInput, RollerRecognitionRun
+        labels = {}
+        with args.labels.open(newline="", encoding="utf-8-sig") as handle:
+            for row in csv.DictReader(handle):
+                if row.get("occurrence_id") and row.get("expected_design_id"):
+                    labels[row["occurrence_id"]] = row["expected_design_id"]
+        with Session(create_project_database(args.database)) as session:
+            run = session.scalar(select(RollerRecognitionRun).order_by(RollerRecognitionRun.id.desc()))
+            if run is None:
+                print(json.dumps({"sample_count": 0, "dataset_kind": "ENGINEER_LABELLED", "status": "NO_RUN"}, sort_keys=True))
+                return 1
+            inputs = {row.id: row.occurrence_id for row in session.scalars(select(RollerRecognitionInput).where(RollerRecognitionInput.run_id == run.id))}
+            grouped: dict[str, list[RollerRecognitionCandidate]] = {}
+            for row in session.scalars(select(RollerRecognitionCandidate).where(RollerRecognitionCandidate.run_id == run.id).order_by(RollerRecognitionCandidate.rank)):
+                grouped.setdefault(inputs.get(row.input_id, ""), []).append(row)
+            labelled = [(occurrence_id, grouped.get(occurrence_id, []), expected) for occurrence_id, expected in labels.items()]
+            top1 = sum(bool(rows and rows[0].design_id == expected) for _, rows, expected in labelled)
+            top3 = sum(any(row.design_id == expected for row in rows[:3]) for _, rows, expected in labelled)
+            reciprocal = sum((1 / (next(index for index, row in enumerate(rows) if row.design_id == expected) + 1) if any(row.design_id == expected for row in rows) else 0.0) for _, rows, expected in labelled)
+            abstained = sum(not rows or rows[0].candidate_status == "AMBIGUOUS" for _, rows, _ in labelled)
+            accepted = len(labelled) - abstained
+            result = {"run_id": run.id, "dataset_kind": "ENGINEER_LABELLED", "sample_count": len(labelled), "top_1_accuracy": top1 / len(labelled) if labelled else 0.0, "top_3_recall": top3 / len(labelled) if labelled else 0.0, "mean_reciprocal_rank": reciprocal / len(labelled) if labelled else 0.0, "abstention_rate": abstained / len(labelled) if labelled else 0.0, "coverage": accepted / len(labelled) if labelled else 0.0, "accuracy_non_abstained": sum(rows and rows[0].design_id == expected for _, rows, expected in labelled if rows and rows[0].candidate_status != "AMBIGUOUS") / accepted if accepted else 0.0, "false_high_confidence_count": sum(bool(rows and rows[0].confidence >= .9 and rows[0].design_id != expected) for _, rows, expected in labelled)}
+            print(json.dumps(result, sort_keys=True))
+            return 0
     return 2
