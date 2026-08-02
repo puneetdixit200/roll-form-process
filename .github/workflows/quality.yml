@@ -31,6 +31,12 @@ jobs:
           python scripts/run_phase17_synthetic.py --output /tmp/phase17-recognition-a.json
           python scripts/run_phase17_synthetic.py --output /tmp/phase17-recognition-b.json
           cmp --silent /tmp/phase17-recognition-a.json /tmp/phase17-recognition-b.json
+      - name: Phase 18 validation, migration, and determinism
+        run: |
+          python scripts/run_phase18_synthetic.py --output /tmp/phase18-a.json
+          python scripts/run_phase18_synthetic.py --output /tmp/phase18-b.json
+          cmp --silent /tmp/phase18-a.json /tmp/phase18-b.json
+          pytest -q tests/test_validated_usage.py
 
   frontend:
     runs-on: ubuntu-latest

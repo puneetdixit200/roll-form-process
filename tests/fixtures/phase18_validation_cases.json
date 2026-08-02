@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "kind": "SYNTHETIC",
+  "designs": 12,
+  "geometry_revisions": 15,
+  "physical_assets": 12,
+  "projects": 8,
+  "stations": 30,
+  "occurrences": 40,
+  "declared_cases": [
+    "EXACT_DESIGN_MATCH",
+    "NEAR_GEOMETRIC_MATCH",
+    "NO_CATALOG_MATCH",
+    "NOT_A_ROLLER",
+    "INSUFFICIENT_DRAWING_EVIDENCE",
+    "UNKNOWN_UNITS",
+    "MULTIPLE_REVISIONS",
+    "REGROUND_REVISION",
+    "WRONG_BORE_HARD_NEGATIVE",
+    "REVIEWER_DISAGREEMENT",
+    "ADJUDICATION",
+    "STALE_INPUT_HASH",
+    "SYNTHETIC_EXCLUDED_FROM_OPERATIONAL_SEARCH",
+    "PHYSICAL_ASSET_NOT_AUTOMATICALLY_ASSIGNED"
+  ],
+  "source": "generated sanitized fixture; no customer or factory data"
+}

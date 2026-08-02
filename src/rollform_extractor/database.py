@@ -837,6 +837,204 @@ class RollerRecognitionMetric(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 
+class RecognitionEvaluationDataset(Base):
+    __tablename__ = "recognition_evaluation_datasets"
+    __table_args__ = (UniqueConstraint("name", "version"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String, unique=True)
+    name: Mapped[str] = mapped_column(String)
+    kind: Mapped[str] = mapped_column(String)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String, default="DRAFT")
+    description: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    locked_by: Mapped[str | None] = mapped_column(String)
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    approved_by: Mapped[str | None] = mapped_column(String)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime)
+    content_hash: Mapped[str | None] = mapped_column(String)
+    inventory_snapshot_hash: Mapped[str | None] = mapped_column(String)
+    recognition_algorithm_version: Mapped[str | None] = mapped_column(String)
+    feature_schema_version: Mapped[int | None] = mapped_column(Integer)
+    case_count: Mapped[int] = mapped_column(Integer, default=0)
+    project_count: Mapped[int] = mapped_column(Integer, default=0)
+    design_count: Mapped[int] = mapped_column(Integer, default=0)
+    split_strategy: Mapped[str | None] = mapped_column(String)
+    source_summary_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    limitations_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class RecognitionEvaluationCase(Base):
+    __tablename__ = "recognition_evaluation_cases"
+    __table_args__ = (UniqueConstraint("dataset_id", "project_id", "occurrence_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(ForeignKey("recognition_evaluation_datasets.id", ondelete="CASCADE"))
+    case_key: Mapped[str] = mapped_column(String)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    occurrence_id: Mapped[str] = mapped_column(String)
+    recognition_input_id: Mapped[int | None] = mapped_column(ForeignKey("roller_recognition_inputs.id", ondelete="SET NULL"))
+    recognition_input_hash: Mapped[str | None] = mapped_column(String)
+    inventory_snapshot_hash: Mapped[str | None] = mapped_column(String)
+    split: Mapped[str] = mapped_column(String, default="CALIBRATION")
+    case_status: Mapped[str] = mapped_column(String, default="OPEN")
+    gold_outcome: Mapped[str | None] = mapped_column(String)
+    expected_design_id: Mapped[str | None] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="SET NULL"))
+    expected_revision_id: Mapped[str | None] = mapped_column(ForeignKey("roller_geometry_revisions.revision_id", ondelete="SET NULL"))
+    quality_flags_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    source_handles_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class RecognitionLabelAssertion(Base):
+    __tablename__ = "recognition_label_assertions"
+    __table_args__ = (UniqueConstraint("case_id", "reviewer", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("recognition_evaluation_cases.id", ondelete="CASCADE"))
+    reviewer: Mapped[str] = mapped_column(String)
+    outcome: Mapped[str] = mapped_column(String)
+    expected_design_id: Mapped[str | None] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="SET NULL"))
+    expected_revision_id: Mapped[str | None] = mapped_column(ForeignKey("roller_geometry_revisions.revision_id", ondelete="SET NULL"))
+    confidence: Mapped[float | None] = mapped_column(Float)
+    reason_code: Mapped[str] = mapped_column(String)
+    evidence_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    supersedes_assertion_id: Mapped[int | None] = mapped_column(ForeignKey("recognition_label_assertions.id", ondelete="SET NULL"))
+
+
+class RecognitionAdjudication(Base):
+    __tablename__ = "recognition_adjudications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("recognition_evaluation_cases.id", ondelete="CASCADE"))
+    adjudicator: Mapped[str] = mapped_column(String)
+    final_outcome: Mapped[str] = mapped_column(String)
+    selected_design_id: Mapped[str | None] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="SET NULL"))
+    selected_revision_id: Mapped[str | None] = mapped_column(ForeignKey("roller_geometry_revisions.revision_id", ondelete="SET NULL"))
+    reason_code: Mapped[str] = mapped_column(String)
+    evidence_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    supersedes_adjudication_id: Mapped[int | None] = mapped_column(ForeignKey("recognition_adjudications.id", ondelete="SET NULL"))
+
+
+class RecognitionThresholdProfile(Base):
+    __tablename__ = "recognition_threshold_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, unique=True)
+    name: Mapped[str] = mapped_column(String)
+    algorithm_version: Mapped[str] = mapped_column(String)
+    feature_schema_version: Mapped[int] = mapped_column(Integer)
+    configuration_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    calibration_dataset_hash: Mapped[str | None] = mapped_column(String)
+    validation_dataset_hash: Mapped[str | None] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, default="DRAFT")
+    metric_summary_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_by: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    approved_by: Mapped[str | None] = mapped_column(String)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime)
+    approval_notes: Mapped[str | None] = mapped_column(Text)
+    supersedes_profile_id: Mapped[str | None] = mapped_column(ForeignKey("recognition_threshold_profiles.profile_id", ondelete="SET NULL"))
+
+
+class RecognitionThresholdEvaluation(Base):
+    __tablename__ = "recognition_threshold_evaluations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    evaluation_id: Mapped[str] = mapped_column(String, unique=True)
+    dataset_id: Mapped[int] = mapped_column(ForeignKey("recognition_evaluation_datasets.id", ondelete="CASCADE"))
+    profile_id: Mapped[int | None] = mapped_column(ForeignKey("recognition_threshold_profiles.id", ondelete="SET NULL"))
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    output_hash: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class ConfirmedRollerDesignUsage(Base):
+    __tablename__ = "confirmed_roller_design_usages"
+    __table_args__ = (UniqueConstraint("project_id", "occurrence_id", "recognition_input_hash"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    usage_id: Mapped[str] = mapped_column(String, unique=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    occurrence_id: Mapped[str] = mapped_column(String)
+    recognition_input_hash: Mapped[str] = mapped_column(String)
+    design_id: Mapped[str] = mapped_column(ForeignKey("roller_designs.design_id", ondelete="RESTRICT"))
+    geometry_revision_id: Mapped[str | None] = mapped_column(ForeignKey("roller_geometry_revisions.revision_id", ondelete="SET NULL"))
+    station_id: Mapped[str | None] = mapped_column(String)
+    role: Mapped[str | None] = mapped_column(String)
+    assembly_id: Mapped[str | None] = mapped_column(String)
+    profile_context: Mapped[str | None] = mapped_column(String)
+    source_adjudication_id: Mapped[int] = mapped_column(ForeignKey("recognition_adjudications.id", ondelete="RESTRICT"))
+    source_dataset_id: Mapped[int] = mapped_column(ForeignKey("recognition_evaluation_datasets.id", ondelete="RESTRICT"))
+    source_dataset_hash: Mapped[str] = mapped_column(String)
+    inventory_snapshot_hash: Mapped[str | None] = mapped_column(String)
+    confirmation_status: Mapped[str] = mapped_column(String, default="CONFIRMED")
+    confirmed_by: Mapped[str] = mapped_column(String)
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    source_handles_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    evidence_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    valid_from: Mapped[datetime | None] = mapped_column(DateTime)
+    valid_to: Mapped[datetime | None] = mapped_column(DateTime)
+    supersedes_usage_id: Mapped[str | None] = mapped_column(ForeignKey("confirmed_roller_design_usages.usage_id", ondelete="SET NULL"))
+    stale_reason: Mapped[str | None] = mapped_column(Text)
+
+
+class RollerUsagePromotion(Base):
+    __tablename__ = "roller_usage_promotions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("recognition_evaluation_cases.id", ondelete="CASCADE"))
+    usage_id: Mapped[str | None] = mapped_column(ForeignKey("confirmed_roller_design_usages.usage_id", ondelete="SET NULL"))
+    action: Mapped[str] = mapped_column(String)
+    promoted_by: Mapped[str] = mapped_column(String)
+    notes: Mapped[str | None] = mapped_column(Text)
+    input_hash: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class RollerUsageRelationshipSnapshot(Base):
+    __tablename__ = "roller_usage_relationship_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    snapshot_id: Mapped[str] = mapped_column(String, unique=True)
+    algorithm_version: Mapped[str] = mapped_column(String)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    dataset_scope: Mapped[str] = mapped_column(String)
+    content_hash: Mapped[str] = mapped_column(String)
+    created_by: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    diagnostics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class RollerUsageRelationship(Base):
+    __tablename__ = "roller_usage_relationships"
+    __table_args__ = (UniqueConstraint("snapshot_id", "relationship_type", "source_entity", "target_entity"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    snapshot_id: Mapped[int] = mapped_column(ForeignKey("roller_usage_relationship_snapshots.id", ondelete="CASCADE"))
+    relationship_type: Mapped[str] = mapped_column(String)
+    source_entity: Mapped[str] = mapped_column(String)
+    target_entity: Mapped[str] = mapped_column(String)
+    confirmed_occurrence_count: Mapped[int] = mapped_column(Integer, default=0)
+    distinct_project_count: Mapped[int] = mapped_column(Integer, default=0)
+    distinct_assembly_count: Mapped[int] = mapped_column(Integer, default=0)
+    support: Mapped[float] = mapped_column(Float, default=0.0)
+    reliability_descriptor: Mapped[str] = mapped_column(String, default="DESCRIPTIVE_ONLY")
+    first_observed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    last_observed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    dataset_scope: Mapped[str] = mapped_column(String)
+    supporting_usage_ids_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    limitations_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
 def create_project_database(path: Path) -> Engine:
     engine = create_engine(f"sqlite:///{path}")
 
