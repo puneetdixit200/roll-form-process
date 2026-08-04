@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "profile_id": "PUBLIC-SYNTHETIC-CLOSED-INVALID",
+  "name": "Synthetic invalid closed contour",
+  "topology": "CLOSED_CONTOUR",
+  "closed": true,
+  "computational_seam_vertex_id": null,
+  "vertices": [{"vertex_id": "v-1", "x": 0, "y": 0}, {"vertex_id": "v-2", "x": 1, "y": 0}, {"vertex_id": "v-3", "x": 1, "y": 1}],
+  "segments": [{"segment_id": "s-1", "type": "LINE", "start_vertex_id": "v-1", "end_vertex_id": "v-2"}, {"segment_id": "s-2", "type": "LINE", "start_vertex_id": "v-2", "end_vertex_id": "v-3"}],
+  "metadata": {"source": "PUBLIC_SYNTHETIC_TEST", "visual_only": true}
+}

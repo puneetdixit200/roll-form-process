@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "base_branch": "feature/history-constrained-flower-prototype",
+  "base_sha": "90f1cbbc12ca44f0a44708b4fbec0b6ec7abbed2",
+  "pr_6": {"number": 6, "state": "OPEN", "mergeable": "MERGEABLE", "base": "main", "head": "90f1cbbc12ca44f0a44708b4fbec0b6ec7abbed2"},
+  "python_tests_at_start": 238,
+  "frontend_tests_at_start": 2,
+  "private_source_files_committed": false,
+  "existing_functionality_preserved": true,
+  "new_tables_planned": ["visual_profile_targets", "visual_profile_target_revisions", "visual_flower_generation_runs", "visual_flower_candidates", "visual_flower_candidate_passes", "visual_historical_pass_matches", "visual_confidence_components", "visual_flower_reviews", "visual_flower_export_artifacts"]
+}

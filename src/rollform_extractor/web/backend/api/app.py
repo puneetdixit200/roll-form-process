@@ -28,6 +28,8 @@ from rollform_extractor.validated_usage import (
     lock_dataset_version, promote_confirmed_usage, search_historical_usage, submit_label_assertion,
     validate_dataset,
 )
+from rollform_extractor.visual_flower_service import create_target as create_visual_target, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, list_targets as list_visual_targets
+from rollform_extractor.visual_profile_schema import VisualProfileError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -46,9 +48,13 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     app.state.store = store
     app.state.service = service
     inventory_database = root / "roller_inventory.sqlite"
+    visual_database = root / "visual_flower.sqlite"
 
     def inventory_engine():
         return create_project_database(inventory_database)
+
+    def visual_engine():
+        return create_project_database(visual_database)
 
     def recognition_engine(project_id: str):
         try:
@@ -69,6 +75,82 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "mode": "offline"}
+
+    @app.get("/api/visual-flower/dataset-status")
+    def visual_dataset_status() -> dict[str, Any]:
+        import os
+        configured = os.environ.get("ROLLFORM_FLOWER_PROTOTYPE_DATASET")
+        if not configured:
+            return {"available": False, "dataset_hash": "UNCONFIGURED", "flower_count": 0, "pass_count": 0, "warning": "Configure the local prototype dataset to enable historical matching."}
+        path = Path(configured).expanduser().resolve()
+        if not path.is_file() or path.name != "dataset.json":
+            raise HTTPException(status_code=404, detail={"code": "DATASET_UNAVAILABLE", "message": "configured prototype dataset is unavailable"})
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return {"available": True, "dataset_hash": payload.get("dataset_hash"), "flower_count": len(payload.get("flowers", [])), "pass_count": sum(len(item.get("passes", [])) for item in payload.get("flowers", [])), "source_classification": payload.get("source_classification"), "private_paths_redacted": True}
+
+    @app.post("/api/visual-flower/targets")
+    def visual_create_target(payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return create_visual_target(visual_engine(), payload)
+        except VisualProfileError as exc:
+            raise HTTPException(status_code=422, detail={"code": exc.code, "message": exc.message}) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_PROFILE", "message": str(exc)}) from exc
+
+    @app.get("/api/visual-flower/targets")
+    def visual_list_targets() -> list[dict[str, Any]]:
+        return list_visual_targets(visual_engine())
+
+    @app.get("/api/visual-flower/targets/{target_id}")
+    def visual_get_target(target_id: str) -> dict[str, Any]:
+        result = get_visual_target(visual_engine(), target_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual target not found")
+        return result
+
+    @app.post("/api/visual-flower/targets/{target_id}/generate")
+    def visual_generate(target_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        try:
+            return generate_visual_for_target(visual_engine(), target_id, payload or {})
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except (ValueError, VisualProfileError) as exc:
+            raise HTTPException(status_code=422, detail={"code": getattr(exc, "code", "GENERATION_FAILED"), "message": str(exc)}) from exc
+
+    @app.get("/api/visual-flower/runs/{run_id}")
+    def visual_get_run(run_id: str) -> dict[str, Any]:
+        result = get_visual_run(visual_engine(), run_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual run not found")
+        return result
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}")
+    def visual_get_candidate(candidate_id: str) -> dict[str, Any]:
+        result = get_visual_candidate(visual_engine(), candidate_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        return result
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}/passes")
+    def visual_get_candidate_passes(candidate_id: str) -> dict[str, Any]:
+        result = get_visual_candidate(visual_engine(), candidate_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        return {"candidate_id": candidate_id, "passes": result.get("passes", []), "provenance": result.get("provenance", {})}
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}/matches")
+    def visual_get_candidate_matches(candidate_id: str) -> dict[str, Any]:
+        result = get_visual_candidate(visual_engine(), candidate_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        return {"candidate_id": candidate_id, "matches": [item.get("historical_match", {}) for item in result.get("passes", [])]}
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}/export.json")
+    def visual_export_candidate_json(candidate_id: str) -> dict[str, Any]:
+        result = get_visual_candidate(visual_engine(), candidate_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        return {"schema_version": 1, "export_type": "VISUAL_FLOWER_CANDIDATE", "candidate": result, "source_cad_included": False}
 
     @app.get("/api/flower-prototype/status")
     def flower_prototype_status() -> dict[str, Any]:

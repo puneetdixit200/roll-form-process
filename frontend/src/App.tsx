@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { applyReview, artifactUrl, createRecognitionRun, getArtifacts, getInventoryDesigns, getInventoryStats, getJob, getProject, getRecognitionCandidates, getRecognitionRuns, getReportData, inventoryExportUrl, importInventory, reviewRecognitionCandidate, uploadDrawing, validateInventory } from "./api/client";
 import type { CompositeFlower, FlowerPass, JobRecord, ProjectRecord, ReportData, StepChange } from "./types/report";
 import "./styles.css";
+import VisualFlowerWorkspace from "./features/visual-flower/VisualFlowerWorkspace";
 
 const STAGES = ["UPLOADED", "CONVERTING", "PARSING", "DETECTING_FLOWERS", "EXTRACTING_PASSES", "ANALYSING_GEOMETRY", "GENERATING_REPORT", "CANDIDATE_READY"];
 
@@ -104,7 +105,7 @@ export default function App() {
       <section id="Inventory" className="panel"><Inventory /></section>
       <section id="Roller-Recognition" className="panel"><RollerRecognition projectId={projectId} /></section>
       <section id="Validation-&-Usage-Search" className="panel"><ValidatedUsage /></section>
-      <section id="Flower-Sequence-Prototype" className="panel"><FlowerSequencePrototype /></section>
+      <section id="Flower-Sequence-Prototype" className="panel"><VisualFlowerWorkspace /></section>
     </main>
   );
 }

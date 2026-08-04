@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "profile_id": "PUBLIC-SYNTHETIC-OPEN-001",
+  "name": "Synthetic open channel",
+  "coordinate_system": {"x_axis": "right", "y_axis": "up", "units": "VISUAL_UNIT"},
+  "topology": "OPEN_PATH",
+  "closed": false,
+  "computational_seam_vertex_id": null,
+  "vertices": [
+    {"vertex_id": "v-001", "x": -120, "y": 0},
+    {"vertex_id": "v-002", "x": -70, "y": 0},
+    {"vertex_id": "v-003", "x": -55, "y": 35},
+    {"vertex_id": "v-004", "x": 55, "y": 35},
+    {"vertex_id": "v-005", "x": 70, "y": 0},
+    {"vertex_id": "v-006", "x": 120, "y": 0}
+  ],
+  "segments": [
+    {"segment_id": "s-001", "type": "LINE", "start_vertex_id": "v-001", "end_vertex_id": "v-002"},
+    {"segment_id": "s-002", "type": "LINE", "start_vertex_id": "v-002", "end_vertex_id": "v-003"},
+    {"segment_id": "s-003", "type": "LINE", "start_vertex_id": "v-003", "end_vertex_id": "v-004"},
+    {"segment_id": "s-004", "type": "LINE", "start_vertex_id": "v-004", "end_vertex_id": "v-005"},
+    {"segment_id": "s-005", "type": "LINE", "start_vertex_id": "v-005", "end_vertex_id": "v-006"}
+  ],
+  "metadata": {"source": "PUBLIC_SYNTHETIC_TEST", "visual_only": true}
+}

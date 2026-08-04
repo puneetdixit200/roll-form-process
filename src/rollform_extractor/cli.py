@@ -42,6 +42,9 @@ from rollform_extractor.flower_retrieval import target_from_pass, retrieve_histo
 from rollform_extractor.flower_generation import generate_candidates
 from rollform_extractor.flower_reconstruction_benchmark import benchmark_dataset
 from rollform_extractor.flower_exports import export_generation, export_prototype_dataset, export_benchmark
+from rollform_extractor.visual_profile_schema import VisualProfileError, validate_profile
+from rollform_extractor.visual_flower_engine import generate_visual_candidates
+from rollform_extractor.visual_flower_exports import export_visual_run
 from rollform_extractor.database import create_project_database
 from rollform_extractor.pipeline import ExtractionRequest, extract_project, reprocess_project
 from rollform_extractor.review_apply import ReviewApplyError, apply_review_decisions
@@ -196,6 +199,19 @@ def main(argv: list[str] | None = None) -> int:
     flower_benchmark_cmd.add_argument("dataset", type=Path)
     flower_benchmark_cmd.add_argument("--output", type=Path, required=True)
     flower_benchmark_cmd.add_argument("--json", action="store_true")
+    visual_validate_cmd = sub.add_parser("visual-profile-validate")
+    visual_validate_cmd.add_argument("target", type=Path)
+    visual_generate_cmd = sub.add_parser("visual-flower-generate")
+    visual_generate_cmd.add_argument("target", type=Path)
+    visual_generate_cmd.add_argument("--database", type=Path)
+    visual_generate_cmd.add_argument("--stations", type=int)
+    visual_generate_cmd.add_argument("--min-stations", type=int, default=8)
+    visual_generate_cmd.add_argument("--max-stations", type=int, default=28)
+    visual_generate_cmd.add_argument("--candidate-limit", type=int, default=3)
+    visual_generate_cmd.add_argument("--output", type=Path, required=True)
+    visual_show_cmd = sub.add_parser("visual-flower-show")
+    visual_show_cmd.add_argument("run_id")
+    visual_show_cmd.add_argument("--database", type=Path, required=True)
     args = parser.parse_args(argv)
 
     if args.command == "inspect":
@@ -513,4 +529,32 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
             print(str(exc), file=sys.stderr)
             return 2
+    if args.command == "visual-profile-validate":
+        try:
+            profile = validate_profile(json.loads(args.target.read_text(encoding="utf-8")))
+            print(json.dumps({"valid": True, "profile_id": profile.profile_id, "topology": profile.topology, "vertex_count": len(profile.vertices), "segment_count": len(profile.segments)}, sort_keys=True))
+            return 0
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(json.dumps({"valid": False, "error": getattr(exc, "code", "INVALID_PROFILE"), "message": str(exc)}), file=sys.stderr)
+            return 1
+    if args.command == "visual-flower-generate":
+        try:
+            profile = validate_profile(json.loads(args.target.read_text(encoding="utf-8")))
+            from rollform_extractor.visual_flower_service import historical_dataset
+            result = generate_visual_candidates(profile, historical_dataset().get("flowers", []), station_mode="EXACT" if args.stations else "RANGE", exact_station_count=args.stations, minimum_station_count=args.min_stations, maximum_station_count=args.max_stations, candidate_limit=args.candidate_limit)
+            files = export_visual_run(result, args.output)
+            print(json.dumps({"status": "READY", "candidate_count": result["candidate_count"], "output": str(args.output), "files": files}, sort_keys=True))
+            return 0
+        except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+            print(json.dumps({"status": "FAILED", "error": getattr(exc, "code", "GENERATION_FAILED"), "message": str(exc)}), file=sys.stderr)
+            return 2
+    if args.command == "visual-flower-show":
+        try:
+            from rollform_extractor.visual_flower_service import get_run
+            result = get_run(create_project_database(args.database), args.run_id)
+            if result is None:
+                print("visual run not found", file=sys.stderr); return 1
+            print(json.dumps(result, sort_keys=True)); return 0
+        except (OSError, ValueError) as exc:
+            print(str(exc), file=sys.stderr); return 2
     return 2

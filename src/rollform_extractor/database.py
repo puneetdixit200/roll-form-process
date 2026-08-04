@@ -1786,3 +1786,101 @@ def _linestring_z(points: Sequence[tuple[float, float, float]]) -> str | None:
 
 def _fmt(value: float) -> str:
     return f"{value:g}"
+
+
+class VisualProfileTargetRow(Base):
+    __tablename__ = "visual_profile_targets"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    target_id: Mapped[str] = mapped_column(String, unique=True)
+    name: Mapped[str] = mapped_column(String)
+    schema_version: Mapped[int] = mapped_column(Integer)
+    topology: Mapped[str] = mapped_column(String)
+    current_revision: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String, default="DRAFT")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class VisualProfileTargetRevisionRow(Base):
+    __tablename__ = "visual_profile_target_revisions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    target_id: Mapped[int] = mapped_column(ForeignKey("visual_profile_targets.id", ondelete="CASCADE"))
+    revision: Mapped[int] = mapped_column(Integer)
+    input_hash: Mapped[str] = mapped_column(String)
+    profile_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    validation_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    __table_args__ = (UniqueConstraint("target_id", "revision", name="uq_visual_target_revision"),)
+
+
+class VisualFlowerGenerationRunRow(Base):
+    __tablename__ = "visual_flower_generation_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String, unique=True)
+    target_id: Mapped[int] = mapped_column(ForeignKey("visual_profile_targets.id", ondelete="CASCADE"))
+    algorithm_version: Mapped[str] = mapped_column(String)
+    dataset_hash: Mapped[str] = mapped_column(String)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    warnings_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    result_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class VisualFlowerCandidateRow(Base):
+    __tablename__ = "visual_flower_candidates"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(String, unique=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("visual_flower_generation_runs.id", ondelete="CASCADE"))
+    candidate_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String)
+    visual_confidence: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class VisualFlowerCandidatePassRow(Base):
+    __tablename__ = "visual_flower_candidate_passes"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("visual_flower_candidates.id", ondelete="CASCADE"))
+    pass_id: Mapped[str] = mapped_column(String)
+    order_index: Mapped[int] = mapped_column(Integer)
+    pass_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    __table_args__ = (UniqueConstraint("candidate_id", "pass_id", name="uq_visual_candidate_pass"),)
+
+
+class VisualHistoricalPassMatchRow(Base):
+    __tablename__ = "visual_historical_pass_matches"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_pass_id: Mapped[int] = mapped_column(ForeignKey("visual_flower_candidate_passes.id", ondelete="CASCADE"))
+    rank: Mapped[int] = mapped_column(Integer)
+    match_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class VisualConfidenceComponentRow(Base):
+    __tablename__ = "visual_confidence_components"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("visual_flower_candidates.id", ondelete="CASCADE"))
+    scope: Mapped[str] = mapped_column(String)
+    component_name: Mapped[str] = mapped_column(String)
+    score: Mapped[float | None] = mapped_column(Float)
+    weight: Mapped[float | None] = mapped_column(Float)
+    explanation: Mapped[str | None] = mapped_column(String)
+
+
+class VisualFlowerReviewRow(Base):
+    __tablename__ = "visual_flower_reviews"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("visual_flower_candidates.id", ondelete="CASCADE"))
+    decision: Mapped[str] = mapped_column(String)
+    reviewer: Mapped[str] = mapped_column(String)
+    notes: Mapped[str] = mapped_column(String, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class VisualFlowerExportArtifactRow(Base):
+    __tablename__ = "visual_flower_export_artifacts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("visual_flower_candidates.id", ondelete="CASCADE"))
+    relative_path: Mapped[str] = mapped_column(String)
+    sha256: Mapped[str] = mapped_column(String)
+    media_type: Mapped[str] = mapped_column(String)
