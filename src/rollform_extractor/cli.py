@@ -49,6 +49,9 @@ from rollform_extractor.database import create_project_database
 from rollform_extractor.pipeline import ExtractionRequest, extract_project, reprocess_project
 from rollform_extractor.review_apply import ReviewApplyError, apply_review_decisions
 from rollform_extractor.validation import validate_project
+from rollform_extractor.synthetic_sequence_factory import generate_public_corpus_to
+from rollform_extractor.synthetic_corpus_schema import load_corpus
+from rollform_extractor.clrsg_service import activate_model, inspect_corpus, model_status, register_dataset, train_and_register, validate_corpus
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -212,6 +215,35 @@ def main(argv: list[str] | None = None) -> int:
     visual_show_cmd = sub.add_parser("visual-flower-show")
     visual_show_cmd.add_argument("run_id")
     visual_show_cmd.add_argument("--database", type=Path, required=True)
+    corpus_plan_cmd = sub.add_parser("synthetic-corpus-plan")
+    corpus_plan_cmd.add_argument("--config", type=Path)
+    corpus_generate_cmd = sub.add_parser("synthetic-corpus-generate")
+    corpus_generate_cmd.add_argument("--config", type=Path)
+    corpus_generate_cmd.add_argument("--output", type=Path, required=True)
+    corpus_generate_cmd.add_argument("--samples-per-family", type=int, default=6)
+    corpus_generate_cmd.add_argument("--seed", type=int, default=1729)
+    corpus_inspect_cmd = sub.add_parser("synthetic-corpus-inspect")
+    corpus_inspect_cmd.add_argument("dataset", type=Path)
+    corpus_validate_cmd = sub.add_parser("synthetic-corpus-validate")
+    corpus_validate_cmd.add_argument("dataset", type=Path)
+    clrsg_train_cmd = sub.add_parser("clrsg-train")
+    clrsg_train_cmd.add_argument("dataset", type=Path)
+    clrsg_train_cmd.add_argument("--output", type=Path, required=True)
+    clrsg_train_cmd.add_argument("--ensemble-members", type=int, default=5)
+    clrsg_train_cmd.add_argument("--seed", type=int, default=1729)
+    clrsg_register_cmd = sub.add_parser("clrsg-register")
+    clrsg_register_cmd.add_argument("model", type=Path)
+    clrsg_register_cmd.add_argument("--database", type=Path, required=True)
+    clrsg_activate_cmd = sub.add_parser("clrsg-activate")
+    clrsg_activate_cmd.add_argument("model_id")
+    clrsg_activate_cmd.add_argument("--database", type=Path, required=True)
+    sub.add_parser("clrsg-status").add_argument("--database", type=Path, required=True)
+    clrsg_generate_cmd = sub.add_parser("clrsg-generate")
+    clrsg_generate_cmd.add_argument("target", type=Path)
+    clrsg_generate_cmd.add_argument("--stations", type=int, default=16)
+    clrsg_generate_cmd.add_argument("--model", type=Path)
+    clrsg_generate_cmd.add_argument("--historical-dataset", type=Path)
+    clrsg_generate_cmd.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
 
     if args.command == "inspect":
@@ -557,4 +589,48 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, sort_keys=True)); return 0
         except (OSError, ValueError) as exc:
             print(str(exc), file=sys.stderr); return 2
+    if args.command == "synthetic-corpus-plan":
+        from rollform_extractor.synthetic_profile_families import public_family_catalog
+        print(json.dumps({"generator_version": "synthetic_visual_corpus_v1", "families": public_family_catalog(), "station_counts": list(range(8, 29)), "classification": "PUBLIC_PROCEDURAL_SYNTHETIC"}, sort_keys=True))
+        return 0
+    if args.command == "synthetic-corpus-generate":
+        try:
+            corpus = generate_public_corpus_to(args.output, samples_per_family=args.samples_per_family, seed=args.seed)
+            print(json.dumps({"dataset_id": corpus.manifest.dataset_id, "dataset_hash": corpus.manifest.content_hash, "sample_count": len(corpus.samples), "output": str(args.output), "privacy": corpus.manifest.privacy}, sort_keys=True)); return 0
+        except (OSError, ValueError, RuntimeError) as exc:
+            print(str(exc), file=sys.stderr); return 2
+    if args.command == "synthetic-corpus-inspect":
+        try: print(json.dumps(inspect_corpus(args.dataset), sort_keys=True)); return 0
+        except (OSError, ValueError, KeyError) as exc: print(str(exc), file=sys.stderr); return 2
+    if args.command == "synthetic-corpus-validate":
+        try:
+            result = validate_corpus(args.dataset); print(json.dumps(result, sort_keys=True)); return 0 if result["valid"] else 1
+        except (OSError, ValueError, KeyError) as exc: print(str(exc), file=sys.stderr); return 2
+    if args.command == "clrsg-train":
+        try:
+            args.output.mkdir(parents=True, exist_ok=True)
+            print(json.dumps(train_and_register(create_project_database(args.output.parent / (args.output.name + ".sqlite")), args.dataset, args.output, ensemble_members=args.ensemble_members, seed=args.seed), sort_keys=True)); return 0
+        except (OSError, ValueError, RuntimeError) as exc: print(str(exc), file=sys.stderr); return 2
+    if args.command == "clrsg-register":
+        try:
+            corpus = load_corpus(args.model.parent / "corpus") if (args.model.parent / "corpus" / "manifest.json").is_file() else None
+            if corpus is None: raise ValueError("model registration requires sibling corpus directory for dataset provenance")
+            result = register_dataset(create_project_database(args.database), corpus); print(json.dumps(result, sort_keys=True)); return 0
+        except (OSError, ValueError, KeyError) as exc: print(str(exc), file=sys.stderr); return 2
+    if args.command == "clrsg-activate":
+        try: print(json.dumps(activate_model(create_project_database(args.database), args.model_id), sort_keys=True)); return 0
+        except (OSError, ValueError, LookupError) as exc: print(str(exc), file=sys.stderr); return 2
+    if args.command == "clrsg-status":
+        print(json.dumps(model_status(create_project_database(args.database)), sort_keys=True)); return 0
+    if args.command == "clrsg-generate":
+        try:
+            from rollform_extractor.clrsg_model import load_clrsg_model
+            from rollform_extractor.clrsg_inference import infer_learned_candidates
+            profile = validate_profile(json.loads(args.target.read_text(encoding="utf-8")))
+            model = load_clrsg_model(args.model) if args.model else None
+            result = generate_visual_candidates(profile, [], station_mode="EXACT", exact_station_count=args.stations, candidate_limit=1)
+            result["learned_model"] = infer_learned_candidates(profile, result, model)
+            args.output.mkdir(parents=True, exist_ok=True); (args.output / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")
+            print(json.dumps({"status": result["learned_model"]["status"], "output": str(args.output), "deterministic_fallback": True}, sort_keys=True)); return 0
+        except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc: print(str(exc), file=sys.stderr); return 2
     return 2

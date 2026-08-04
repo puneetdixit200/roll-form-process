@@ -1884,3 +1884,89 @@ class VisualFlowerExportArtifactRow(Base):
     relative_path: Mapped[str] = mapped_column(String)
     sha256: Mapped[str] = mapped_column(String)
     media_type: Mapped[str] = mapped_column(String)
+
+
+class SyntheticCorpusDatasetRow(Base):
+    __tablename__ = "synthetic_corpus_datasets"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String, unique=True)
+    dataset_hash: Mapped[str] = mapped_column(String)
+    classification: Mapped[str] = mapped_column(String)
+    generator_version: Mapped[str] = mapped_column(String)
+    manifest_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String, default="GENERATED")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class SyntheticCorpusGenerationRunRow(Base):
+    __tablename__ = "synthetic_corpus_generation_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(ForeignKey("synthetic_corpus_datasets.id", ondelete="CASCADE"))
+    run_key: Mapped[str] = mapped_column(String, unique=True)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    result_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class SyntheticCorpusSampleRow(Base):
+    __tablename__ = "synthetic_corpus_samples"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(ForeignKey("synthetic_corpus_datasets.id", ondelete="CASCADE"))
+    sample_id: Mapped[str] = mapped_column(String)
+    parent_group_id: Mapped[str] = mapped_column(String)
+    classification: Mapped[str] = mapped_column(String)
+    split: Mapped[str] = mapped_column(String)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    __table_args__ = (UniqueConstraint("dataset_id", "sample_id", name="uq_synthetic_corpus_sample"),)
+
+
+class CLRSGTrainingRunRow(Base):
+    __tablename__ = "clrsg_training_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String, unique=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    model_id: Mapped[str | None] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class CLRSGModelRow(Base):
+    __tablename__ = "clrsg_models"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    model_id: Mapped[str] = mapped_column(String, unique=True)
+    algorithm_version: Mapped[str] = mapped_column(String)
+    dataset_id: Mapped[str] = mapped_column(String)
+    dataset_hash: Mapped[str] = mapped_column(String)
+    privacy_classification: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, default="TRAINED")
+    manifest_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    model_path: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class CLRSGModelMemberRow(Base):
+    __tablename__ = "clrsg_model_members"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    model_id: Mapped[int] = mapped_column(ForeignKey("clrsg_models.id", ondelete="CASCADE"))
+    member_id: Mapped[str] = mapped_column(String)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class CLRSGEvaluationRunRow(Base):
+    __tablename__ = "clrsg_evaluation_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    evaluation_id: Mapped[str] = mapped_column(String, unique=True)
+    model_id: Mapped[str] = mapped_column(String)
+    dataset_id: Mapped[str] = mapped_column(String)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class CLRSGModelActivationRow(Base):
+    __tablename__ = "clrsg_model_activations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    model_id: Mapped[str] = mapped_column(String)
+    topology_scope: Mapped[str] = mapped_column(String)
+    active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)

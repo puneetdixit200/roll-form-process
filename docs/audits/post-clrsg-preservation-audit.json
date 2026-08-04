@@ -1,0 +1,10 @@
+{
+  "phase": "Phase 19 CLRSG",
+  "base_sha": "3b9265ae986748d766e82170c969bd7bc6363aa6",
+  "implementation_branch": "feature/synthetic-corpus-learned-sequence-model",
+  "verification": {"python_tests": 253, "frontend_tests": 4, "frontend_build": "PASS", "public_corpus_validation": "PASS", "artifact_hash_validation": "PASS", "deterministic_fallback": true},
+  "private_data_hygiene": {"private_cad_committed": false, "private_derived_geometry_committed": false, "private_model_weights_committed": false},
+  "preserved": ["Phase 15-18 tables", "existing visual generator", "existing visual API routes", "existing CLI commands", "existing frontend sections"],
+  "added": ["public synthetic family factory", "CLRSG PCA/ridge ensemble", "artifact loader and OOD support", "optional inference integration", "model registry tables", "CLI and model status API", "Phase 19 report and tests"],
+  "unexpected_removals": []
+}

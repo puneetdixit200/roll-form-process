@@ -15,6 +15,7 @@ from rollform_extractor.database import VisualFlowerCandidateRow, VisualFlowerGe
 from rollform_extractor.visual_flower_engine import generate_visual_candidates
 from rollform_extractor.visual_profile_schema import VisualProfileError, validate_profile
 from rollform_extractor.visual_flower_exports import export_visual_run
+from rollform_extractor.clrsg_inference import infer_learned_candidates, load_active_model
 
 
 def profile_hash(profile: dict[str, Any]) -> str:
@@ -70,6 +71,14 @@ def generate_for_target(engine, target_id: str, preferences: dict[str, Any]) -> 
     profile = validate_profile(revision.profile_json)
     dataset = historical_dataset()
     result = generate_visual_candidates(profile, dataset.get("flowers", []), station_mode=preferences.get("station_mode", "AUTOMATIC"), exact_station_count=preferences.get("exact_station_count"), minimum_station_count=preferences.get("minimum_station_count", 8), maximum_station_count=preferences.get("maximum_station_count", 28), candidate_limit=preferences.get("candidate_limit", 3), allow_mirror_matching=preferences.get("allow_mirror_matching", True), allow_rotation_alignment=preferences.get("allow_rotation_alignment", False))
+    engine_mode = str(preferences.get("generation_engine", "AUTO")).upper()
+    if engine_mode in {"AUTO", "COMPARE_ALL", "LEARNED_HYBRID"}:
+        learned = infer_learned_candidates(profile, result, load_active_model())
+        result["learned_model"] = {"status": learned["status"], "warnings": learned.get("warnings", [])}
+        if engine_mode in {"AUTO", "COMPARE_ALL", "LEARNED_HYBRID"} and learned.get("candidates"):
+            result["candidates"] = (result.get("candidates", []) if engine_mode == "COMPARE_ALL" else result.get("candidates", [])[:1]) + learned["candidates"]
+    else:
+        result["learned_model"] = {"status": "DETERMINISTIC_ONLY", "warnings": []}
     run_key = "vrun-" + sha256(f"{target_id}|{revision.input_hash}|{json.dumps(preferences, sort_keys=True)}|{dataset.get('dataset_hash')}".encode()).hexdigest()[:16]
     with Session(engine) as session:
         existing = session.scalar(select(VisualFlowerGenerationRunRow).where(VisualFlowerGenerationRunRow.run_id == run_key))

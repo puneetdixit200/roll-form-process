@@ -9,6 +9,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const createVisualTarget = (profile: VisualProfile) => request<{ target_id: string }>("/api/visual-flower/targets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: profile.name, profile }) });
 export const generateVisualFlower = (targetId: string, preferences: Record<string, unknown>) => request<VisualRun>(`/api/visual-flower/targets/${encodeURIComponent(targetId)}/generate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(preferences) });
 export const getVisualDatasetStatus = () => request<{ available: boolean; flower_count: number; pass_count: number; dataset_hash: string; warning?: string }>("/api/visual-flower/dataset-status");
+export const getVisualModelStatus = () => request<{ algorithm_version: string; active_models: Array<{ model_id: string; status: string; privacy_classification: string }>; deterministic_fallback: boolean; production_approval: string }>("/api/visual-flower/model/status");
 export async function importVisualCad(file: File): Promise<{ import_id: string; status: string; profile_count: number; converter?: string; error?: string }> {
   const body = new FormData(); body.append("file", file);
   return request("/api/visual-flower/import", { method: "POST", body });

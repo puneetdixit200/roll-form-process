@@ -1,0 +1,131 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Phase 19 CLRSG Evidence</title><style>body{font:16px system-ui,sans-serif;margin:0;color:#17212b;background:#f5f7fa}main{max-width:1100px;margin:auto;padding:32px}header,section{background:white;border:1px solid #d8dee6;border-radius:12px;padding:24px;margin:16px 0}h1,h2{color:#173b57}.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#d9f5df;color:#115b2b;font-weight:700}.warning{background:#fff1c7;color:#6e4a00;padding:16px;border-radius:8px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.metric{padding:14px;background:#eef4f8;border-radius:8px}pre{white-space:pre-wrap;overflow:auto;background:#111923;color:#d6e5ef;padding:16px;border-radius:8px}table{border-collapse:collapse;width:100%}td,th{padding:9px;border-bottom:1px solid #ddd;text-align:left}@media print{header,section{break-inside:avoid}}</style></head><body><main><header><span class="badge">TECHNICAL READINESS: PASS</span><h1>Phase 19: CLRSG</h1><p>Offline synthetic-corpus and constrained learned visual flower-sequence prototype.</p><div class="warning"><strong>Production use: NOT APPROVED.</strong> Visual prototype support only; deterministic fallback remains authoritative.</div></header><section><h2>Corpus</h2><div class="grid"><div class="metric"><b>Dataset</b><br>scorpus-156de940df487a19</div><div class="metric"><b>Samples</b><br>30</div><div class="metric"><b>Families</b><br>10</div><div class="metric"><b>Station counts</b><br>8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28</div></div><p>Validation: <strong>True</strong>. Public procedural samples are synthetic and never historical evidence.</p></section><section><h2>CLRSG model</h2><table><tr><th>Field</th><th>Value</th></tr><tr><td>Model ID</td><td>clrsg-9e551f1bf8f874df</td></tr><tr><td>Algorithm</td><td>clrsg_visual_sequence_v1</td></tr><tr><td>Privacy class</td><td>PUBLIC_TEST_MODEL</td></tr><tr><td>Members</td><td>5</td></tr><tr><td>Deterministic fallback</td><td>Yes</td></tr></table></section><section><h2>Boundaries</h2><ul><li>No physical roller assignment.</li><li>No tooling recommendation.</li><li>No manufacturing or production approval.</li><li>No external model service or online data transfer.</li><li>Private CAD and private-derived model artifacts remain local-only.</li></ul></section><section><h2>Evidence JSON</h2><details><summary>Show machine-generated evidence</summary><pre>{
+  "base_commit": "3b9265ae986748d766e82170c969bd7bc6363aa6",
+  "branch": "feature/synthetic-corpus-learned-sequence-model",
+  "corpus": {
+    "dataset_hash": "b06e8438ea11202ace1908556d8a92a88b3f5c14c53276d4a7f2677e4b7aea09",
+    "dataset_id": "scorpus-156de940df487a19",
+    "family_count": 10,
+    "manifest": {
+      "classification": "PUBLIC_TEST_MODEL",
+      "classification_distribution": {
+        "PUBLIC_PROCEDURAL_SYNTHETIC": 30
+      },
+      "content_hash": "b06e8438ea11202ace1908556d8a92a88b3f5c14c53276d4a7f2677e4b7aea09",
+      "dataset_id": "scorpus-156de940df487a19",
+      "dataset_version": "synthetic_visual_v1",
+      "family_distribution": {
+        "CLOSED_ASYMMETRIC_LOOP": 3,
+        "CLOSED_ROUNDED_RECTANGLE": 3,
+        "OPEN_ASYMMETRIC_CHANNEL": 3,
+        "OPEN_CURVED_WAVE": 3,
+        "OPEN_C_CHANNEL": 3,
+        "OPEN_HAT_PROFILE": 3,
+        "OPEN_MIXED_LINE_ARC": 3,
+        "OPEN_STEP_PROFILE": 3,
+        "OPEN_U_CHANNEL": 3,
+        "OPEN_Z_PROFILE": 3
+      },
+      "generator_version": "synthetic_visual_corpus_v1",
+      "privacy": {
+        "committable": true,
+        "contains_private_derived_geometry": false
+      },
+      "recipe_hash": "156de940df487a19f7ec8dfc047be8a850c3ed5f3cd9aa6c3556ce489d361c7b",
+      "sample_counts": {
+        "TEST": 6,
+        "TRAIN": 18,
+        "VALIDATION": 6
+      },
+      "schema_version": 1,
+      "seed": 1729,
+      "station_distribution": {
+        "10": 1,
+        "11": 2,
+        "12": 1,
+        "13": 2,
+        "14": 2,
+        "15": 1,
+        "16": 2,
+        "17": 1,
+        "18": 2,
+        "19": 2,
+        "20": 1,
+        "21": 2,
+        "22": 1,
+        "23": 1,
+        "24": 2,
+        "25": 1,
+        "26": 1,
+        "27": 1,
+        "28": 1,
+        "8": 2,
+        "9": 1
+      }
+    },
+    "sample_count": 30,
+    "station_counts_present": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28
+    ],
+    "validation": {
+      "dataset_id": "scorpus-156de940df487a19",
+      "deterministic_content_hash": "b06e8438ea11202ace1908556d8a92a88b3f5c14c53276d4a7f2677e4b7aea09",
+      "issues": [],
+      "sample_count": 30,
+      "valid": true
+    }
+  },
+  "generated_at_utc": "2026-08-04T16:47:07.879243+00:00",
+  "limitations": [
+    "Only two private historical flowers exist.",
+    "Public procedural corpus is not factory evidence.",
+    "Model scores are non-probabilistic visual support, not manufacturing confidence.",
+    "No physical roller assignment, tooling recommendation, forming-sequence approval, or manufacturability prediction is implemented."
+  ],
+  "manufacturing_status": "NOT_APPROVED",
+  "model": {
+    "algorithm_version": "clrsg_visual_sequence_v1",
+    "member_count": 5,
+    "model_id": "clrsg-9e551f1bf8f874df",
+    "privacy_classification": "PUBLIC_TEST_MODEL",
+    "residual_pca_components": 9,
+    "target_pca_components": 6
+  },
+  "phase": "Phase 19: Synthetic Corpus and Learned Visual Sequence Model",
+  "physical_roller_availability": "NOT_DETERMINED",
+  "production_approval": "NOT_APPROVED",
+  "safety": {
+    "deterministic_fallback": true,
+    "external_service": false,
+    "private_cad_committed": false,
+    "private_derived_geometry_committed": false,
+    "synthetic_not_historical": true
+  },
+  "schema_version": 1,
+  "technical_readiness": "PASS",
+  "tests": {
+    "baseline_python": "PASS (247 tests on base)",
+    "clrsg_focused": "PASS",
+    "docker": "PENDING_FINAL_CI",
+    "frontend": "PENDING_FINAL_CI"
+  }
+}</pre></details></section></main></body></html>

@@ -41,6 +41,16 @@ jobs:
           python scripts/run_phase18_synthetic.py --output /tmp/phase18-b.json
           cmp --silent /tmp/phase18-a.json /tmp/phase18-b.json
           pytest -q tests/test_validated_usage.py
+      - name: Phase 19 public CLRSG corpus and model determinism
+        run: |
+          set -euo pipefail
+          python -m rollform_extractor synthetic-corpus-plan
+          python -m rollform_extractor synthetic-corpus-generate --output /tmp/clrsg-corpus-a --samples-per-family 3 --seed 1729
+          python -m rollform_extractor synthetic-corpus-validate /tmp/clrsg-corpus-a
+          python -m rollform_extractor synthetic-corpus-generate --output /tmp/clrsg-corpus-b --samples-per-family 3 --seed 1729
+          cmp --silent /tmp/clrsg-corpus-a/manifest.json /tmp/clrsg-corpus-b/manifest.json
+          python -m rollform_extractor clrsg-train /tmp/clrsg-corpus-a --output /tmp/clrsg-model --ensemble-members 5 --seed 1729
+          pytest -q tests/test_clrsg.py
 
   frontend:
     runs-on: ubuntu-latest

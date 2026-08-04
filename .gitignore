@@ -11,5 +11,8 @@ frontend/dist/
 frontend/tsconfig.tsbuildinfo
 private-cad/
 flower-prototype-private/
+synthetic-corpus-private/
+clrsg-private-models/
+model-registry-private/
 *.dwg
 *.dxf

@@ -1,0 +1,11 @@
+{
+  "phase": "Phase 19 CLRSG",
+  "base_branch": "feature/visual-flower-customer-demo",
+  "base_sha": "3b9265ae986748d766e82170c969bd7bc6363aa6",
+  "pull_requests": {"6": "OPEN", "7": "OPEN", "8": "OPEN"},
+  "baseline": {"python_tests": 247, "frontend_tests": 4, "frontend_build": "PASS", "docker_ci": "PASS", "private_data_committed": false},
+  "existing_tags": ["phase-15-v1", "phase-16-v1", "phase-17-v1", "phase-18-v1"],
+  "preserved_architecture": ["deterministic visual generator", "visual flower API", "visual flower exports", "Phases 15-18 schemas and workflows"],
+  "new_tables": ["synthetic_corpus_datasets", "synthetic_corpus_generation_runs", "synthetic_corpus_samples", "clrsg_training_runs", "clrsg_models", "clrsg_model_members", "clrsg_evaluation_runs", "clrsg_model_activations"],
+  "private_data_policy": "Only public procedural synthetic fixtures are committable; private-derived corpus and model paths are local-only."
+}

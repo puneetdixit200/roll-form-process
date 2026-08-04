@@ -30,6 +30,7 @@ from rollform_extractor.validated_usage import (
 )
 from rollform_extractor.visual_flower_service import create_target as create_visual_target, export_candidate as export_visual_candidate, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, list_targets as list_visual_targets
 from rollform_extractor.visual_profile_schema import VisualProfileError
+from rollform_extractor.clrsg_service import list_models, model_status
 from rollform_extractor.visual_flower_import import create_import as create_visual_import, get_import as get_visual_import, list_profiles as list_visual_import_profiles, selected_profile as selected_visual_import_profile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -88,6 +89,21 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
             raise HTTPException(status_code=404, detail={"code": "DATASET_UNAVAILABLE", "message": "configured prototype dataset is unavailable"})
         payload = json.loads(path.read_text(encoding="utf-8"))
         return {"available": True, "dataset_hash": payload.get("dataset_hash"), "flower_count": len(payload.get("flowers", [])), "pass_count": sum(len(item.get("passes", [])) for item in payload.get("flowers", [])), "source_classification": payload.get("source_classification"), "private_paths_redacted": True}
+
+    @app.get("/api/visual-flower/model/status")
+    def visual_model_status() -> dict[str, Any]:
+        return model_status(visual_engine())
+
+    @app.get("/api/visual-flower/model/models")
+    def visual_model_list() -> list[dict[str, Any]]:
+        return list_models(visual_engine())
+
+    @app.get("/api/visual-flower/model/models/{model_id}")
+    def visual_model_detail(model_id: str) -> dict[str, Any]:
+        item = next((row for row in list_models(visual_engine()) if row["model_id"] == model_id), None)
+        if item is None:
+            raise HTTPException(status_code=404, detail="CLRSG model not found")
+        return item
 
     @app.post("/api/visual-flower/import")
     async def visual_import(file: UploadFile = File(...)) -> dict[str, Any]:
