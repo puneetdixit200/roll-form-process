@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from rollform_extractor.visual_flower_engine import generate_visual_candidates
 from rollform_extractor.visual_profile_canonicalization import canonicalize_profile
 from rollform_extractor.visual_profile_schema import VisualProfileError, validate_profile
@@ -44,3 +47,18 @@ def test_visual_generation_supports_exact_station_counts_and_provenance():
         assert candidate["passes"][-1]["profile"]["points"] == result["candidates"][0]["passes"][-1]["profile"]["points"]
         assert all("historical_match" in item for item in candidate["passes"])
         assert 0 <= candidate["visual_confidence"]["score"] <= 100
+
+
+def test_closed_profile_abstains_without_closed_historical_support():
+    closed = validate_profile(json.loads((Path(__file__).parent / "fixtures/visual_profiles/closed_with_seam.json").read_text()))
+    result = generate_visual_candidates(closed, historical(), station_mode="EXACT", exact_station_count=8)
+    assert result["candidate_count"] == 0
+    assert "CLOSED_PROFILE_HISTORICAL_SUPPORT_REQUIRED" in result["warnings"]
+
+
+def test_closed_profile_generates_with_closed_historical_support():
+    closed = validate_profile(json.loads((Path(__file__).parent / "fixtures/visual_profiles/closed_with_seam.json").read_text()))
+    closed_history = [{"flower_id": "SYNTHETIC-CLOSED", "topology": "CLOSED_CONTOUR", "passes": [{"pass_id": "p1", "topology": "CLOSED_CONTOUR", "shape_vector": [0, 0, 1, 0, 1, 1, 0, 1], "width": 1, "height": 1}]}]
+    result = generate_visual_candidates(closed, closed_history, station_mode="EXACT", exact_station_count=8, candidate_limit=1)
+    assert result["candidate_count"] == 1
+    assert result["candidates"][0]["status"] == "VISUAL_CLOSED_TEMPLATE_MORPH"

@@ -1,0 +1,12 @@
+{
+  "audit": "post-visual-flower-customer-demo",
+  "starting_sha": "0d1f51a9476e887ce15a30a4349c6108926f743b",
+  "feature_branch": "feature/visual-flower-customer-demo",
+  "preserved": ["Phase 15-18 functionality", "PR #6 history-constrained prototype", "PR #7 visual schema and generator", "existing CLI/API/frontend sections", "private CAD safeguards"],
+  "new_capabilities": ["offline DWG/DXF import lifecycle", "profile candidate selection", "SVG arc rendering", "interactive editing and validation", "candidate comparison and overlay", "backend export artifacts", "closed-profile support gate", "repeat-generation idempotency"],
+  "new_tables": [],
+  "source_cad_committed": false,
+  "unexpected_removals": [],
+  "verification": {"python_tests": 247, "frontend_tests": 4, "frontend_build": "PASS", "browser": "PASS", "docker_ci_required": true},
+  "note": "Local Docker is blocked by captive-portal Debian repository responses; clean GitHub Actions remains the Docker acceptance gate."
+}

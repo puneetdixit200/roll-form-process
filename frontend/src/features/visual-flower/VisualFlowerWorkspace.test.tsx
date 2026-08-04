@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { beforeEach, expect, test, vi } from "vitest";
 import VisualFlowerWorkspace from "./VisualFlowerWorkspace";
+import { ProfileSketcher } from "./ProfileSketcher";
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
@@ -16,5 +17,11 @@ test("loads example and exposes interactive generation controls", async () => {
   render(<VisualFlowerWorkspace />);
   expect(await screen.findByText("Historical evidence: 2 flowers, 31 passes.")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Load Example" }));
+  fireEvent.click(screen.getByRole("button", { name: "Validate Profile" }));
   expect(screen.getByRole("button", { name: "Generate Flower Sequence" })).toBeEnabled();
+});
+
+test("renders stored arcs as SVG arc paths", () => {
+  render(<ProfileSketcher profile={{ schema_version: 1, profile_id: "arc", name: "Arc", topology: "OPEN_PATH", closed: false, computational_seam_vertex_id: null, vertices: [{ vertex_id: "a", x: 0, y: 0 }, { vertex_id: "b", x: 1, y: 1 }], segments: [{ segment_id: "arc-1", type: "ARC", start_vertex_id: "a", end_vertex_id: "b", center: { x: 0, y: 1 }, radius: 1, clockwise: false }], metadata: { source: "PUBLIC_SYNTHETIC_TEST", visual_only: true } }} onChange={() => undefined} />);
+  expect(screen.getByTestId("visual-arc-path")).toHaveAttribute("d", expect.stringContaining(" A "));
 });

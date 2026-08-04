@@ -11,6 +11,7 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import ezdxf
+from PIL import Image, ImageDraw
 
 
 def export_visual_run(result: dict, output: Path) -> dict[str, str]:
@@ -32,6 +33,9 @@ def export_visual_run(result: dict, output: Path) -> dict[str, str]:
         dxf = directory / "combined.dxf"; _write_dxf(candidate, dxf); files[str(dxf.relative_to(output))] = _hash(dxf)
         svg = directory / "combined.svg"; svg.write_text(_svg(candidate), encoding="utf-8"); files[str(svg.relative_to(output))] = _hash(svg)
         report = directory / "report.html"; report.write_text(_html(candidate), encoding="utf-8"); files[str(report.relative_to(output))] = _hash(report)
+        png = directory / "contact-sheet.png"; _write_contact_sheet(candidate, png); files[str(png.relative_to(output))] = _hash(png)
+        for index, item in enumerate(candidate.get("passes", []), start=1):
+            pass_dxf = directory / "passes" / f"pass-{index:03d}.dxf"; pass_dxf.parent.mkdir(exist_ok=True); _write_pass_dxf(item, pass_dxf); files[str(pass_dxf.relative_to(output))] = _hash(pass_dxf)
     zip_path = output / "visual_flower_export.zip"
     with ZipFile(zip_path, "w", ZIP_DEFLATED) as archive:
         for path in output.rglob("*"):
@@ -50,6 +54,34 @@ def _write_dxf(candidate, path):
             modelspace.add_lwpolyline(points, close=item["profile"].get("topology") == "CLOSED_CONTOUR", dxfattribs={"layer": "GENERATED_PROFILE"})
             modelspace.add_text(f"Station {index}", dxfattribs={"layer": "STATION_LABEL", "height": 1}).set_placement((index * 5, 0))
     doc.saveas(path)
+
+
+def _write_pass_dxf(item, path):
+    doc = ezdxf.new("R2018"); modelspace = doc.modelspace()
+    points = [(float(point[0]), float(point[1])) for point in item.get("profile", {}).get("points", [])]
+    if points:
+        modelspace.add_lwpolyline(points, close=item.get("profile", {}).get("topology") == "CLOSED_CONTOUR", dxfattribs={"layer": "GENERATED_PROFILE"})
+    doc.saveas(path)
+
+
+def _write_contact_sheet(candidate, path: Path) -> None:
+    width, height = 960, 640
+    image = Image.new("RGB", (width, height), "white")
+    draw = ImageDraw.Draw(image)
+    passes = candidate.get("passes", [])
+    cols = 4; rows = max(1, (len(passes) + cols - 1) // cols)
+    cell_w, cell_h = width // cols, height // rows
+    for index, item in enumerate(passes):
+        points = [(float(p[0]), float(p[1])) for p in item.get("profile", {}).get("points", [])]
+        if points:
+            min_x, max_x = min(p[0] for p in points), max(p[0] for p in points)
+            min_y, max_y = min(p[1] for p in points), max(p[1] for p in points)
+            sx = (cell_w - 24) / max(max_x - min_x, 1e-9); sy = (cell_h - 40) / max(max_y - min_y, 1e-9); scale = min(sx, sy)
+            origin_x = (index % cols) * cell_w + 12; origin_y = (index // cols) * cell_h + 24
+            projected = [(origin_x + (x - min_x) * scale, origin_y + cell_h - 28 - (y - min_y) * scale) for x, y in points]
+            if len(projected) > 1: draw.line(projected, fill="#155783", width=2)
+        draw.text(((index % cols) * cell_w + 8, (index // cols) * cell_h + 6), f"Pass {item.get('order')}  {float(item.get('visual_confidence', {}).get('score', 0)):.1f}", fill="#17202a")
+    image.save(path, format="PNG")
 
 
 def _svg(candidate):

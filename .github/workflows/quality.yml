@@ -28,7 +28,7 @@ jobs:
       - name: History-constrained flower prototype regression
         run: pytest -q tests/test_flower_prototype.py
       - name: Interactive visual flower generator regression
-        run: pytest -q tests/test_visual_flower.py tests/test_visual_flower_api.py
+        run: pytest -q tests/test_visual_flower.py tests/test_visual_flower_api.py tests/test_visual_flower_import.py
       - run: pytest -q tests/test_roller_recognition.py tests/test_roller_recognition_api.py
       - name: Synthetic recognition acceptance and determinism
         run: |

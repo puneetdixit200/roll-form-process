@@ -24,16 +24,21 @@ def generate_visual_candidates(profile: VisualProfile, historical_flowers: list[
     histories = _historical_passes(historical_flowers)
     if not histories:
         return {"schema_version": 1, "algorithm_version": VISUAL_ALGORITHM_VERSION, "target_id": profile.profile_id, "station_counts": counts, "candidate_count": 0, "candidates": [], "warnings": ["NO_HISTORICAL_SUPPORT", "VISUAL_ONLY_NOT_MANUFACTURING_VALIDATION"]}
+    if profile.topology == "CLOSED_CONTOUR" and not any(item["profile"].get("topology") == "CLOSED_CONTOUR" for item in histories):
+        return {"schema_version": 1, "algorithm_version": VISUAL_ALGORITHM_VERSION, "target_id": profile.profile_id, "station_counts": counts, "candidate_count": 0, "candidates": [], "warnings": ["CLOSED_PROFILE_HISTORICAL_SUPPORT_REQUIRED", "VISUAL_ONLY_NOT_MANUFACTURING_VALIDATION"]}
     retrieval = sorted((_match(target, item, 1.0, allow_mirror_matching, allow_rotation_alignment) for item in histories), key=lambda x: (-x["overall_score"], x["source_flower_id"], x["source_pass_id"]))
     candidates = []
     candidate_counts = counts if len(counts) > 1 else [counts[0]] * min(candidate_limit, 3)
     for index, count in enumerate(candidate_counts[:candidate_limit]):
         style = ("UNIFORM_PROGRESSION", "HISTORICAL_TEMPLATE_001", "HISTORICAL_TEMPLATE_002")[min(index, 2)]
-        candidates.append(_candidate(profile, target, histories, retrieval, count, style, index + 1))
+        candidates.append(_candidate(profile, target, histories, retrieval, count, style, index + 1, allow_mirror_matching, allow_rotation_alignment))
+    candidates.sort(key=lambda item: (-item["visual_confidence"]["score"], item["station_count"], item["candidate_style"]))
+    for rank, item in enumerate(candidates, start=1):
+        item["candidate_rank"] = rank
     return {"schema_version": 1, "algorithm_version": VISUAL_ALGORITHM_VERSION, "target_id": profile.profile_id, "station_counts": counts, "candidate_count": len(candidates), "candidates": candidates, "warnings": ["VISUAL_ONLY_NOT_MANUFACTURING_VALIDATION", "HISTORICAL_DATASET_CONTAINS_TWO_PRIVATE_FLOWERS"]}
 
 
-def _candidate(profile, target, histories, retrieval, count, style, rank):
+def _candidate(profile, target, histories, retrieval, count, style, rank, allow_mirror_matching=True, allow_rotation_alignment=False):
     generated = []
     for index in range(count):
         progress = index / max(count - 1, 1)
@@ -41,7 +46,7 @@ def _candidate(profile, target, histories, retrieval, count, style, rank):
         if index == count - 1:
             points = target["points"]
         canonical = {**target, "points": [list(p) for p in points]}
-        matches = sorted((_match(canonical, item, progress, True, False) for item in histories), key=lambda x: (-x["overall_score"], x["source_flower_id"], x["source_pass_id"]))[:3]
+        matches = sorted((_match(canonical, item, progress, allow_mirror_matching, allow_rotation_alignment) for item in histories), key=lambda x: (-x["overall_score"], x["source_flower_id"], x["source_pass_id"]))[:3]
         best = matches[0] if matches else None
         support = "DIRECT_HISTORICAL_TEMPLATE" if best and best["overall_score"] >= .9 else "GENERIC_VISUAL_INTERPOLATION" if style == "UNIFORM_PROGRESSION" else "WARPED_HISTORICAL_TEMPLATE"
         warnings = [] if best and best["overall_score"] >= .35 else ["NO_HISTORICAL_SUPPORT"]
@@ -75,16 +80,23 @@ def _historical_passes(flowers):
 
 
 def _match(target, historical, progress, allow_mirror, allow_rotation):
-    variants = [historical["profile"]]
+    variants = [(historical["profile"], False, False)]
+    if allow_rotation:
+        points = historical["profile"]["points"]
+        for index in range(1, 4):
+            rotated = points
+            for _ in range(index):
+                rotated = [[-point[1], point[0]] for point in rotated]
+            variants.append(({**historical["profile"], "points": rotated}, False, True))
     if allow_mirror:
         points = historical["profile"]["points"]
-        variants.append({**historical["profile"], "points": [[-p[0], p[1]] for p in points]})
+        variants.append(({**historical["profile"], "points": [[-p[0], p[1]] for p in points]}, True, False))
     matches = []
-    for mirrored, variant in enumerate(variants):
+    for variant, mirrored, rotated in variants:
         result = compare_profiles(target, variant, left_progress=progress, right_progress=historical["progress"])
-        result.update({"source_flower_id": historical["source_flower_id"], "source_pass_id": historical["source_pass_id"], "mirror_used": bool(mirrored), "rotation_used": False, "alignment": "CANONICAL"})
+        result.update({"source_flower_id": historical["source_flower_id"], "source_pass_id": historical["source_pass_id"], "mirror_used": bool(mirrored), "rotation_used": bool(rotated), "alignment": "CANONICAL", "historical_points": [list(point) for point in variant["points"]]})
         matches.append(result)
-    return max(matches, key=lambda x: (x["overall_score"], not x["mirror_used"]))
+    return max(matches, key=lambda x: (x["overall_score"], not x["mirror_used"], not x["rotation_used"]))
 
 
 def _pass_confidence(match, support, warnings):

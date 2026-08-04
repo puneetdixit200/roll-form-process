@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from rollform_extractor.database import VisualFlowerCandidateRow, VisualFlowerGenerationRunRow, VisualProfileTargetRevisionRow, VisualProfileTargetRow, create_project_database
 from rollform_extractor.visual_flower_engine import generate_visual_candidates
 from rollform_extractor.visual_profile_schema import VisualProfileError, validate_profile
+from rollform_extractor.visual_flower_exports import export_visual_run
 
 
 def profile_hash(profile: dict[str, Any]) -> str:
@@ -71,6 +72,9 @@ def generate_for_target(engine, target_id: str, preferences: dict[str, Any]) -> 
     result = generate_visual_candidates(profile, dataset.get("flowers", []), station_mode=preferences.get("station_mode", "AUTOMATIC"), exact_station_count=preferences.get("exact_station_count"), minimum_station_count=preferences.get("minimum_station_count", 8), maximum_station_count=preferences.get("maximum_station_count", 28), candidate_limit=preferences.get("candidate_limit", 3), allow_mirror_matching=preferences.get("allow_mirror_matching", True), allow_rotation_alignment=preferences.get("allow_rotation_alignment", False))
     run_key = "vrun-" + sha256(f"{target_id}|{revision.input_hash}|{json.dumps(preferences, sort_keys=True)}|{dataset.get('dataset_hash')}".encode()).hexdigest()[:16]
     with Session(engine) as session:
+        existing = session.scalar(select(VisualFlowerGenerationRunRow).where(VisualFlowerGenerationRunRow.run_id == run_key))
+        if existing is not None:
+            return existing.result_json | {"run_id": existing.run_id, "status": existing.status}
         run_status = "READY" if result["candidates"] else "NO_HISTORICAL_SUPPORT"
         run = VisualFlowerGenerationRunRow(run_id=run_key, target_id=target_row.id, algorithm_version=result["algorithm_version"], dataset_hash=dataset.get("dataset_hash", "UNCONFIGURED"), configuration_hash=sha256(json.dumps(preferences, sort_keys=True).encode()).hexdigest(), status=run_status, warnings_json=result.get("warnings", []) + (["NO_HISTORICAL_SUPPORT"] if not result["candidates"] else []), result_json=result)
         session.add(run); session.flush()
@@ -90,3 +94,12 @@ def get_candidate(engine, candidate_id: str) -> dict[str, Any] | None:
     with Session(engine) as session:
         row = session.scalar(select(VisualFlowerCandidateRow).where(VisualFlowerCandidateRow.candidate_id == candidate_id))
         return row.candidate_json if row else None
+
+
+def export_candidate(engine, candidate_id: str, output_root: Path) -> Path | None:
+    candidate = get_candidate(engine, candidate_id)
+    if candidate is None:
+        return None
+    directory = output_root / "visual_exports" / candidate_id
+    export_visual_run({"schema_version": 1, "candidates": [candidate], "source_cad_included": False}, directory)
+    return directory

@@ -28,8 +28,9 @@ from rollform_extractor.validated_usage import (
     lock_dataset_version, promote_confirmed_usage, search_historical_usage, submit_label_assertion,
     validate_dataset,
 )
-from rollform_extractor.visual_flower_service import create_target as create_visual_target, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, list_targets as list_visual_targets
+from rollform_extractor.visual_flower_service import create_target as create_visual_target, export_candidate as export_visual_candidate, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, list_targets as list_visual_targets
 from rollform_extractor.visual_profile_schema import VisualProfileError
+from rollform_extractor.visual_flower_import import create_import as create_visual_import, get_import as get_visual_import, list_profiles as list_visual_import_profiles, selected_profile as selected_visual_import_profile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -88,6 +89,37 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         payload = json.loads(path.read_text(encoding="utf-8"))
         return {"available": True, "dataset_hash": payload.get("dataset_hash"), "flower_count": len(payload.get("flowers", [])), "pass_count": sum(len(item.get("passes", [])) for item in payload.get("flowers", [])), "source_classification": payload.get("source_classification"), "private_paths_redacted": True}
 
+    @app.post("/api/visual-flower/import")
+    async def visual_import(file: UploadFile = File(...)) -> dict[str, Any]:
+        try:
+            return create_visual_import(root, file.filename or "profile.dxf", await file.read())
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_CAD_FILE", "message": str(exc)}) from exc
+
+    @app.get("/api/visual-flower/imports/{import_id}")
+    def visual_import_status(import_id: str) -> dict[str, Any]:
+        result = get_visual_import(root, import_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual import not found")
+        return {key: value for key, value in result.items() if key != "profiles"} | {"profile_count": len(result.get("profiles", []))}
+
+    @app.get("/api/visual-flower/imports/{import_id}/profiles")
+    def visual_import_profiles(import_id: str) -> list[dict[str, Any]]:
+        result = list_visual_import_profiles(root, import_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual import not found")
+        return result
+
+    @app.post("/api/visual-flower/imports/{import_id}/profiles/{profile_id}/use")
+    def visual_use_import_profile(import_id: str, profile_id: str) -> dict[str, Any]:
+        profile = selected_visual_import_profile(root, import_id, profile_id)
+        if profile is None:
+            raise HTTPException(status_code=404, detail="visual import profile not found")
+        try:
+            return create_visual_target(visual_engine(), {"profile": profile})
+        except (ValueError, VisualProfileError) as exc:
+            raise HTTPException(status_code=422, detail={"code": getattr(exc, "code", "INVALID_PROFILE"), "message": str(exc)}) from exc
+
     @app.post("/api/visual-flower/targets")
     def visual_create_target(payload: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -130,6 +162,21 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         if result is None:
             raise HTTPException(status_code=404, detail="visual candidate not found")
         return result
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}/export/{artifact}")
+    def visual_export_candidate(candidate_id: str, artifact: str):
+        directory = export_visual_candidate(visual_engine(), candidate_id, root)
+        if directory is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        names = {"json": "visual_run.json", "csv": "passes.csv", "zip": "visual_flower_export.zip"}
+        if artifact in {"dxf", "svg", "png", "html"}:
+            suffix = {"dxf": "combined.dxf", "svg": "combined.svg", "png": "contact-sheet.png", "html": "report.html"}[artifact]
+            path = directory / candidate_id / suffix
+        else:
+            path = directory / names.get(artifact, "")
+        if not path.is_file() or directory not in path.resolve().parents:
+            raise HTTPException(status_code=404, detail="visual export artifact not found")
+        return FileResponse(path, filename=path.name)
 
     @app.get("/api/visual-flower/candidates/{candidate_id}/passes")
     def visual_get_candidate_passes(candidate_id: str) -> dict[str, Any]:

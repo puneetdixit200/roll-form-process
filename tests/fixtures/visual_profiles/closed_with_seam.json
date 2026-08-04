@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "profile_id": "public-closed-square",
+  "name": "Public synthetic closed square",
+  "topology": "CLOSED_CONTOUR",
+  "closed": true,
+  "computational_seam_vertex_id": "v1",
+  "vertices": [{"vertex_id": "v1", "x": 0, "y": 0}, {"vertex_id": "v2", "x": 1, "y": 0}, {"vertex_id": "v3", "x": 1, "y": 1}, {"vertex_id": "v4", "x": 0, "y": 1}],
+  "segments": [{"segment_id": "s1", "type": "LINE", "start_vertex_id": "v1", "end_vertex_id": "v2"}, {"segment_id": "s2", "type": "LINE", "start_vertex_id": "v2", "end_vertex_id": "v3"}, {"segment_id": "s3", "type": "LINE", "start_vertex_id": "v3", "end_vertex_id": "v4"}, {"segment_id": "s4", "type": "LINE", "start_vertex_id": "v4", "end_vertex_id": "v1"}],
+  "metadata": {"source": "PUBLIC_SYNTHETIC_TEST", "visual_only": true}
+}
