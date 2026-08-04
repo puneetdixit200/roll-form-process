@@ -7,4 +7,4 @@
 - No new database tables were required; existing visual SQLite target/run/candidate tables remain authoritative.
 - Private source CAD was not committed and is not included in exports.
 - Verification: 247 Python tests, 4 frontend tests, frontend build, backend/API export checks, and real browser flow passed.
-- Local Docker remains environment-blocked by the captive portal; GitHub Actions Docker is still required before claiming CI release readiness.
+- Local Docker remains environment-blocked by the captive portal. GitHub Actions run `30924832019` passed Python, frontend, Docker build, and smoke on `f68ed013b8ab43cd27e326411d7038503d90dc1a`.

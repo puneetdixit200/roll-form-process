@@ -7,6 +7,6 @@
   "new_tables": [],
   "source_cad_committed": false,
   "unexpected_removals": [],
-  "verification": {"python_tests": 247, "frontend_tests": 4, "frontend_build": "PASS", "browser": "PASS", "docker_ci_required": true},
+  "verification": {"python_tests": 247, "frontend_tests": 4, "frontend_build": "PASS", "browser": "PASS", "docker_ci": {"run_id": 30924832019, "head_sha": "f68ed013b8ab43cd27e326411d7038503d90dc1a", "result": "PASS"}},
   "note": "Local Docker is blocked by captive-portal Debian repository responses; clean GitHub Actions remains the Docker acceptance gate."
 }
