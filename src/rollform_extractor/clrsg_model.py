@@ -19,6 +19,8 @@ CLRSG_ALGORITHM_VERSION = "clrsg_visual_sequence_v1"
 FEATURE_SCHEMA_VERSION = 1
 SEQUENCE_SHAPE = (28, 128, 2)
 DEFAULT_OOD_THRESHOLDS = {"in_distribution": 2.5, "near_distribution": 4.0}
+GEOMETRY_GUARD_VERSION = "visual_geometry_guard_v1"
+MAX_NORMALIZED_ROUGHNESS = 0.80
 
 
 def _pca(matrix: np.ndarray, max_components: int, variance_target: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -45,6 +47,34 @@ def _encode_profile(profile: dict[str, Any], station_count: int) -> np.ndarray:
     aspect = width / max(height, 1e-9)
     extras = np.asarray([topology, station_count / 28.0, aspect, width, height], dtype=float)
     return np.concatenate([points.reshape(-1), extras])
+
+
+def _shape_roughness(points: np.ndarray) -> float:
+    """Measure high-frequency contour oscillation independent of size.
+
+    The ratio compares second differences with first differences. Smooth curves
+    and ordinary line/arc profiles remain low, while alternating zigzags become
+    large. This is a deterministic geometry validity guard, not a learned
+    probability.
+    """
+    value = np.asarray(points, dtype=float)
+    if value.shape != (128, 2) or not np.all(np.isfinite(value)):
+        return float("inf")
+    first = np.diff(value, axis=0)
+    second = np.diff(value, n=2, axis=0)
+    first_rms = float(np.sqrt(np.mean(first * first))) if first.size else 0.0
+    second_rms = float(np.sqrt(np.mean(second * second))) if second.size else 0.0
+    return second_rms / max(first_rms, 1e-12)
+
+
+def _geometry_guard(points: np.ndarray) -> tuple[float, list[str]]:
+    roughness = _shape_roughness(points)
+    reasons: list[str] = []
+    if not np.isfinite(roughness):
+        reasons.append("NON_FINITE_CANONICAL_GEOMETRY")
+    elif roughness > MAX_NORMALIZED_ROUGHNESS:
+        reasons.append("HIGH_FREQUENCY_CONTOUR")
+    return roughness, reasons
 
 
 def _ridge(x: np.ndarray, y: np.ndarray, lam: float) -> np.ndarray:
@@ -87,8 +117,7 @@ class CLRSGModel:
     ood_thresholds: dict[str, float]
     manifest: dict[str, Any]
 
-    def condition(self, profile: dict[str, Any], station_count: int) -> np.ndarray:
-        raw = _encode_profile(profile, station_count)
+    def _condition_from_raw(self, raw: np.ndarray) -> np.ndarray:
         target_flat = raw[:-5]
         target_z = (target_flat - self.target_mean) @ self.target_components.T
         features = np.concatenate([target_z, raw[-5:]])
@@ -96,8 +125,12 @@ class CLRSGModel:
             raise ValueError("CLRSG feature schema mismatch")
         return (features - self.feature_mean) / self.feature_scale
 
+    def condition(self, profile: dict[str, Any], station_count: int) -> np.ndarray:
+        return self._condition_from_raw(_encode_profile(profile, station_count))
+
     def predict(self, profile: dict[str, Any], station_count: int) -> dict[str, Any]:
-        x = self.condition(profile, station_count)
+        raw = _encode_profile(profile, station_count)
+        x = self._condition_from_raw(raw)
         outputs = [np.concatenate([x, [1.0]]) @ member for member in self.members]
         latent = np.asarray(outputs)
         mean_latent = latent.mean(axis=0)
@@ -105,16 +138,30 @@ class CLRSGModel:
         disagreement = float(np.sqrt(np.mean(np.var(latent, axis=0))))
         distance = float(np.sqrt(np.mean(x * x)))
         if distance <= self.ood_thresholds["in_distribution"]:
-            ood = "IN_DISTRIBUTION"
+            statistical_ood = "IN_DISTRIBUTION"
         elif distance <= self.ood_thresholds["near_distribution"]:
-            ood = "NEAR_DISTRIBUTION"
+            statistical_ood = "NEAR_DISTRIBUTION"
         else:
-            ood = "OUT_OF_DISTRIBUTION"
+            statistical_ood = "OUT_OF_DISTRIBUTION"
+
+        roughness, guard_reasons = _geometry_guard(raw[:-5].reshape(128, 2))
+        ood = "OUT_OF_DISTRIBUTION" if guard_reasons else statistical_ood
+        reasons = list(guard_reasons)
+        if statistical_ood == "OUT_OF_DISTRIBUTION":
+            reasons.append("CONDITION_DISTANCE_EXCEEDED")
+        elif statistical_ood == "NEAR_DISTRIBUTION":
+            reasons.append("CONDITION_DISTANCE_NEAR_LIMIT")
+
         return {
             "residual": residual_flat.reshape(SEQUENCE_SHAPE),
             "condition_distance": distance,
             "ensemble_disagreement": disagreement,
+            "geometry_roughness": roughness,
+            "geometry_guard_version": GEOMETRY_GUARD_VERSION,
+            "geometry_guard_threshold": MAX_NORMALIZED_ROUGHNESS,
             "ood_status": ood,
+            "statistical_ood_status": statistical_ood,
+            "ood_reasons": reasons,
             "latent_members": len(outputs),
             "ood_thresholds": dict(self.ood_thresholds),
         }
@@ -196,6 +243,7 @@ def train_clrsg(corpus: SyntheticCorpus, output: Path, *, ensemble_members: int 
         "created_by": "clrsg_training_v1",
         "bootstrap_unit": "PARENT_GROUP",
         "ood_threshold_source": "DEFAULT_PENDING_VALIDATION",
+        "geometry_guard_version": GEOMETRY_GUARD_VERSION,
     }
     np.savez_compressed(output / "target_pca.npz", mean=target_mean, components=target_components, explained_variance=target_var, explained_variance_ratio=target_ratio)
     np.savez_compressed(output / "residual_pca.npz", mean=residual_mean, components=residual_components, explained_variance=residual_var, explained_variance_ratio=residual_ratio, feature_mean=feature_mean, feature_scale=feature_scale)
@@ -211,6 +259,7 @@ def train_clrsg(corpus: SyntheticCorpus, output: Path, *, ensemble_members: int 
         "lambda_validation_curve": validation_curve,
         "ensemble_members": ensemble_members,
         "bootstrap_unit": "PARENT_GROUP",
+        "geometry_guard_version": GEOMETRY_GUARD_VERSION,
         "validation_status": "DIAGNOSTIC_ONLY",
     }
     for name in ("training_metrics.json", "validation_metrics.json", "evaluation_metrics.json", "calibration.json"):
