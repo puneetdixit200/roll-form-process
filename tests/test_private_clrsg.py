@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 
 import numpy as np
 import pytest
 
-from rollform_extractor.clrsg_model import load_clrsg_model
+from rollform_extractor.clrsg_model import (
+    MAX_NORMALIZED_ROUGHNESS,
+    _shape_roughness,
+    load_clrsg_model,
+)
 from rollform_extractor.private_clrsg import (
     PRIVATE_CORPUS_CLASSIFICATION,
     PRIVATE_MODEL_CLASSIFICATION,
@@ -79,6 +84,14 @@ def test_private_root_rejects_any_git_ancestor(tmp_path):
         _assert_private_root(repository / "private" / "models")
 
 
+def test_high_frequency_geometry_guard_separates_smooth_and_zigzag_contours():
+    smooth = _seed().final
+    zigzag = smooth.copy()
+    zigzag[:, 1] += np.where(np.arange(len(zigzag)) % 2, 0.35, -0.35)
+    assert _shape_roughness(smooth) < MAX_NORMALIZED_ROUGHNESS
+    assert _shape_roughness(zigzag) > MAX_NORMALIZED_ROUGHNESS
+
+
 def test_private_corpus_is_non_committable_and_group_safe(tmp_path, monkeypatch):
     seeds = (_seed("PRIVATE-FLOWER-001", station_count=14), _seed("PRIVATE-FLOWER-002", station_count=17))
     monkeypatch.setattr("rollform_extractor.private_clrsg.load_private_seeds", lambda _: seeds)
@@ -110,5 +123,14 @@ def test_private_training_writes_validation_derived_ood_thresholds(tmp_path, mon
     assert manifest["ood_threshold_version"] == "validation_quantile_ood_v1"
     assert thresholds["thresholds"]["near_distribution"] >= thresholds["thresholds"]["in_distribution"]
     assert model.ood_thresholds == thresholds["thresholds"]
+    assert result["evaluation"]["ood"]["true_positive_rate"] >= 0.75
     assert (model_root / "evaluation_metrics.json").is_file()
     assert (model_root / "calibration.json").is_file()
+
+    sample = next(item for item in corpus.samples if item.split in {"VALIDATION", "TEST"})
+    high_frequency = deepcopy(sample.target_profile)
+    for index, vertex in enumerate(high_frequency["vertices"]):
+        vertex["y"] = float(vertex["y"]) + (0.35 if index % 2 else -0.35)
+    prediction = model.predict(high_frequency, sample.station_count)
+    assert prediction["ood_status"] == "OUT_OF_DISTRIBUTION"
+    assert "HIGH_FREQUENCY_CONTOUR" in prediction["ood_reasons"]
