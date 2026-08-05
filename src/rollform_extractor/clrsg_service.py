@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -59,7 +60,17 @@ def list_models(engine) -> list[dict[str, Any]]:
 
 def model_status(engine) -> dict[str, Any]:
     models = list_models(engine)
-    return {"algorithm_version": CLRSG_ALGORITHM_VERSION, "active_models": [item for item in models if item["status"] == "ACTIVE"], "models": models, "deterministic_fallback": True, "production_approval": "NOT_APPROVED"}
+    active = [item for item in models if item["status"] == "ACTIVE"]
+    configured = os.environ.get("ROLLFORM_ACTIVE_CLRSG_MODEL")
+    if configured:
+        try:
+            local_model = load_clrsg_model(Path(configured).expanduser().resolve())
+            local_entry = {"model_id": local_model.model_id, "algorithm_version": local_model.manifest.get("algorithm_version", CLRSG_ALGORITHM_VERSION), "dataset_id": local_model.manifest.get("dataset_id"), "privacy_classification": local_model.manifest.get("privacy_classification"), "status": "ACTIVE", "manifest": {"model_id": local_model.model_id, "algorithm_version": local_model.manifest.get("algorithm_version"), "privacy_classification": local_model.manifest.get("privacy_classification"), "station_range": local_model.manifest.get("station_range"), "supported_topology": local_model.manifest.get("supported_topology")}, "model_path_configured": True}
+            active = [item for item in active if item.get("model_id") != local_model.model_id] + [local_entry]
+            models = [item for item in models if item.get("model_id") != local_model.model_id] + [local_entry]
+        except (OSError, ValueError, KeyError):
+            pass
+    return {"algorithm_version": CLRSG_ALGORITHM_VERSION, "active_models": active, "models": models, "deterministic_fallback": True, "production_approval": "NOT_APPROVED"}
 
 
 def register_dataset(engine, corpus: SyntheticCorpus) -> dict[str, Any]:
