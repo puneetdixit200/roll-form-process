@@ -51,6 +51,10 @@ jobs:
           cmp --silent /tmp/clrsg-corpus-a/manifest.json /tmp/clrsg-corpus-b/manifest.json
           python -m rollform_extractor clrsg-train /tmp/clrsg-corpus-a --output /tmp/clrsg-model --ensemble-members 5 --seed 1729
           pytest -q tests/test_clrsg.py
+      - name: Phase 20 private pipeline public-fixture regression
+        run: |
+          set -euo pipefail
+          pytest -q tests/test_private_clrsg.py
 
   frontend:
     runs-on: ubuntu-latest
