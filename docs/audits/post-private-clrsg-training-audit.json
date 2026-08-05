@@ -1,0 +1,19 @@
+{
+  "phase": "Phase 20 private CLRSG",
+  "implementation_branch": "feature/private-clrsg-training-evaluation",
+  "base_sha": "c73762d7becfbb49e9ead1c5f400c3dc28d89188",
+  "added": [
+    "private seed loading",
+    "geometry-derived historical schedules",
+    "controlled private target transforms",
+    "historical warp teacher sequences",
+    "private corpus generation",
+    "private model training and held-out evaluation",
+    "approval and local activation gates",
+    "operator script and tests"
+  ],
+  "private_artifacts_committed": false,
+  "deterministic_fallback_preserved": true,
+  "manufacturing_approval": "NOT_APPROVED",
+  "unexpected_removals": []
+}
