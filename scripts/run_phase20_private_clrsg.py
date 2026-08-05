@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import sys
 
+from rollform_extractor.phase20_ood_fix import reevaluate_private_model
 from rollform_extractor.private_clrsg import (
     activate_private_model,
     approve_private_model,
@@ -72,6 +73,13 @@ def main(argv: list[str] | None = None) -> int:
     evaluate.add_argument("corpus", type=Path)
     evaluate.add_argument("model", type=Path)
 
+    reevaluate = sub.add_parser("reevaluate")
+    reevaluate.add_argument("corpus", type=Path)
+    reevaluate.add_argument("model", type=Path)
+    reevaluate.add_argument("--dataset", type=Path)
+    reevaluate.add_argument("--registry", type=Path)
+    reevaluate.add_argument("--activate-if-approved", action="store_true")
+
     approve = sub.add_parser("approve")
     approve.add_argument("model", type=Path)
 
@@ -106,6 +114,14 @@ def main(argv: list[str] | None = None) -> int:
             result = train_private_model(load_corpus(args.corpus), args.output, ensemble_members=args.ensemble_members, seed=args.seed, private_seeds=seeds)
         elif args.command == "evaluate":
             result = evaluate_model(args.model, load_corpus(args.corpus))
+        elif args.command == "reevaluate":
+            result = reevaluate_private_model(
+                args.corpus,
+                args.model,
+                dataset_path=args.dataset,
+                registry_root=args.registry,
+                activate_if_approved=args.activate_if_approved,
+            )
         elif args.command == "approve":
             result = approve_private_model(args.model)
         elif args.command == "activate":
