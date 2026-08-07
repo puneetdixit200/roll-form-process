@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["phase", "git", "statuses", "golden", "safety", "tests"],
+  "properties": {
+    "phase": {"const": "21"},
+    "git": {"type": "object", "required": ["branch", "head"]},
+    "statuses": {"type": "object"},
+    "golden": {"type": "object", "required": ["supported", "ood"]},
+    "safety": {"type": "object", "required": ["manufacturing_approval", "physical_roller_availability"]},
+    "tests": {"type": "object"}
+  }
+}

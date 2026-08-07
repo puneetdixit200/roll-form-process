@@ -1,0 +1,125 @@
+{
+  "closed": false,
+  "computational_seam_vertex_id": null,
+  "metadata": {
+    "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+    "expected_ood_class": "IN_DISTRIBUTION",
+    "family": "OPEN_STEP_PROFILE",
+    "negative_probe": false,
+    "requested_station_count": 28,
+    "source": "PUBLIC_SYNTHETIC_TEST",
+    "visual_only": true
+  },
+  "name": "Public golden OPEN_STEP_PROFILE 1",
+  "profile_id": "OPEN_STEP_PROFILE_MEDIUM",
+  "schema_version": 1,
+  "segments": [
+    {
+      "end_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v1",
+      "segment_id": "OPEN_STEP_PROFILE_MEDIUM-s0",
+      "start_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v0",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v2",
+      "segment_id": "OPEN_STEP_PROFILE_MEDIUM-s1",
+      "start_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v1",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v3",
+      "segment_id": "OPEN_STEP_PROFILE_MEDIUM-s2",
+      "start_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v2",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v4",
+      "segment_id": "OPEN_STEP_PROFILE_MEDIUM-s3",
+      "start_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v3",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v5",
+      "segment_id": "OPEN_STEP_PROFILE_MEDIUM-s4",
+      "start_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v4",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v6",
+      "segment_id": "OPEN_STEP_PROFILE_MEDIUM-s5",
+      "start_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v5",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v7",
+      "segment_id": "OPEN_STEP_PROFILE_MEDIUM-s6",
+      "start_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v6",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v8",
+      "segment_id": "OPEN_STEP_PROFILE_MEDIUM-s7",
+      "start_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v7",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v9",
+      "segment_id": "OPEN_STEP_PROFILE_MEDIUM-s8",
+      "start_vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v8",
+      "type": "LINE"
+    }
+  ],
+  "topology": "OPEN_PATH",
+  "vertices": [
+    {
+      "vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v0",
+      "x": -3.0,
+      "y": 0.0
+    },
+    {
+      "vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v1",
+      "x": -2.0,
+      "y": 0.0
+    },
+    {
+      "vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v2",
+      "x": -2.0,
+      "y": 1.0
+    },
+    {
+      "vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v3",
+      "x": -1.0,
+      "y": 1.0
+    },
+    {
+      "vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v4",
+      "x": -1.0,
+      "y": 0.0
+    },
+    {
+      "vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v5",
+      "x": 0.0,
+      "y": 0.0
+    },
+    {
+      "vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v6",
+      "x": 0.0,
+      "y": 1.0
+    },
+    {
+      "vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v7",
+      "x": 1.0,
+      "y": 1.0
+    },
+    {
+      "vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v8",
+      "x": 1.0,
+      "y": 0.0
+    },
+    {
+      "vertex_id": "OPEN_STEP_PROFILE_MEDIUM-v9",
+      "x": 3.0,
+      "y": 0.0
+    }
+  ]
+}

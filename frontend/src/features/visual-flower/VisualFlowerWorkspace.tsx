@@ -1,31 +1,763 @@
 import { useEffect, useMemo, useState } from "react";
-import { createVisualTarget, generateVisualFlower, getVisualDatasetStatus, getVisualImportProfiles, getVisualModelStatus, importVisualCad, useVisualImportProfile, visualExportUrl } from "./api";
+import {
+  createVisualTarget,
+  generateVisualFlower,
+  getVisualDatasetStatus,
+  getVisualImportProfiles,
+  getVisualModelDoctor,
+  getVisualModelStatus,
+  importVisualCad,
+  reviewVisualCandidate,
+  useVisualImportProfile,
+  visualExportUrl,
+} from "./api";
 import { exampleProfile, ProfileSketcher } from "./ProfileSketcher";
 import type { VisualCandidate, VisualProfile, VisualRun } from "./types";
 
-type ImportedProfile = { profile_id: string; profile?: VisualProfile; open_closed: string; entity_count: number; aspect_ratio: number | null; warnings: string[]; thumbnail_svg: string };
+type ImportedProfile = {
+  profile_id: string;
+  profile?: VisualProfile;
+  open_closed: string;
+  entity_count: number;
+  aspect_ratio: number | null;
+  warnings: string[];
+  thumbnail_svg: string;
+};
 
 export default function VisualFlowerWorkspace() {
-  const [profile, setProfile] = useState<VisualProfile>(exampleProfile()); const [run, setRun] = useState<VisualRun | null>(null); const [candidateIndex, setCandidateIndex] = useState(0); const [passIndex, setPassIndex] = useState(0); const [playing, setPlaying] = useState(false); const [loop, setLoop] = useState(true); const [speed, setSpeed] = useState(900); const [viewMode, setViewMode] = useState("GENERATED"); const [stationMode, setStationMode] = useState("EXACT"); const [stationCount, setStationCount] = useState(16); const [minimumStationCount, setMinimumStationCount] = useState(8); const [maximumStationCount, setMaximumStationCount] = useState(28); const [candidateLimit, setCandidateLimit] = useState(3); const [generationEngine, setGenerationEngine] = useState("AUTO"); const [message, setMessage] = useState(""); const [validated, setValidated] = useState(false); const [importId, setImportId] = useState<string | null>(null); const [importProfiles, setImportProfiles] = useState<ImportedProfile[]>([]); const [uploading, setUploading] = useState(false); const [dataset, setDataset] = useState<{ available: boolean; flower_count: number; pass_count: number; warning?: string } | null>(null); const [modelStatus, setModelStatus] = useState<{ algorithm_version: string; active_models: Array<{ model_id: string; status: string; privacy_classification: string }>; deterministic_fallback: boolean; production_approval: string } | null>(null);
-  const candidate: VisualCandidate | undefined = run?.candidates[candidateIndex]; const currentPass = candidate?.passes[passIndex];
-  useEffect(() => { getVisualDatasetStatus().then(setDataset).catch(() => setDataset({ available: false, flower_count: 0, pass_count: 0, warning: "Backend unavailable" })); getVisualModelStatus().then(setModelStatus).catch(() => setModelStatus(null)); }, []);
-  useEffect(() => { if (!playing || !candidate || candidate.passes.length < 2) return; const timer = window.setInterval(() => setPassIndex((value) => { const next = value + 1; if (next >= candidate.passes.length && !loop) { setPlaying(false); return value; } return next % candidate.passes.length; }), speed); return () => window.clearInterval(timer); }, [candidate, loop, playing, speed]);
-  const validation = useMemo(() => { const ids = new Set(profile.vertices.map((point) => point.vertex_id)); const broken = profile.segments.filter((segment) => !ids.has(segment.start_vertex_id) || !ids.has(segment.end_vertex_id)); const zero = profile.segments.filter((segment) => segment.start_vertex_id === segment.end_vertex_id); const connected = profile.segments.length > 0 && broken.length === 0 && zero.length === 0; const seam = profile.topology === "OPEN_PATH" || Boolean(profile.computational_seam_vertex_id && ids.has(profile.computational_seam_vertex_id)); return { valid: profile.vertices.length >= 2 && connected && seam, broken, zero, seam }; }, [profile]);
-  function validateProfile() { setValidated(true); setMessage(validation.valid ? "Profile valid with current geometry checks." : "Profile has blocking geometry issues; generation is disabled."); }
-  async function generate() { try { setMessage("Canonicalizing and matching historical passes..."); const target = await createVisualTarget(profile); const next = await generateVisualFlower(target.target_id, { generation_engine: generationEngine, station_mode: stationMode, exact_station_count: stationCount, minimum_station_count: minimumStationCount, maximum_station_count: maximumStationCount, candidate_limit: candidateLimit, allow_mirror_matching: true, allow_rotation_alignment: true }); setRun(next); setCandidateIndex(0); setPassIndex(0); setMessage("Candidate sequences ready for engineer review."); } catch (error) { setMessage(error instanceof Error ? error.message : "Generation failed"); } }
-  function downloadJson(name: string, value: unknown) { const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: "application/json" })); link.download = name; link.click(); URL.revokeObjectURL(link.href); }
-  function saveTarget() { downloadJson(`${profile.profile_id}.json`, profile); }
-  function loadTarget(event: React.ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file) return; if (!file.name.toLowerCase().endsWith(".json")) { setMessage("CAD files should use Import DWG/DXF so profiles can be detected and selected safely."); return; } file.text().then((text) => { try { setProfile(JSON.parse(text) as VisualProfile); setValidated(false); setMessage("Target loaded. Validate before generation."); } catch { setMessage("Target JSON could not be read."); } }); }
-  async function uploadCad(event: React.ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file) return; setUploading(true); setMessage("Uploading → converting → parsing → detecting profiles..."); try { const result = await importVisualCad(file); setImportId(result.import_id); const profiles = await getVisualImportProfiles(result.import_id); setImportProfiles(profiles); setMessage(`${result.profile_count} profile candidate(s) detected using ${result.converter ?? "offline extraction"}. Select one below.`); } catch (error) { setMessage(error instanceof Error ? error.message : "CAD import failed"); } finally { setUploading(false); } }
-  async function useImported(profileId: string) { if (!importId) return; try { const result = await useVisualImportProfile(importId, profileId); if (result.profile) setProfile(result.profile); setValidated(false); setMessage("Imported profile loaded into the sketch editor. Validate before generation."); } catch (error) { setMessage(error instanceof Error ? error.message : "Profile selection failed"); } }
-  function passPoints(points: number[][]) { return points.map((point) => point.join(",")).join(" "); }
-  function exportCandidate(artifact: string) { if (candidate) window.open(visualExportUrl(candidate.candidate_id, artifact), "_blank", "noopener,noreferrer"); }
-  function matchForPass(item: any) { return item?.historical_match?.best_match; }
-  return <section className="visual-workspace"><h2>Visual Flower Generator</h2><div className="model-status-panel"><strong>CLRSG model</strong>: {modelStatus?.active_models?.[0]?.model_id ?? "No learned model active"} · deterministic fallback available · production approval {modelStatus?.production_approval ?? "NOT_APPROVED"}</div><label>Generation engine <select value={generationEngine} onChange={(event) => setGenerationEngine(event.target.value)}><option value="AUTO">Automatic</option><option value="DETERMINISTIC_ONLY">Deterministic only</option><option value="LEARNED_HYBRID">Learned hybrid</option><option value="COMPARE_ALL">Compare all</option></select></label><p className="notice"><strong>Historically grounded visual prototype.</strong> VISUAL CONFIDENCE measures geometry support only. It is not manufacturing, tooling or production confidence.</p><details className="prototype-evidence"><summary>Prototype Evidence</summary><div className="metrics"><Metric label="Historical flowers" value="2" /><Metric label="Historical passes" value="31" /><Metric label="Station examples" value="8 / 16 / 28" /><Metric label="Determinism" value="PASS" /></div><p>Evidence is redacted and private-source safe. Hidden-pass benchmark and readiness evidence are documented in the committed visual-flower report. Customer demonstration status is prototype-ready; manufacturing approval remains NOT APPROVED and physical roller availability is NOT DETERMINED.</p></details>
-    <div className="visual-layout"><div><h3>Target Profile</h3><div className="visual-controls"><label className="primary-action">Import DWG/DXF <input type="file" accept=".dwg,.dxf" onChange={uploadCad} disabled={uploading} /></label><label>Load profile JSON <input type="file" accept="application/json" onChange={loadTarget} /></label></div>{importProfiles.length > 0 && <div className="import-candidates"><h4>Detected profile candidates</h4>{importProfiles.map((item) => <article className="import-card" key={item.profile_id}><div dangerouslySetInnerHTML={{ __html: item.thumbnail_svg }} /><div><strong>{item.profile_id}</strong><p>{item.open_closed} · {item.entity_count} entities · aspect {item.aspect_ratio?.toFixed(2) ?? "unknown"}</p><p>{item.warnings.length ? item.warnings.join(", ") : "No geometry warnings"}</p><button onClick={() => useImported(item.profile_id)}>Use this profile</button></div></article>)}</div>}
-      <ProfileSketcher profile={profile} onChange={(next) => { setProfile(next); setValidated(false); }} /><div className="visual-controls"><button onClick={validateProfile}>Validate Profile</button><button onClick={saveTarget}>Save target JSON</button><label>Station mode <select value={stationMode} onChange={(event) => setStationMode(event.target.value)}><option value="EXACT">Exact</option><option value="AUTOMATIC">Automatic</option><option value="RANGE">Range</option></select></label>{stationMode === "EXACT" ? <label>Stages <input type="number" min={8} max={28} value={stationCount} onChange={(event) => setStationCount(Number(event.target.value))} /></label> : <><label>Min stages <input type="number" min={8} max={28} value={minimumStationCount} onChange={(event) => setMinimumStationCount(Number(event.target.value))} /></label><label>Max stages <input type="number" min={8} max={28} value={maximumStationCount} onChange={(event) => setMaximumStationCount(Number(event.target.value))} /></label></>}<label>Candidates <input type="number" min={1} max={3} value={candidateLimit} onChange={(event) => setCandidateLimit(Number(event.target.value))} /></label><button disabled={!validation.valid || !validated} onClick={generate}>Generate Flower Sequence</button></div><p>{validated ? (validation.valid ? "Valid profile." : `Invalid profile: ${validation.broken.length} broken and ${validation.zero.length} zero-length segment(s).`) : "Validate Profile before generation."}</p><p>{dataset?.available ? `Historical evidence: ${dataset.flower_count} flowers, ${dataset.pass_count} passes.` : dataset?.warning ?? "Historical dataset status unknown."}</p></div>
-      <div><h3>Candidate Sequences</h3>{run?.candidates.length ? <><div className="candidate-tabs">{run.candidates.map((item, index) => <button key={item.candidate_id} className={candidateIndex === index ? "active" : ""} onClick={() => { setCandidateIndex(index); setPassIndex(0); }}>{item.candidate_style} · {item.station_count} stations · {item.visual_confidence.score.toFixed(1)}</button>)}</div>{candidate && <><div className="metrics"><Metric label="VISUAL CONFIDENCE" value={`${candidate.visual_confidence.score.toFixed(1)} / 100`} /><Metric label="Band" value={candidate.visual_confidence.band} /><Metric label="Mean / minimum" value={`${candidate.visual_confidence.mean_pass_confidence.toFixed(1)} / ${candidate.visual_confidence.minimum_pass_confidence.toFixed(1)}`} /><Metric label="Historical coverage" value={`${candidate.passes.filter((item) => matchForPass(item)).length}/${candidate.passes.length}`} /></div><div className="candidate-comparison"><strong>Candidate comparison</strong>{run.candidates.slice(0, 3).map((item) => <span key={item.candidate_id}>{item.candidate_style}: {item.station_count} stations, {item.visual_confidence.score.toFixed(1)}, {item.visual_confidence.band}</span>)}</div><div className="visual-controls"><button onClick={() => setPlaying((value) => !value)}>{playing ? "Pause" : "Play"}</button><button onClick={() => setPassIndex((value) => Math.max(0, value - 1))}>Previous</button><button onClick={() => setPassIndex((value) => Math.min(candidate.passes.length - 1, value + 1))}>Next</button><label>Speed <select value={speed} onChange={(event) => setSpeed(Number(event.target.value))}><option value={1400}>Slow</option><option value={900}>Normal</option><option value={450}>Fast</option></select></label><label><input type="checkbox" checked={loop} onChange={(event) => setLoop(event.target.checked)} /> Loop</label><button onClick={() => exportCandidate("zip")}>ZIP export</button></div><div className="visual-controls"><label>View <select value={viewMode} onChange={(event) => setViewMode(event.target.value)}><option value="GENERATED">Generated profile</option><option value="HISTORICAL">Historical match</option><option value="OVERLAY">Overlay</option><option value="DIFFERENCE">Difference</option><option value="ALL">All stages</option></select></label>{["dxf", "svg", "png", "json", "csv", "html"].map((item) => <button key={item} onClick={() => exportCandidate(item)}>{item.toUpperCase()} export</button>)}</div><div className="station-thumbnails">{candidate.passes.map((item, index) => <button key={item.pass_id} className={index === passIndex ? "active" : ""} onClick={() => setPassIndex(index)}>P{item.order}</button>)}</div><svg role="img" aria-label="Generated pass viewer" viewBox="-2 -2 4 4" style={{ width: "100%", minHeight: 300, border: "1px solid #b7c0ca" }}>{candidate.passes.map((item, index) => { const generated = item.profile.points; const historical = matchForPass(item); const historicalPoints = historical?.historical_points; return <g key={item.pass_id} opacity={viewMode === "ALL" ? (index === passIndex ? 1 : .22) : index === passIndex ? 1 : .08}><polyline points={passPoints(generated)} fill="none" stroke={index === passIndex ? "#c46b00" : "#8aa5b9"} strokeWidth={index === passIndex ? ".025" : ".008"} /><polyline points={viewMode === "OVERLAY" || viewMode === "HISTORICAL" ? passPoints(historicalPoints ?? []) : ""} fill="none" stroke="#155783" strokeWidth=".012" strokeDasharray=".04 .02" /></g>; })}</svg><input aria-label="Station slider" type="range" min={0} max={candidate.passes.length - 1} value={passIndex} onChange={(event) => setPassIndex(Number(event.target.value))} /><p>Station {currentPass?.order} · {Math.round((currentPass?.progress ?? 0) * 100)}% progress · {currentPass?.visual_confidence.band}</p><p>Legend: <span className="generated-key">orange = generated</span>; <span className="historical-key">blue dashed = historical match</span>.</p><MatchDetails item={currentPass} /></>}</> : <p>Validate a profile, then generate a sequence.</p>}<p>{message}</p></div></div></section>;
+  const [profile, setProfile] = useState<VisualProfile>(exampleProfile());
+  const [run, setRun] = useState<VisualRun | null>(null);
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const [passIndex, setPassIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [loop, setLoop] = useState(true);
+  const [speed, setSpeed] = useState(900);
+  const [viewMode, setViewMode] = useState("GENERATED");
+  const [stationMode, setStationMode] = useState("EXACT");
+  const [stationCount, setStationCount] = useState(16);
+  const [minimumStationCount, setMinimumStationCount] = useState(8);
+  const [maximumStationCount, setMaximumStationCount] = useState(28);
+  const [candidateLimit, setCandidateLimit] = useState(3);
+  const [generationEngine, setGenerationEngine] = useState("AUTO");
+  const [message, setMessage] = useState("");
+  const [validated, setValidated] = useState(false);
+  const [guided, setGuided] = useState(false);
+  const [reviewer, setReviewer] = useState("");
+  const [importId, setImportId] = useState<string | null>(null);
+  const [importProfiles, setImportProfiles] = useState<ImportedProfile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [dataset, setDataset] = useState<
+    {
+      available: boolean;
+      flower_count: number;
+      pass_count: number;
+      warning?: string;
+    } | null
+  >(null);
+  const [modelStatus, setModelStatus] = useState<
+    {
+      algorithm_version: string;
+      active_models: Array<
+        { model_id: string; status: string; privacy_classification: string }
+      >;
+      deterministic_fallback: boolean;
+      production_approval: string;
+    } | null
+  >(null);
+  const [modelDoctor, setModelDoctor] = useState<
+    { status: string; model?: Record<string, unknown> } | null
+  >(null);
+  const candidate: VisualCandidate | undefined = run
+    ?.candidates[candidateIndex];
+  const currentPass = candidate?.passes[passIndex];
+  useEffect(() => {
+    getVisualDatasetStatus().then(setDataset).catch(() =>
+      setDataset({
+        available: false,
+        flower_count: 0,
+        pass_count: 0,
+        warning: "Backend unavailable",
+      })
+    );
+    getVisualModelStatus().then(setModelStatus).catch(() =>
+      setModelStatus(null)
+    );
+    getVisualModelDoctor().then(setModelDoctor).catch(() =>
+      setModelDoctor({ status: "NOT_READY" })
+    );
+  }, []);
+  useEffect(() => {
+    if (!playing || !candidate || candidate.passes.length < 2) return;
+    const timer = window.setInterval(() =>
+      setPassIndex((value) => {
+        const next = value + 1;
+        if (next >= candidate.passes.length && !loop) {
+          setPlaying(false);
+          return value;
+        }
+        return next % candidate.passes.length;
+      }), speed);
+    return () => window.clearInterval(timer);
+  }, [candidate, loop, playing, speed]);
+  const validation = useMemo(() => {
+    const ids = new Set(profile.vertices.map((point) => point.vertex_id));
+    const broken = profile.segments.filter((segment) =>
+      !ids.has(segment.start_vertex_id) || !ids.has(segment.end_vertex_id)
+    );
+    const zero = profile.segments.filter((segment) =>
+      segment.start_vertex_id === segment.end_vertex_id
+    );
+    const connected = profile.segments.length > 0 && broken.length === 0 &&
+      zero.length === 0;
+    const seam = profile.topology === "OPEN_PATH" ||
+      Boolean(
+        profile.computational_seam_vertex_id &&
+          ids.has(profile.computational_seam_vertex_id),
+      );
+    return {
+      valid: profile.vertices.length >= 2 && connected && seam,
+      broken,
+      zero,
+      seam,
+    };
+  }, [profile]);
+  function validateProfile() {
+    setValidated(true);
+    setMessage(
+      validation.valid
+        ? "Profile valid with current geometry checks."
+        : "Profile has blocking geometry issues; generation is disabled.",
+    );
+  }
+  async function generate() {
+    try {
+      setMessage("Canonicalizing and matching historical passes...");
+      const target = await createVisualTarget(profile);
+      const next = await generateVisualFlower(target.target_id, {
+        generation_engine: generationEngine,
+        station_mode: stationMode,
+        exact_station_count: stationCount,
+        minimum_station_count: minimumStationCount,
+        maximum_station_count: maximumStationCount,
+        candidate_limit: candidateLimit,
+        allow_mirror_matching: true,
+        allow_rotation_alignment: true,
+      });
+      setRun(next);
+      setCandidateIndex(0);
+      setPassIndex(0);
+      setMessage("Candidate sequences ready for engineer review.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Generation failed");
+    }
+  }
+  function downloadJson(name: string, value: unknown) {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(
+      new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }),
+    );
+    link.download = name;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+  function saveTarget() {
+    downloadJson(`${profile.profile_id}.json`, profile);
+  }
+  function loadTarget(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".json")) {
+      setMessage(
+        "CAD files should use Import DWG/DXF so profiles can be detected and selected safely.",
+      );
+      return;
+    }
+    file.text().then((text) => {
+      try {
+        setProfile(JSON.parse(text) as VisualProfile);
+        setValidated(false);
+        setMessage("Target loaded. Validate before generation.");
+      } catch {
+        setMessage("Target JSON could not be read.");
+      }
+    });
+  }
+  async function uploadCad(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setMessage("Uploading → converting → parsing → detecting profiles...");
+    try {
+      const result = await importVisualCad(file);
+      setImportId(result.import_id);
+      const profiles = await getVisualImportProfiles(result.import_id);
+      setImportProfiles(profiles);
+      setMessage(
+        `${result.profile_count} profile candidate(s) detected using ${
+          result.converter ?? "offline extraction"
+        }. Select one below.`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "CAD import failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+  async function useImported(profileId: string) {
+    if (!importId) return;
+    try {
+      const result = await useVisualImportProfile(importId, profileId);
+      if (result.profile) setProfile(result.profile);
+      setValidated(false);
+      setMessage(
+        "Imported profile loaded into the sketch editor. Validate before generation.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Profile selection failed",
+      );
+    }
+  }
+  async function review(decision: string) {
+    if (!candidate || !reviewer.trim()) {
+      setMessage("Enter a reviewer name before submitting feedback.");
+      return;
+    }
+    try {
+      await reviewVisualCandidate(candidate.candidate_id, {
+        decision,
+        reviewer,
+        reason_codes: [
+          decision === "ACCEPT_VISUAL_SEQUENCE"
+            ? "SMOOTH_PROGRESSION"
+            : "OTHER",
+        ],
+        notes: "Phase 21 local engineer feedback",
+      });
+      setMessage(
+        "Review captured as evidence; model approval and weights were unchanged.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Review submission failed",
+      );
+    }
+  }
+  function resetDemo() {
+    setProfile(exampleProfile());
+    setRun(null);
+    setCandidateIndex(0);
+    setPassIndex(0);
+    setValidated(false);
+    setImportProfiles([]);
+    setMessage("Guided demo reset to the public example.");
+  }
+  function passPoints(points: number[][]) {
+    return points.map((point) => point.join(",")).join(" ");
+  }
+  function exportCandidate(artifact: string) {
+    if (candidate) {
+      window.open(
+        visualExportUrl(candidate.candidate_id, artifact),
+        "_blank",
+        "noopener,noreferrer",
+      );
+    }
+  }
+  function matchForPass(item: any) {
+    return item?.historical_match?.best_match;
+  }
+  return (
+    <section className="visual-workspace">
+      <h2>Visual Flower Generator</h2>
+      <div className="model-status-panel">
+        <strong>Private learned model:</strong>{" "}
+        {modelStatus?.active_models?.[0]?.model_id ?? "UNAVAILABLE"} ·{" "}
+        <strong>Artifact health:</strong>{" "}
+        {modelDoctor?.status === "READY" ? "VERIFIED" : "CHECK REQUIRED"} ·{" "}
+        <strong>Approval:</strong> PRIVATE PROTOTYPE ·{" "}
+        <strong>Fallback:</strong> AVAILABLE · <strong>Manufacturing:</strong>
+        {" "}
+        NOT APPROVED
+      </div>
+      <div className="visual-controls">
+        <button
+          className={guided ? "active" : ""}
+          onClick={() => setGuided((value) => !value)}
+        >
+          Guided Demo
+        </button>
+        <button onClick={resetDemo}>Reset demo</button>
+        <label>
+          Generation engine{" "}
+          <select
+            value={generationEngine}
+            onChange={(event) => setGenerationEngine(event.target.value)}
+          >
+            <option value="AUTO">Automatic</option>
+            <option value="DETERMINISTIC_ONLY">Deterministic only</option>
+            <option value="LEARNED_HYBRID">Learned hybrid</option>
+            <option value="COMPARE_ALL">Compare all</option>
+          </select>
+        </label>
+      </div>
+      {guided && (
+        <p className="notice">
+          Guided flow: target → generate 16 stages with COMPARE_ALL → review
+          candidates → export evidence.
+        </p>
+      )}
+      <p className="notice">
+        <strong>Historically grounded visual prototype.</strong>{" "}
+        VISUAL CONFIDENCE measures geometry support only. It is not
+        manufacturing, tooling or production confidence.
+      </p>
+      <details className="prototype-evidence">
+        <summary>Prototype Evidence</summary>
+        <div className="metrics">
+          <Metric label="Historical flowers" value="2" />
+          <Metric label="Historical passes" value="31" />
+          <Metric label="Held-out improvement" value="73.64%" />
+          <Metric label="OOD detection" value="100%" />
+          <Metric label="Fallback" value="6.25%" />
+        </div>
+        <p>
+          Evidence is redacted and private-source safe. These are
+          synthetic-derived prototype metrics, not manufacturing accuracy.
+          Manufacturing approval remains NOT APPROVED and physical roller
+          availability is NOT DETERMINED.
+        </p>
+      </details>
+      <div className="visual-layout">
+        <div>
+          <h3>Target Profile</h3>
+          <div className="visual-controls">
+            <label className="primary-action">
+              Import DWG/DXF{" "}
+              <input
+                type="file"
+                accept=".dwg,.dxf"
+                onChange={uploadCad}
+                disabled={uploading}
+              />
+            </label>
+            <label>
+              Load profile JSON{" "}
+              <input
+                type="file"
+                accept="application/json"
+                onChange={loadTarget}
+              />
+            </label>
+          </div>
+          {importProfiles.length > 0 && (
+            <div className="import-candidates">
+              <h4>Detected profile candidates</h4>
+              {importProfiles.map((item) => (
+                <article className="import-card" key={item.profile_id}>
+                  <div
+                    dangerouslySetInnerHTML={{ __html: item.thumbnail_svg }}
+                  />
+                  <div>
+                    <strong>{item.profile_id}</strong>
+                    <p>
+                      {item.open_closed} · {item.entity_count} entities · aspect
+                      {" "}
+                      {item.aspect_ratio?.toFixed(2) ?? "unknown"}
+                    </p>
+                    <p>
+                      {item.warnings.length
+                        ? item.warnings.join(", ")
+                        : "No geometry warnings"}
+                    </p>
+                    <button
+                      onClick={() =>
+                        useImported(item.profile_id)}
+                    >
+                      Use this profile
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+          <ProfileSketcher
+            profile={profile}
+            onChange={(next) => {
+              setProfile(next);
+              setValidated(false);
+            }}
+          />
+          <div className="visual-controls">
+            <button onClick={validateProfile}>Validate Profile</button>
+            <button onClick={saveTarget}>Save target JSON</button>
+            <label>
+              Station mode{" "}
+              <select
+                value={stationMode}
+                onChange={(event) => setStationMode(event.target.value)}
+              >
+                <option value="EXACT">Exact</option>
+                <option value="AUTOMATIC">Automatic</option>
+                <option value="RANGE">Range</option>
+              </select>
+            </label>
+            {stationMode === "EXACT"
+              ? (
+                <label>
+                  Stages{" "}
+                  <input
+                    type="number"
+                    min={8}
+                    max={28}
+                    value={stationCount}
+                    onChange={(event) =>
+                      setStationCount(Number(event.target.value))}
+                  />
+                </label>
+              )
+              : (
+                <>
+                  <label>
+                    Min stages{" "}
+                    <input
+                      type="number"
+                      min={8}
+                      max={28}
+                      value={minimumStationCount}
+                      onChange={(event) =>
+                        setMinimumStationCount(Number(event.target.value))}
+                    />
+                  </label>
+                  <label>
+                    Max stages{" "}
+                    <input
+                      type="number"
+                      min={8}
+                      max={28}
+                      value={maximumStationCount}
+                      onChange={(event) =>
+                        setMaximumStationCount(Number(event.target.value))}
+                    />
+                  </label>
+                </>
+              )}
+            <label>
+              Candidates{" "}
+              <input
+                type="number"
+                min={1}
+                max={3}
+                value={candidateLimit}
+                onChange={(event) =>
+                  setCandidateLimit(Number(event.target.value))}
+              />
+            </label>
+            <button
+              disabled={!validation.valid || !validated}
+              onClick={generate}
+            >
+              Generate Flower Sequence
+            </button>
+          </div>
+          <p>
+            {validated
+              ? (validation.valid
+                ? "Valid profile."
+                : `Invalid profile: ${validation.broken.length} broken and ${validation.zero.length} zero-length segment(s).`)
+              : "Validate Profile before generation."}
+          </p>
+          <p>
+            {dataset?.available
+              ? `Historical evidence: ${dataset.flower_count} flowers, ${dataset.pass_count} passes.`
+              : dataset?.warning ?? "Historical dataset status unknown."}
+          </p>
+        </div>
+        <div>
+          <h3>Candidate Sequences</h3>
+          {run?.candidates.length
+            ? (
+              <>
+                <div className="candidate-tabs">
+                  {run.candidates.map((item, index) => (
+                    <button
+                      key={item.candidate_id}
+                      className={candidateIndex === index ? "active" : ""}
+                      onClick={() => {
+                        setCandidateIndex(index);
+                        setPassIndex(0);
+                      }}
+                    >
+                      {item.candidate_style} · {item.station_count} stations ·
+                      {" "}
+                      {item.visual_confidence.score.toFixed(1)}
+                    </button>
+                  ))}
+                </div>
+                {candidate && (
+                  <>
+                    <div className="metrics">
+                      <Metric
+                        label="VISUAL CONFIDENCE"
+                        value={`${
+                          candidate.visual_confidence.score.toFixed(1)
+                        } / 100`}
+                      />
+                      <Metric
+                        label="Band"
+                        value={candidate.visual_confidence.band}
+                      />
+                      <Metric
+                        label="Mean / minimum"
+                        value={`${
+                          candidate.visual_confidence.mean_pass_confidence
+                            .toFixed(1)
+                        } / ${
+                          candidate.visual_confidence.minimum_pass_confidence
+                            .toFixed(1)
+                        }`}
+                      />
+                      <Metric
+                        label="Historical coverage"
+                        value={`${
+                          candidate.passes.filter((item) => matchForPass(item))
+                            .length
+                        }/${candidate.passes.length}`}
+                      />
+                    </div>
+                    <div className="candidate-comparison">
+                      <strong>Candidate comparison</strong>
+                      {run.candidates.slice(0, 3).map((item) => (
+                        <span key={item.candidate_id}>
+                          {item.candidate_style}: {item.station_count} stations,
+                          {" "}
+                          {item.visual_confidence.score.toFixed(1)},{" "}
+                          {item.visual_confidence.band}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="visual-controls">
+                      <button onClick={() => setPlaying((value) => !value)}>
+                        {playing ? "Pause" : "Play"}
+                      </button>
+                      <button
+                        onClick={() =>
+                          setPassIndex((value) => Math.max(0, value - 1))}
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() =>
+                          setPassIndex((value) =>
+                            Math.min(candidate.passes.length - 1, value + 1)
+                          )}
+                      >
+                        Next
+                      </button>
+                      <label>
+                        Speed{" "}
+                        <select
+                          value={speed}
+                          onChange={(event) =>
+                            setSpeed(Number(event.target.value))}
+                        >
+                          <option value={1400}>Slow</option>
+                          <option value={900}>Normal</option>
+                          <option value={450}>Fast</option>
+                        </select>
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={loop}
+                          onChange={(event) => setLoop(event.target.checked)}
+                        />{" "}
+                        Loop
+                      </label>
+                      <button onClick={() => exportCandidate("zip")}>
+                        ZIP export
+                      </button>
+                    </div>
+                    <div className="visual-controls">
+                      <label>
+                        Reviewer{" "}
+                        <input
+                          aria-label="Reviewer name"
+                          value={reviewer}
+                          onChange={(event) => setReviewer(event.target.value)}
+                          placeholder="Engineer"
+                        />
+                      </label>
+                      <button onClick={() => review("ACCEPT_VISUAL_SEQUENCE")}>
+                        Accept visual sequence
+                      </button>
+                      <button onClick={() => review("NEEDS_MANUAL_EDIT")}>
+                        Needs manual edit
+                      </button>
+                    </div>
+                    <div className="visual-controls">
+                      <label>
+                        View{" "}
+                        <select
+                          value={viewMode}
+                          onChange={(event) => setViewMode(event.target.value)}
+                        >
+                          <option value="GENERATED">Generated profile</option>
+                          <option value="HISTORICAL">Historical match</option>
+                          <option value="OVERLAY">Overlay</option>
+                          <option value="DIFFERENCE">Difference</option>
+                          <option value="ALL">All stages</option>
+                        </select>
+                      </label>
+                      {["dxf", "svg", "png", "json", "csv", "html"].map((
+                        item,
+                      ) => (
+                        <button
+                          key={item}
+                          onClick={() => exportCandidate(item)}
+                        >
+                          {item.toUpperCase()} export
+                        </button>
+                      ))}
+                    </div>
+                    <div className="station-thumbnails">
+                      {candidate.passes.map((item, index) => (
+                        <button
+                          key={item.pass_id}
+                          className={index === passIndex ? "active" : ""}
+                          onClick={() => setPassIndex(index)}
+                        >
+                          P{item.order}
+                        </button>
+                      ))}
+                    </div>
+                    <svg
+                      role="img"
+                      aria-label="Generated pass viewer"
+                      viewBox="-2 -2 4 4"
+                      style={{
+                        width: "100%",
+                        minHeight: 300,
+                        border: "1px solid #b7c0ca",
+                      }}
+                    >
+                      {candidate.passes.map((item, index) => {
+                        const generated = item.profile.points;
+                        const historical = matchForPass(item);
+                        const historicalPoints = historical?.historical_points;
+                        return (
+                          <g
+                            key={item.pass_id}
+                            opacity={viewMode === "ALL"
+                              ? (index === passIndex ? 1 : .22)
+                              : index === passIndex
+                              ? 1
+                              : .08}
+                          >
+                            <polyline
+                              points={passPoints(generated)}
+                              fill="none"
+                              stroke={index === passIndex
+                                ? "#c46b00"
+                                : "#8aa5b9"}
+                              strokeWidth={index === passIndex
+                                ? ".025"
+                                : ".008"}
+                            />
+                            <polyline
+                              points={viewMode === "OVERLAY" ||
+                                  viewMode === "HISTORICAL"
+                                ? passPoints(historicalPoints ?? [])
+                                : ""}
+                              fill="none"
+                              stroke="#155783"
+                              strokeWidth=".012"
+                              strokeDasharray=".04 .02"
+                            />
+                          </g>
+                        );
+                      })}
+                    </svg>
+                    <input
+                      aria-label="Station slider"
+                      type="range"
+                      min={0}
+                      max={candidate.passes.length - 1}
+                      value={passIndex}
+                      onChange={(event) =>
+                        setPassIndex(Number(event.target.value))}
+                    />
+                    <p>
+                      Station {currentPass?.order} ·{" "}
+                      {Math.round((currentPass?.progress ?? 0) * 100)}% progress
+                      · {currentPass?.visual_confidence.band}
+                    </p>
+                    <p>
+                      Legend:{" "}
+                      <span className="generated-key">orange = generated</span>;
+                      {" "}
+                      <span className="historical-key">
+                        blue dashed = historical match
+                      </span>.
+                    </p>
+                    <MatchDetails item={currentPass} />
+                  </>
+                )}
+              </>
+            )
+            : <p>Validate a profile, then generate a sequence.</p>}
+          <p>{message}</p>
+        </div>
+      </div>
+    </section>
+  );
 }
 
-function MatchDetails({ item }: { item: any }) { const matches = item?.historical_match?.top_matches ?? []; return <details className="match-details"><summary>Top three historical matches and score components</summary>{matches.map((match: any, index: number) => <div key={`${match.source_flower_id}-${match.source_pass_id}-${index}`}><strong>#{index + 1} {match.source_flower_id} / {match.source_pass_id}</strong><p>Similarity {(match.overall_score * 100).toFixed(1)}% · coverage {(match.evidence_coverage * 100).toFixed(0)}% · mirror {String(match.mirror_used)} · rotation {String(match.rotation_used)}</p><p>RMS {match.components?.point_rms_similarity?.score?.toFixed?.(3) ?? "n/a"} · Chamfer {match.components?.chamfer_similarity?.score?.toFixed?.(3) ?? "n/a"} · tangent {match.components?.tangent_similarity?.score?.toFixed?.(3) ?? "n/a"} · curvature {match.components?.curvature_similarity?.score?.toFixed?.(3) ?? "n/a"} · corner {match.components?.corner_signature_similarity?.score?.toFixed?.(3) ?? "n/a"} · aspect {match.components?.aspect_ratio_similarity?.score?.toFixed?.(3) ?? "n/a"} · progress {match.components?.sequence_progress_similarity?.score?.toFixed?.(3) ?? "n/a"}</p></div>)}</details>; }
-function Metric({ label, value }: { label: string; value: string }) { return <div className="metric"><small>{label}</small><strong>{value}</strong></div>; }
+function MatchDetails({ item }: { item: any }) {
+  const matches = item?.historical_match?.top_matches ?? [];
+  return (
+    <details className="match-details">
+      <summary>Top three historical matches and score components</summary>
+      {matches.map((match: any, index: number) => (
+        <div key={`${match.source_flower_id}-${match.source_pass_id}-${index}`}>
+          <strong>
+            #{index + 1} {match.source_flower_id} / {match.source_pass_id}
+          </strong>
+          <p>
+            Similarity {(match.overall_score * 100).toFixed(1)}% · coverage{" "}
+            {(match.evidence_coverage * 100).toFixed(0)}% · mirror{" "}
+            {String(match.mirror_used)} · rotation {String(match.rotation_used)}
+          </p>
+          <p>
+            RMS {match.components?.point_rms_similarity?.score?.toFixed?.(3) ??
+              "n/a"} · Chamfer{" "}
+            {match.components?.chamfer_similarity?.score?.toFixed?.(3) ?? "n/a"}
+            {" "}
+            · tangent{" "}
+            {match.components?.tangent_similarity?.score?.toFixed?.(3) ?? "n/a"}
+            {" "}
+            · curvature{" "}
+            {match.components?.curvature_similarity?.score?.toFixed?.(3) ??
+              "n/a"} · corner{" "}
+            {match.components?.corner_signature_similarity?.score?.toFixed?.(
+              3,
+            ) ?? "n/a"} · aspect{" "}
+            {match.components?.aspect_ratio_similarity?.score?.toFixed?.(3) ??
+              "n/a"} · progress{" "}
+            {match.components?.sequence_progress_similarity?.score?.toFixed?.(
+              3,
+            ) ?? "n/a"}
+          </p>
+        </div>
+      ))}
+    </details>
+  );
+}
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="metric">
+      <small>{label}</small>
+      <strong>{value}</strong>
+    </div>
+  );
+}

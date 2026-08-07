@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from rollform_extractor.database import VisualFlowerCandidateRow, VisualFlowerGenerationRunRow, VisualProfileTargetRevisionRow, VisualProfileTargetRow, create_project_database
+from rollform_extractor.database import VisualFlowerCandidateReviewRow, VisualFlowerCandidateRow, VisualFlowerGenerationRunRow, VisualProfileTargetRevisionRow, VisualProfileTargetRow, create_project_database
 from rollform_extractor.visual_flower_engine import generate_visual_candidates
 from rollform_extractor.visual_profile_schema import VisualProfileError, validate_profile
 from rollform_extractor.visual_flower_exports import export_visual_run
@@ -112,3 +112,52 @@ def export_candidate(engine, candidate_id: str, output_root: Path) -> Path | Non
     directory = output_root / "visual_exports" / candidate_id
     export_visual_run({"schema_version": 1, "candidates": [candidate], "source_cad_included": False}, directory)
     return directory
+
+
+REVIEW_DECISIONS = {
+    "ACCEPT_VISUAL_SEQUENCE", "REJECT_VISUAL_SEQUENCE", "PREFER_DETERMINISTIC",
+    "PREFER_LEARNED", "NEEDS_MANUAL_EDIT", "INSUFFICIENT_SUPPORT",
+}
+REVIEW_REASONS = {
+    "SMOOTH_PROGRESSION", "HISTORICAL_MATCH", "BAD_INTERMEDIATE_SHAPE",
+    "SUDDEN_VISUAL_JUMP", "WRONG_TOPOLOGY", "OOD_CONCERN", "EXPORT_ISSUE", "OTHER",
+}
+
+
+def create_candidate_review(engine, candidate_id: str, decision: str, reviewer: str, *, reason_codes: list[str] | None = None, notes: str = "") -> dict[str, Any]:
+    if decision not in REVIEW_DECISIONS:
+        raise ValueError("INVALID_REVIEW_DECISION")
+    if not reviewer.strip():
+        raise ValueError("REVIEWER_REQUIRED")
+    reasons = list(dict.fromkeys(reason_codes or []))
+    invalid = sorted(set(reasons) - REVIEW_REASONS)
+    if invalid:
+        raise ValueError("INVALID_REVIEW_REASON")
+    with Session(engine) as session:
+        candidate = session.scalar(select(VisualFlowerCandidateRow).where(VisualFlowerCandidateRow.candidate_id == candidate_id))
+        if candidate is None:
+            raise LookupError("visual candidate not found")
+        run = session.get(VisualFlowerGenerationRunRow, candidate.run_id)
+        target = session.get(VisualProfileTargetRow, run.target_id) if run else None
+        revision = session.scalar(select(VisualProfileTargetRevisionRow).where(VisualProfileTargetRevisionRow.target_id == target.id, VisualProfileTargetRevisionRow.revision == target.current_revision)) if target else None
+        candidate_payload = candidate.candidate_json or {}
+        review_id = "vreview-" + sha256(f"{candidate_id}|{reviewer}|{decision}|{notes}|{len(reasons)}".encode()).hexdigest()[:16]
+        existing = session.scalar(select(VisualFlowerCandidateReviewRow).where(VisualFlowerCandidateReviewRow.review_id == review_id))
+        if existing:
+            return candidate_review_dict(existing)
+        row = VisualFlowerCandidateReviewRow(review_id=review_id, candidate_id=candidate_id, run_id=run.run_id if run else "UNKNOWN", candidate_type=str(candidate_payload.get("candidate_style", "UNKNOWN")), decision=decision, reason_codes_json=reasons, reviewer=reviewer.strip(), notes=notes, model_id=((candidate_payload.get("learned_support") or {}).get("model_id") or candidate_payload.get("generation", {}).get("model_id")), algorithm_version=candidate_payload.get("algorithm_version"), target_hash=profile_hash(revision.profile_json) if revision else None)
+        session.add(row)
+        session.commit()
+        return candidate_review_dict(row)
+
+
+def candidate_review_dict(row: VisualFlowerCandidateReviewRow) -> dict[str, Any]:
+    return {"review_id": row.review_id, "candidate_id": row.candidate_id, "run_id": row.run_id, "candidate_type": row.candidate_type, "decision": row.decision, "reason_codes": row.reason_codes_json, "reviewer": row.reviewer, "notes": row.notes, "created_at": row.created_at.isoformat() if row.created_at else None, "model_id": row.model_id, "algorithm_version": row.algorithm_version, "target_hash": row.target_hash}
+
+
+def list_candidate_reviews(engine, candidate_id: str | None = None) -> list[dict[str, Any]]:
+    with Session(engine) as session:
+        query = select(VisualFlowerCandidateReviewRow)
+        if candidate_id:
+            query = query.where(VisualFlowerCandidateReviewRow.candidate_id == candidate_id)
+        return [candidate_review_dict(row) for row in session.scalars(query.order_by(VisualFlowerCandidateReviewRow.created_at, VisualFlowerCandidateReviewRow.review_id))]

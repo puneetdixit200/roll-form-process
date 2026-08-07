@@ -1,0 +1,126 @@
+{
+  "generated_at": "2026-08-07T08:43:48.302321+00:00",
+  "git": {
+    "base_sha": "a4a483d",
+    "branch": "feature/phase21-prototype-validation-demo-release",
+    "head": "e015acd0e8def8685bf5a35719440b438842df79"
+  },
+  "golden": {
+    "fixture_count": 40,
+    "ood": 10,
+    "station_counts": [
+      8,
+      16,
+      28
+    ],
+    "supported": 30
+  },
+  "launcher": {
+    "browser": {
+      "chromium_logs": "GPU initialization warnings only",
+      "console_instrumentation": "UNAVAILABLE: agent-browser and Playwright not installed",
+      "dom_content": true,
+      "screenshot": true,
+      "visual_flower_text": true
+    },
+    "verify": {
+      "checks": {
+        "backend_health": true,
+        "candidate_count": 7,
+        "final_target_anchoring": true,
+        "frontend_http": true,
+        "json_export": true,
+        "model_doctor": true,
+        "model_status": true,
+        "ood_probe": true,
+        "public_target_generation": true,
+        "sixteen_station_candidate": true,
+        "zip_export": true
+      },
+      "ood_probe": "high-frequency public contour",
+      "private_paths_redacted": true,
+      "production_approval": "NOT_APPROVED",
+      "status": "PASS"
+    }
+  },
+  "limitations": [
+    "The complete 30-case supported and 10-case OOD runtime matrix is not yet executed; current evidence is fixture validation plus representative live probes.",
+    "28-station preferred performance target is exceeded locally (WARN).",
+    "Local Docker build is blocked by captive-portal interception of Debian apt repositories.",
+    "Browser console instrumentation was unavailable because agent-browser and Playwright are not installed.",
+    "Private-model evidence is synthetic-derived and not independent factory evidence."
+  ],
+  "model": {
+    "activation": "ACTIVE",
+    "approval": "APPROVED_FOR_PRIVATE_PROTOTYPE",
+    "fallback_rate": 0.0625,
+    "model_id": "clrsg-19c816e906b6e1f1",
+    "ood_true_positive_rate": 1.0,
+    "privacy_classification": "PRIVATE_PROTOTYPE_MODEL",
+    "test_relative_improvement": 0.7364269298621647,
+    "validation_false_rejection_rate": 0.030303030303030304
+  },
+  "performance": {
+    "classification": "PUBLIC_SYNTHETIC_TEST",
+    "schema_version": 1,
+    "status": "WARN",
+    "timings": [
+      {
+        "maximum_seconds": 0.7119367339983,
+        "mean_seconds": 0.7119367339983,
+        "median_seconds": 0.7119367339983,
+        "p95_seconds": 0.7119367339983,
+        "preferred_threshold_seconds": 4.0,
+        "station_count": 8
+      },
+      {
+        "maximum_seconds": 2.7922919650009135,
+        "mean_seconds": 2.7922919650009135,
+        "median_seconds": 2.7922919650009135,
+        "p95_seconds": 2.7922919650009135,
+        "preferred_threshold_seconds": 2.0,
+        "station_count": 16
+      },
+      {
+        "maximum_seconds": 8.173504672999115,
+        "mean_seconds": 8.173504672999115,
+        "median_seconds": 8.173504672999115,
+        "p95_seconds": 8.173504672999115,
+        "preferred_threshold_seconds": 4.0,
+        "station_count": 28
+      }
+    ],
+    "total_mean_seconds": 3.8925777906661096
+  },
+  "phase": "21",
+  "safety": {
+    "deterministic_fallback": true,
+    "manufacturing_approval": "NOT APPROVED",
+    "physical_roller_availability": "NOT DETERMINED",
+    "private_artifacts_committed": false,
+    "private_paths_redacted": true,
+    "source_cad_included": false
+  },
+  "statuses": {
+    "BROWSER END-TO-END": "PASS (Chromium headless fallback)",
+    "CUSTOMER VISUAL PROTOTYPE": "READY",
+    "ENGINEER REVIEW CAPTURE": "PASS",
+    "EXPORT VERIFICATION": "PASS",
+    "GOLDEN OOD SUITE": "WARN - 10 fixtures validated; 1 live OOD probe executed",
+    "GOLDEN SUPPORTED SUITE": "WARN - 30 fixtures validated; 1 live supported smoke executed",
+    "MANUFACTURING APPROVAL": "NOT APPROVED",
+    "MODEL HEALTH": "PASS",
+    "ONE-COMMAND STARTUP": "PASS",
+    "PERFORMANCE": "WARN",
+    "PHYSICAL ROLLER AVAILABILITY": "NOT DETERMINED",
+    "PRIVACY": "PASS"
+  },
+  "tests": {
+    "docker": "FAIL_LOCAL_CAPTIVE_PORTAL",
+    "frontend": "4 passed",
+    "frontend_build": "PASS",
+    "phase21_focused": "4 passed",
+    "python": "268 passed",
+    "smoke": "HOST PASS; DOCKER NOT RUN"
+  }
+}

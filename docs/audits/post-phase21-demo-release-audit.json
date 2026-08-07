@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "phase": "21",
+  "branch": "feature/phase21-prototype-validation-demo-release",
+  "implementation_commit": "eae2b46",
+  "python_tests": "268 passed",
+  "frontend_tests": "4 passed",
+  "frontend_build": "PASS",
+  "golden_supported": 30,
+  "golden_ood": 10,
+  "private_artifacts_committed": false,
+  "deterministic_fallback": true,
+  "manufacturing_approval": "NOT_APPROVED",
+  "docker_local": "BLOCKED_BY_CAPTIVE_PORTAL"
+}

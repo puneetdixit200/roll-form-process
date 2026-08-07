@@ -1877,6 +1877,24 @@ class VisualFlowerReviewRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 
+class VisualFlowerCandidateReviewRow(Base):
+    """Append-only engineer feedback with model and target provenance."""
+    __tablename__ = "visual_flower_candidate_reviews"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    review_id: Mapped[str] = mapped_column(String, unique=True)
+    candidate_id: Mapped[str] = mapped_column(String, index=True)
+    run_id: Mapped[str] = mapped_column(String, index=True)
+    candidate_type: Mapped[str] = mapped_column(String)
+    decision: Mapped[str] = mapped_column(String)
+    reason_codes_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    reviewer: Mapped[str] = mapped_column(String)
+    notes: Mapped[str] = mapped_column(String, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    model_id: Mapped[str | None] = mapped_column(String)
+    algorithm_version: Mapped[str | None] = mapped_column(String)
+    target_hash: Mapped[str | None] = mapped_column(String)
+
+
 class VisualFlowerExportArtifactRow(Base):
     __tablename__ = "visual_flower_export_artifacts"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

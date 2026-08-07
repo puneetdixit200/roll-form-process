@@ -1,0 +1,81 @@
+{
+  "closed": false,
+  "computational_seam_vertex_id": null,
+  "metadata": {
+    "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+    "expected_ood_class": "IN_DISTRIBUTION",
+    "family": "OPEN_ASYMMETRIC_CHANNEL",
+    "negative_probe": false,
+    "requested_station_count": 8,
+    "source": "PUBLIC_SYNTHETIC_TEST",
+    "visual_only": true
+  },
+  "name": "Public golden OPEN_ASYMMETRIC_CHANNEL 0.7",
+  "profile_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL",
+  "schema_version": 1,
+  "segments": [
+    {
+      "end_vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v1",
+      "segment_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-s0",
+      "start_vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v0",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v2",
+      "segment_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-s1",
+      "start_vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v1",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v3",
+      "segment_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-s2",
+      "start_vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v2",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v4",
+      "segment_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-s3",
+      "start_vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v3",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v5",
+      "segment_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-s4",
+      "start_vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v4",
+      "type": "LINE"
+    }
+  ],
+  "topology": "OPEN_PATH",
+  "vertices": [
+    {
+      "vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v0",
+      "x": -2.1,
+      "y": 0.0
+    },
+    {
+      "vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v1",
+      "x": -1.4,
+      "y": 0.7
+    },
+    {
+      "vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v2",
+      "x": -0.7,
+      "y": 0.7
+    },
+    {
+      "vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v3",
+      "x": 0.0,
+      "y": 0.0
+    },
+    {
+      "vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v4",
+      "x": 0.7,
+      "y": -0.7
+    },
+    {
+      "vertex_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL-v5",
+      "x": 2.1,
+      "y": -0.7
+    }
+  ]
+}
