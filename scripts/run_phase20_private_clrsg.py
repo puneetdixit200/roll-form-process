@@ -2,8 +2,7 @@
 """Local-only Phase 20 private CLRSG workflow.
 
 This operator script keeps private corpus and model paths outside Git, never
-prints raw geometry, and can run the complete plan → generate → train → approve
-→ optional activate workflow in one command.
+prints raw geometry, and can run the complete workflow in one command.
 """
 
 from __future__ import annotations
@@ -25,12 +24,22 @@ from rollform_extractor.private_clrsg import (
     run_full_private_workflow,
     train_private_model,
 )
+from rollform_extractor.private_clrsg_readiness import (
+    doctor_private_model,
+    write_readiness_report,
+)
 from rollform_extractor.synthetic_corpus_schema import load_corpus
 
 
 def _redact(value):
     if isinstance(value, dict):
-        return {key: _redact(item) for key, item in value.items() if key not in {"model_root", "dataset_path", "corpus_root", "registry_root"}}
+        return {
+            key: _redact(item)
+            for key, item in value.items()
+            if key not in {"model_root", "dataset_path", "corpus_root", "registry_root"}
+            and not key.endswith("_path")
+            and not key.endswith("_root")
+        }
     if isinstance(value, list):
         return [_redact(item) for item in value]
     return value
@@ -39,10 +48,19 @@ def _redact(value):
 def _status(model: Path) -> dict:
     root = model.expanduser().resolve()
     payload = {}
-    for name in ("manifest.json", "training_metrics.json", "validation_metrics.json", "evaluation_metrics.json", "approval.json", "ood_thresholds.json"):
+    for name in (
+        "manifest.json",
+        "training_metrics.json",
+        "validation_metrics.json",
+        "evaluation_metrics.json",
+        "approval.json",
+        "ood_thresholds.json",
+    ):
         path = root / name
         if path.is_file():
-            payload[name.removesuffix(".json")] = json.loads(path.read_text(encoding="utf-8"))
+            payload[name.removesuffix(".json")] = json.loads(
+                path.read_text(encoding="utf-8")
+            )
     if not payload:
         raise FileNotFoundError("no CLRSG model metadata was found")
     return _redact(payload)
@@ -90,6 +108,18 @@ def main(argv: list[str] | None = None) -> int:
     status = sub.add_parser("status")
     status.add_argument("model", type=Path)
 
+    doctor = sub.add_parser("doctor")
+    doctor.add_argument("model", type=Path)
+
+    report = sub.add_parser("report")
+    report.add_argument("model", type=Path)
+    report.add_argument("--output", type=Path, required=True)
+    report.add_argument("--source-commit")
+    report.add_argument("--python-tests", type=int)
+    report.add_argument("--frontend-tests", type=int)
+    report.add_argument("--frontend-build", choices=("PASS", "FAIL"))
+    report.add_argument("--browser-verification", choices=("PASS", "FAIL"))
+
     all_cmd = sub.add_parser("all")
     all_cmd.add_argument("--dataset", type=Path)
     all_cmd.add_argument("--corpus-root", type=Path)
@@ -104,14 +134,28 @@ def main(argv: list[str] | None = None) -> int:
         needs_env = args.command in {"plan", "generate", "activate", "all"}
         env = environment_paths() if needs_env else {}
         if args.command == "plan":
-            result = private_plan(args.dataset or env["dataset"], samples_per_seed=args.samples_per_seed)
+            result = private_plan(
+                args.dataset or env["dataset"],
+                samples_per_seed=args.samples_per_seed,
+            )
         elif args.command == "generate":
             output = args.output or (env["corpus_root"] / "private-two-seed-v1")
-            _, summary = generate_private_corpus(args.dataset or env["dataset"], output, samples_per_seed=args.samples_per_seed, seed=args.seed)
+            _, summary = generate_private_corpus(
+                args.dataset or env["dataset"],
+                output,
+                samples_per_seed=args.samples_per_seed,
+                seed=args.seed,
+            )
             result = summary.to_dict() | {"output_configured": True}
         elif args.command == "train":
             seeds = load_private_seeds(args.dataset) if args.dataset else None
-            result = train_private_model(load_corpus(args.corpus), args.output, ensemble_members=args.ensemble_members, seed=args.seed, private_seeds=seeds)
+            result = train_private_model(
+                load_corpus(args.corpus),
+                args.output,
+                ensemble_members=args.ensemble_members,
+                seed=args.seed,
+                private_seeds=seeds,
+            )
         elif args.command == "evaluate":
             result = evaluate_model(args.model, load_corpus(args.corpus))
         elif args.command == "reevaluate":
@@ -125,11 +169,41 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "approve":
             result = approve_private_model(args.model)
         elif args.command == "activate":
-            result = activate_private_model(args.model, args.registry or env["model_root"])
+            result = activate_private_model(
+                args.model, args.registry or env["model_root"]
+            )
         elif args.command == "status":
             result = _status(args.model)
+        elif args.command == "doctor":
+            result = doctor_private_model(args.model)
+        elif args.command == "report":
+            verification = {
+                key: value
+                for key, value in {
+                    "python_tests": args.python_tests,
+                    "frontend_tests": args.frontend_tests,
+                    "frontend_build": args.frontend_build,
+                    "browser_verification": args.browser_verification,
+                }.items()
+                if value is not None
+            }
+            result = write_readiness_report(
+                args.model,
+                args.output,
+                source_commit=args.source_commit,
+                verification=verification,
+            )
+            result = result | {"report_written": True}
         else:
-            result = run_full_private_workflow(args.dataset or env["dataset"], args.corpus_root or env["corpus_root"], args.registry_root or env["model_root"], samples_per_seed=args.samples_per_seed, seed=args.seed, ensemble_members=args.ensemble_members, activate_if_approved=args.activate_if_approved)
+            result = run_full_private_workflow(
+                args.dataset or env["dataset"],
+                args.corpus_root or env["corpus_root"],
+                args.registry_root or env["model_root"],
+                samples_per_seed=args.samples_per_seed,
+                seed=args.seed,
+                ensemble_members=args.ensemble_members,
+                activate_if_approved=args.activate_if_approved,
+            )
         print(json.dumps(_redact(result), indent=2, sort_keys=True))
         return 0
     except (OSError, ValueError, KeyError, RuntimeError) as exc:
