@@ -151,8 +151,8 @@ def start() -> dict:
 def stop() -> dict:
     stopped = []
     for name, pid in _read_pids().items():
-        marker = "uvicorn" if name == "backend" else "vite"
-        if _owned_process(pid, marker):
+        owned = _owned_process(pid, "uvicorn") if name == "backend" else (_owned_process(pid, "npm run dev") or _owned_process(pid, "vite"))
+        if owned:
             os.killpg(pid, signal.SIGTERM); stopped.append(name)
     if PID_FILE.exists():
         PID_FILE.unlink()
