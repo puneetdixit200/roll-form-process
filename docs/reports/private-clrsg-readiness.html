@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phase 20 Private CLRSG Readiness</title>
+<style>
+body{margin:0;background:#f4f6f8;color:#17212b;font:16px system-ui,sans-serif}
+main{max-width:1100px;margin:auto;padding:32px}
+header,section{background:#fff;border:1px solid #d8dee6;border-radius:12px;padding:24px;margin:16px 0}
+.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#d9f5df;color:#115b2b;font-weight:700}
+.warning{background:#fff1c7;color:#6e4a00;padding:16px;border-radius:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px}
+.metric{background:#eef4f8;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:6px}
+table{border-collapse:collapse;width:100%}th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}
+code{background:#eef1f4;padding:2px 5px;border-radius:4px}
+</style>
+</head>
+<body><main>
+<header>
+<span class="badge">TECHNICAL READINESS: PASS</span>
+<h1>Phase 20 Private CLRSG</h1>
+<p>The private learned visual flower-sequence model is approved and active with deterministic fallback.</p>
+<div class="warning"><strong>Manufacturing approval: NOT APPROVED.</strong> Approval applies only to private visual-prototype inference. Tooling compatibility and physical roller availability are not determined.</div>
+</header>
+<section><h2>Model</h2><div class="grid">
+<div class="metric"><small>Model ID</small><strong>clrsg-19c816e906b6e1f1</strong></div>
+<div class="metric"><small>Approval</small><strong>APPROVED FOR PRIVATE PROTOTYPE</strong></div>
+<div class="metric"><small>Activation</small><strong>ACTIVE</strong></div>
+<div class="metric"><small>Ensemble</small><strong>5 members</strong></div>
+<div class="metric"><small>Target PCA</small><strong>12 dimensions</strong></div>
+<div class="metric"><small>Residual PCA</small><strong>2 dimensions</strong></div>
+<div class="metric"><small>Ridge lambda</small><strong>1.0</strong></div>
+<div class="metric"><small>Station range</small><strong>8–28</strong></div>
+</div></section>
+<section><h2>Evaluation</h2><div class="grid">
+<div class="metric"><small>Test baseline RMS</small><strong>0.4859359</strong></div>
+<div class="metric"><small>Test learned RMS</small><strong>0.1280796</strong></div>
+<div class="metric"><small>Relative improvement</small><strong>73.64%</strong></div>
+<div class="metric"><small>OOD true positive</small><strong>100%</strong></div>
+<div class="metric"><small>Validation false rejection</small><strong>3.03%</strong></div>
+<div class="metric"><small>Test fallback</small><strong>6.25%</strong></div>
+</div></section>
+<section><h2>Private evidence</h2><table>
+<tr><th>Seed flowers</th><td>2</td></tr>
+<tr><th>Historical passes</th><td>31, split as 14 and 17</td></tr>
+<tr><th>Private-derived corpus</th><td>200 accepted; 0 rejected; 0 duplicates</td></tr>
+<tr><th>Grouped split</th><td>135 train / 33 validation / 32 test</td></tr>
+<tr><th>OOD thresholds</th><td>1.2147028491 in-distribution; 1.3062798988 near-distribution</td></tr>
+</table></section>
+<section><h2>Verification</h2><table>
+<tr><th>Verified commit</th><td><code>7827fb3e88376bd651e0168d440ed31ccc26a193</code></td></tr>
+<tr><th>Python tests</th><td>260 passed</td></tr>
+<tr><th>Focused tests</th><td>14 passed</td></tr>
+<tr><th>Frontend tests</th><td>4 passed</td></tr>
+<tr><th>Frontend build</th><td>Passed</td></tr>
+<tr><th>Private path redaction</th><td>Passed</td></tr>
+<tr><th>Working tree</th><td>Clean</td></tr>
+</table></section>
+<section><h2>Evidence boundary</h2><ul>
+<li>The two private flowers are the only real complete sequence evidence.</li>
+<li>Synthetic variants do not constitute independent manufacturing evidence.</li>
+<li>Same-seed diagnostics are not independent generalization evidence.</li>
+<li>The deterministic generator remains available for fallback.</li>
+<li>No private geometry, private corpus shards, or model weights are embedded in this report.</li>
+</ul></section>
+</main></body></html>
