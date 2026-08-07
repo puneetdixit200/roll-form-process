@@ -1,0 +1,81 @@
+{
+  "closed": false,
+  "computational_seam_vertex_id": null,
+  "metadata": {
+    "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+    "expected_ood_class": "IN_DISTRIBUTION",
+    "family": "OPEN_U_CHANNEL",
+    "negative_probe": false,
+    "requested_station_count": 16,
+    "source": "PUBLIC_SYNTHETIC_TEST",
+    "visual_only": true
+  },
+  "name": "Public golden OPEN_U_CHANNEL 1.35",
+  "profile_id": "OPEN_U_CHANNEL_LARGE",
+  "schema_version": 1,
+  "segments": [
+    {
+      "end_vertex_id": "OPEN_U_CHANNEL_LARGE-v1",
+      "segment_id": "OPEN_U_CHANNEL_LARGE-s0",
+      "start_vertex_id": "OPEN_U_CHANNEL_LARGE-v0",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_U_CHANNEL_LARGE-v2",
+      "segment_id": "OPEN_U_CHANNEL_LARGE-s1",
+      "start_vertex_id": "OPEN_U_CHANNEL_LARGE-v1",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_U_CHANNEL_LARGE-v3",
+      "segment_id": "OPEN_U_CHANNEL_LARGE-s2",
+      "start_vertex_id": "OPEN_U_CHANNEL_LARGE-v2",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_U_CHANNEL_LARGE-v4",
+      "segment_id": "OPEN_U_CHANNEL_LARGE-s3",
+      "start_vertex_id": "OPEN_U_CHANNEL_LARGE-v3",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OPEN_U_CHANNEL_LARGE-v5",
+      "segment_id": "OPEN_U_CHANNEL_LARGE-s4",
+      "start_vertex_id": "OPEN_U_CHANNEL_LARGE-v4",
+      "type": "LINE"
+    }
+  ],
+  "topology": "OPEN_PATH",
+  "vertices": [
+    {
+      "vertex_id": "OPEN_U_CHANNEL_LARGE-v0",
+      "x": -4.05,
+      "y": 0.0
+    },
+    {
+      "vertex_id": "OPEN_U_CHANNEL_LARGE-v1",
+      "x": -2.7,
+      "y": 1.35
+    },
+    {
+      "vertex_id": "OPEN_U_CHANNEL_LARGE-v2",
+      "x": 0.0,
+      "y": 1.35
+    },
+    {
+      "vertex_id": "OPEN_U_CHANNEL_LARGE-v3",
+      "x": 1.35,
+      "y": 0.0
+    },
+    {
+      "vertex_id": "OPEN_U_CHANNEL_LARGE-v4",
+      "x": 2.7,
+      "y": -1.35
+    },
+    {
+      "vertex_id": "OPEN_U_CHANNEL_LARGE-v5",
+      "x": 4.05,
+      "y": -1.35
+    }
+  ]
+}

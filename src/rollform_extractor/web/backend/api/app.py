@@ -28,9 +28,10 @@ from rollform_extractor.validated_usage import (
     lock_dataset_version, promote_confirmed_usage, search_historical_usage, submit_label_assertion,
     validate_dataset,
 )
-from rollform_extractor.visual_flower_service import create_target as create_visual_target, export_candidate as export_visual_candidate, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, list_targets as list_visual_targets
+from rollform_extractor.visual_flower_service import create_candidate_review, create_target as create_visual_target, export_candidate as export_visual_candidate, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, list_candidate_reviews, list_targets as list_visual_targets
 from rollform_extractor.visual_profile_schema import VisualProfileError
 from rollform_extractor.clrsg_service import list_models, model_status
+from rollform_extractor.private_clrsg_readiness import doctor_private_model
 from rollform_extractor.visual_flower_import import create_import as create_visual_import, get_import as get_visual_import, list_profiles as list_visual_import_profiles, selected_profile as selected_visual_import_profile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -93,6 +94,13 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     @app.get("/api/visual-flower/model/status")
     def visual_model_status() -> dict[str, Any]:
         return model_status(visual_engine())
+
+    @app.get("/api/visual-flower/model/doctor")
+    def visual_model_doctor() -> dict[str, Any]:
+        configured = os.environ.get("ROLLFORM_ACTIVE_CLRSG_MODEL")
+        if not configured:
+            return {"status": "NOT_READY", "checks": {"environment_configured": False}, "model": {}, "deterministic_fallback": True, "private_paths_redacted": True, "production_approval": "NOT_APPROVED"}
+        return doctor_private_model(Path(configured))
 
     @app.get("/api/visual-flower/model/models")
     def visual_model_list() -> list[dict[str, Any]]:
@@ -214,6 +222,25 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         if result is None:
             raise HTTPException(status_code=404, detail="visual candidate not found")
         return {"schema_version": 1, "export_type": "VISUAL_FLOWER_CANDIDATE", "candidate": result, "source_cad_included": False}
+
+    @app.post("/api/visual-flower/candidates/{candidate_id}/review")
+    def visual_candidate_review(candidate_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return create_candidate_review(visual_engine(), candidate_id, str(body.get("decision") or ""), str(body.get("reviewer") or ""), reason_codes=list(body.get("reason_codes") or []), notes=str(body.get("notes") or ""))
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"code": str(exc), "message": str(exc)}) from exc
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}/reviews")
+    def visual_candidate_reviews(candidate_id: str) -> list[dict[str, Any]]:
+        if get_visual_candidate(visual_engine(), candidate_id) is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        return list_candidate_reviews(visual_engine(), candidate_id)
+
+    @app.get("/api/visual-flower/reviews/export.json")
+    def visual_reviews_export() -> dict[str, Any]:
+        return {"schema_version": 1, "export_type": "VISUAL_FLOWER_CANDIDATE_REVIEWS", "reviews": list_candidate_reviews(visual_engine()), "private_source_included": False, "safety_boundary": "Visual geometry prototype only; not manufacturing approval."}
 
     @app.get("/api/flower-prototype/status")
     def flower_prototype_status() -> dict[str, Any]:

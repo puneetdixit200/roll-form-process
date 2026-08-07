@@ -1,0 +1,92 @@
+{
+  "closed": false,
+  "computational_seam_vertex_id": null,
+  "metadata": {
+    "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+    "expected_ood_class": "OUT_OF_DISTRIBUTION",
+    "family": "OPEN_CURVED_WAVE",
+    "negative_probe": true,
+    "requested_station_count": 16,
+    "source": "PUBLIC_SYNTHETIC_TEST",
+    "visual_only": true
+  },
+  "name": "Public golden OPEN_CURVED_WAVE 0.92",
+  "profile_id": "OOD_HIGH_FREQUENCY_04",
+  "schema_version": 1,
+  "segments": [
+    {
+      "end_vertex_id": "OOD_HIGH_FREQUENCY_04-v1",
+      "segment_id": "OOD_HIGH_FREQUENCY_04-s0",
+      "start_vertex_id": "OOD_HIGH_FREQUENCY_04-v0",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OOD_HIGH_FREQUENCY_04-v2",
+      "segment_id": "OOD_HIGH_FREQUENCY_04-s1",
+      "start_vertex_id": "OOD_HIGH_FREQUENCY_04-v1",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OOD_HIGH_FREQUENCY_04-v3",
+      "segment_id": "OOD_HIGH_FREQUENCY_04-s2",
+      "start_vertex_id": "OOD_HIGH_FREQUENCY_04-v2",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OOD_HIGH_FREQUENCY_04-v4",
+      "segment_id": "OOD_HIGH_FREQUENCY_04-s3",
+      "start_vertex_id": "OOD_HIGH_FREQUENCY_04-v3",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OOD_HIGH_FREQUENCY_04-v5",
+      "segment_id": "OOD_HIGH_FREQUENCY_04-s4",
+      "start_vertex_id": "OOD_HIGH_FREQUENCY_04-v4",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "OOD_HIGH_FREQUENCY_04-v6",
+      "segment_id": "OOD_HIGH_FREQUENCY_04-s5",
+      "start_vertex_id": "OOD_HIGH_FREQUENCY_04-v5",
+      "type": "LINE"
+    }
+  ],
+  "topology": "OPEN_PATH",
+  "vertices": [
+    {
+      "vertex_id": "OOD_HIGH_FREQUENCY_04-v0",
+      "x": -2.76,
+      "y": -0.322
+    },
+    {
+      "vertex_id": "OOD_HIGH_FREQUENCY_04-v1",
+      "x": -1.84,
+      "y": 1.242
+    },
+    {
+      "vertex_id": "OOD_HIGH_FREQUENCY_04-v2",
+      "x": -0.92,
+      "y": -0.322
+    },
+    {
+      "vertex_id": "OOD_HIGH_FREQUENCY_04-v3",
+      "x": 0.0,
+      "y": -0.598
+    },
+    {
+      "vertex_id": "OOD_HIGH_FREQUENCY_04-v4",
+      "x": 0.92,
+      "y": -0.322
+    },
+    {
+      "vertex_id": "OOD_HIGH_FREQUENCY_04-v5",
+      "x": 1.84,
+      "y": 1.242
+    },
+    {
+      "vertex_id": "OOD_HIGH_FREQUENCY_04-v6",
+      "x": 2.76,
+      "y": -0.322
+    }
+  ]
+}

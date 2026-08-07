@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "phase": "21",
+  "base_branch": "feature/private-clrsg-training-evaluation",
+  "starting_sha": "a4a483d",
+  "new_branch": "feature/phase21-prototype-validation-demo-release",
+  "preserved": {
+    "prior_phases": "15-20",
+    "private_model_artifacts_committed": false,
+    "private_cad_committed": false,
+    "existing_tables_dropped": false,
+    "existing_cli_removed": false,
+    "existing_api_removed": false
+  }
+}

@@ -8,7 +8,8 @@ import html
 import io
 import json
 from pathlib import Path
-from zipfile import ZIP_DEFLATED, ZipFile
+import xml.etree.ElementTree as ET
+from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
 
 import ezdxf
 from PIL import Image, ImageDraw
@@ -44,6 +45,53 @@ def export_visual_run(result: dict, output: Path) -> dict[str, str]:
     files[zip_path.name] = _hash(zip_path)
     (output / "manifest.json").write_text(json.dumps({"files": files, "private_source_included": False, "safety_boundary": "Visual prototype only; not manufacturing approval."}, indent=2, sort_keys=True), encoding="utf-8")
     return files
+
+
+def verify_visual_export(output: Path) -> dict[str, object]:
+    """Verify customer-safe artifacts without reading any source CAD."""
+    required = ["visual_run.json", "passes.csv", "manifest.json", "visual_flower_export.zip"]
+    files = {name: (output / name).is_file() and (output / name).stat().st_size > 0 for name in required}
+    candidate_dirs = [path for path in output.iterdir() if path.is_dir()] if output.is_dir() else []
+    artifacts = [path for directory in candidate_dirs for path in directory.rglob("*") if path.is_file()]
+    checks: dict[str, bool] = {"required_files": all(files.values()), "nonzero_artifacts": all(path.stat().st_size > 0 for path in artifacts)}
+    try:
+        payload = json.loads((output / "visual_run.json").read_text(encoding="utf-8"))
+        checks["json_schema"] = isinstance(payload, dict) and "candidates" in payload
+        checks["safety_boundary"] = "manufacturing" in json.dumps(payload).lower() or payload.get("source_cad_included") is False
+    except (OSError, json.JSONDecodeError):
+        checks["json_schema"] = False; checks["safety_boundary"] = False
+    csv_path = output / "passes.csv"
+    checks["csv_headers"] = csv_path.is_file() and "candidate_id" in csv_path.read_text(encoding="utf-8", errors="replace").splitlines()[0]
+    svg_paths = list(output.glob("*/combined.svg"))
+    try:
+        for path in svg_paths:
+            ET.fromstring(path.read_text(encoding="utf-8"))
+        checks["svg_parses"] = bool(svg_paths)
+    except (OSError, ET.ParseError):
+        checks["svg_parses"] = False
+    png_paths = list(output.glob("*/contact-sheet.png"))
+    checks["png_signature"] = bool(png_paths) and all(path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n") for path in png_paths)
+    dxf_paths = list(output.glob("*/combined.dxf"))
+    try:
+        for path in dxf_paths:
+            doc = ezdxf.readfile(path)
+            layers = {entity.dxf.layer for entity in doc.modelspace()}
+            checks["dxf_layers"] = "GENERATED_PROFILE" in layers and "STATION_LABEL" in layers
+    except (OSError, ezdxf.DXFError):
+        checks["dxf_layers"] = False
+    if "dxf_layers" not in checks:
+        checks["dxf_layers"] = False
+    try:
+        with ZipFile(output / "visual_flower_export.zip") as archive:
+            names = archive.namelist()
+            checks["zip_members"] = any(name.endswith("combined.dxf") for name in names) and any(name.endswith("report.html") for name in names)
+            checks["zip_private_safe"] = not any("/home/" in name or name.lower().endswith(".dwg") for name in names)
+    except (OSError, KeyError, BadZipFile):
+        checks["zip_members"] = False; checks["zip_private_safe"] = False
+    text = "".join(path.read_text(encoding="utf-8", errors="replace") for path in output.glob("*/report.html"))
+    checks["html_safety_boundary"] = "not manufacturing" in text.lower() and "physical roller" in text.lower()
+    checks["no_private_paths"] = "/home/pd/" not in text and "rollform-private" not in text
+    return {"status": "PASS" if all(checks.values()) else "FAIL", "checks": checks, "files": files, "artifact_count": len(artifacts)}
 
 
 def _write_dxf(candidate, path):

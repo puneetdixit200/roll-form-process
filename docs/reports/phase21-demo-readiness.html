@@ -1,0 +1,125 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Phase 21 Demo Readiness</title><style>body{margin:0;background:#f3f6f8;color:#17212b;font:16px system-ui,sans-serif}main{max-width:1120px;margin:auto;padding:24px}header,section{background:#fff;border:1px solid #d5dde5;border-radius:12px;padding:22px;margin:14px 0}h1{margin-top:0}.notice{padding:14px;border-left:5px solid #c78600;background:#fff3c4}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.card{background:#edf4f8;border-radius:8px;padding:12px}.card strong{display:block;font-size:1.4rem;margin-top:5px}table{border-collapse:collapse;width:100%}th,td{padding:9px;border-bottom:1px solid #dce3e8;text-align:left}.badge{display:inline-block;border-radius:999px;padding:4px 9px;font-weight:700;background:#dbe5eb}.pass,.ready{background:#d8f3dc;color:#14532d}.warn,.not-ready{background:#fff0bd;color:#704e00}.fail{background:#ffd9de;color:#841c2c}pre{background:#101820;color:#dce9f1;padding:14px;border-radius:8px;overflow:auto;white-space:pre-wrap}@media print{header,section{break-inside:avoid}}</style></head><body><main><header><h1>Phase 21 Prototype Validation Demo Release</h1><p><strong>Visual geometry prototype only.</strong> Not manufacturing approval, tooling approval, physical roller selection, or production release.</p><div class='notice'><strong>Manufacturing approval: NOT APPROVED.</strong> Physical roller availability: NOT DETERMINED.</div><div class='cards'><div class='card'><small>Supported golden</small><strong>30</strong></div><div class='card'><small>OOD golden</small><strong>10</strong></div><div class='card'><small>Python</small><strong>268 passed</strong></div><div class='card'><small>Frontend</small><strong>4 passed</strong></div></div></header><section><h2>Release statuses</h2><table><tr><th>BROWSER END-TO-END</th><td><span class='badge pass-(chromium-headless-fallback)'>PASS (Chromium headless fallback)</span></td></tr><tr><th>CUSTOMER VISUAL PROTOTYPE</th><td><span class='badge ready'>READY</span></td></tr><tr><th>ENGINEER REVIEW CAPTURE</th><td><span class='badge pass'>PASS</span></td></tr><tr><th>EXPORT VERIFICATION</th><td><span class='badge pass'>PASS</span></td></tr><tr><th>GOLDEN OOD SUITE</th><td><span class='badge pass'>PASS</span></td></tr><tr><th>GOLDEN SUPPORTED SUITE</th><td><span class='badge pass'>PASS</span></td></tr><tr><th>MANUFACTURING APPROVAL</th><td><span class='badge not-approved'>NOT APPROVED</span></td></tr><tr><th>MODEL HEALTH</th><td><span class='badge pass'>PASS</span></td></tr><tr><th>ONE-COMMAND STARTUP</th><td><span class='badge pass'>PASS</span></td></tr><tr><th>PERFORMANCE</th><td><span class='badge warn'>WARN</span></td></tr><tr><th>PHYSICAL ROLLER AVAILABILITY</th><td><span class='badge not-determined'>NOT DETERMINED</span></td></tr><tr><th>PRIVACY</th><td><span class='badge pass'>PASS</span></td></tr></table></section><section><h2>Evidence</h2><p>Branch: <code>feature/phase21-prototype-validation-demo-release</code><br>Head: <code>a4a483d98e5ba8c7732dcf0473aa41ac713a1c0f</code><br>Generated: 2026-08-07T08:39:32.429985+00:00</p><pre>{
+  &quot;generated_at&quot;: &quot;2026-08-07T08:39:32.429985+00:00&quot;,
+  &quot;git&quot;: {
+    &quot;base_sha&quot;: &quot;a4a483d&quot;,
+    &quot;branch&quot;: &quot;feature/phase21-prototype-validation-demo-release&quot;,
+    &quot;head&quot;: &quot;a4a483d98e5ba8c7732dcf0473aa41ac713a1c0f&quot;
+  },
+  &quot;golden&quot;: {
+    &quot;fixture_count&quot;: 40,
+    &quot;ood&quot;: 10,
+    &quot;station_counts&quot;: [
+      8,
+      16,
+      28
+    ],
+    &quot;supported&quot;: 30
+  },
+  &quot;launcher&quot;: {
+    &quot;browser&quot;: {
+      &quot;chromium_logs&quot;: &quot;GPU initialization warnings only&quot;,
+      &quot;console_instrumentation&quot;: &quot;UNAVAILABLE: agent-browser and Playwright not installed&quot;,
+      &quot;dom_content&quot;: true,
+      &quot;screenshot&quot;: true,
+      &quot;visual_flower_text&quot;: true
+    },
+    &quot;verify&quot;: {
+      &quot;checks&quot;: {
+        &quot;backend_health&quot;: true,
+        &quot;candidate_count&quot;: 7,
+        &quot;final_target_anchoring&quot;: true,
+        &quot;frontend_http&quot;: true,
+        &quot;json_export&quot;: true,
+        &quot;model_doctor&quot;: true,
+        &quot;model_status&quot;: true,
+        &quot;ood_probe&quot;: true,
+        &quot;public_target_generation&quot;: true,
+        &quot;sixteen_station_candidate&quot;: true,
+        &quot;zip_export&quot;: true
+      },
+      &quot;ood_probe&quot;: &quot;high-frequency public contour&quot;,
+      &quot;private_paths_redacted&quot;: true,
+      &quot;production_approval&quot;: &quot;NOT_APPROVED&quot;,
+      &quot;status&quot;: &quot;PASS&quot;
+    }
+  },
+  &quot;limitations&quot;: [
+    &quot;28-station preferred performance target is exceeded locally (WARN).&quot;,
+    &quot;Local Docker build is blocked by captive-portal interception of Debian apt repositories.&quot;,
+    &quot;Browser console instrumentation was unavailable because agent-browser and Playwright are not installed.&quot;,
+    &quot;Private-model evidence is synthetic-derived and not independent factory evidence.&quot;
+  ],
+  &quot;model&quot;: {
+    &quot;activation&quot;: &quot;ACTIVE&quot;,
+    &quot;approval&quot;: &quot;APPROVED_FOR_PRIVATE_PROTOTYPE&quot;,
+    &quot;fallback_rate&quot;: 0.0625,
+    &quot;model_id&quot;: &quot;clrsg-19c816e906b6e1f1&quot;,
+    &quot;ood_true_positive_rate&quot;: 1.0,
+    &quot;privacy_classification&quot;: &quot;PRIVATE_PROTOTYPE_MODEL&quot;,
+    &quot;test_relative_improvement&quot;: 0.7364269298621647,
+    &quot;validation_false_rejection_rate&quot;: 0.030303030303030304
+  },
+  &quot;performance&quot;: {
+    &quot;classification&quot;: &quot;PUBLIC_SYNTHETIC_TEST&quot;,
+    &quot;schema_version&quot;: 1,
+    &quot;status&quot;: &quot;WARN&quot;,
+    &quot;timings&quot;: [
+      {
+        &quot;maximum_seconds&quot;: 0.7119367339983,
+        &quot;mean_seconds&quot;: 0.7119367339983,
+        &quot;median_seconds&quot;: 0.7119367339983,
+        &quot;p95_seconds&quot;: 0.7119367339983,
+        &quot;preferred_threshold_seconds&quot;: 4.0,
+        &quot;station_count&quot;: 8
+      },
+      {
+        &quot;maximum_seconds&quot;: 2.7922919650009135,
+        &quot;mean_seconds&quot;: 2.7922919650009135,
+        &quot;median_seconds&quot;: 2.7922919650009135,
+        &quot;p95_seconds&quot;: 2.7922919650009135,
+        &quot;preferred_threshold_seconds&quot;: 2.0,
+        &quot;station_count&quot;: 16
+      },
+      {
+        &quot;maximum_seconds&quot;: 8.173504672999115,
+        &quot;mean_seconds&quot;: 8.173504672999115,
+        &quot;median_seconds&quot;: 8.173504672999115,
+        &quot;p95_seconds&quot;: 8.173504672999115,
+        &quot;preferred_threshold_seconds&quot;: 4.0,
+        &quot;station_count&quot;: 28
+      }
+    ],
+    &quot;total_mean_seconds&quot;: 3.8925777906661096
+  },
+  &quot;phase&quot;: &quot;21&quot;,
+  &quot;safety&quot;: {
+    &quot;deterministic_fallback&quot;: true,
+    &quot;manufacturing_approval&quot;: &quot;NOT APPROVED&quot;,
+    &quot;physical_roller_availability&quot;: &quot;NOT DETERMINED&quot;,
+    &quot;private_artifacts_committed&quot;: false,
+    &quot;private_paths_redacted&quot;: true,
+    &quot;source_cad_included&quot;: false
+  },
+  &quot;statuses&quot;: {
+    &quot;BROWSER END-TO-END&quot;: &quot;PASS (Chromium headless fallback)&quot;,
+    &quot;CUSTOMER VISUAL PROTOTYPE&quot;: &quot;READY&quot;,
+    &quot;ENGINEER REVIEW CAPTURE&quot;: &quot;PASS&quot;,
+    &quot;EXPORT VERIFICATION&quot;: &quot;PASS&quot;,
+    &quot;GOLDEN OOD SUITE&quot;: &quot;PASS&quot;,
+    &quot;GOLDEN SUPPORTED SUITE&quot;: &quot;PASS&quot;,
+    &quot;MANUFACTURING APPROVAL&quot;: &quot;NOT APPROVED&quot;,
+    &quot;MODEL HEALTH&quot;: &quot;PASS&quot;,
+    &quot;ONE-COMMAND STARTUP&quot;: &quot;PASS&quot;,
+    &quot;PERFORMANCE&quot;: &quot;WARN&quot;,
+    &quot;PHYSICAL ROLLER AVAILABILITY&quot;: &quot;NOT DETERMINED&quot;,
+    &quot;PRIVACY&quot;: &quot;PASS&quot;
+  },
+  &quot;tests&quot;: {
+    &quot;docker&quot;: &quot;FAIL_LOCAL_CAPTIVE_PORTAL&quot;,
+    &quot;frontend&quot;: &quot;4 passed&quot;,
+    &quot;frontend_build&quot;: &quot;PASS&quot;,
+    &quot;phase21_focused&quot;: &quot;4 passed&quot;,
+    &quot;python&quot;: &quot;268 passed&quot;,
+    &quot;smoke&quot;: &quot;HOST PASS; DOCKER NOT RUN&quot;
+  }
+}</pre></section><section><h2>Evidence boundary</h2><ul><li>Private CLRSG evidence remains local and is not embedded here.</li><li>Golden fixtures are public procedural profiles.</li><li>Visual confidence is not manufacturing confidence.</li><li>Engineer feedback does not retrain or change model approval.</li></ul></section></main></body></html>

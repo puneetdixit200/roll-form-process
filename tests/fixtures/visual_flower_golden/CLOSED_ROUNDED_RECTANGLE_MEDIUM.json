@@ -1,0 +1,92 @@
+{
+  "closed": true,
+  "computational_seam_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v0",
+  "metadata": {
+    "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+    "expected_ood_class": "IN_DISTRIBUTION",
+    "family": "CLOSED_ROUNDED_RECTANGLE",
+    "negative_probe": false,
+    "requested_station_count": 8,
+    "source": "PUBLIC_SYNTHETIC_TEST",
+    "visual_only": true
+  },
+  "name": "Public golden CLOSED_ROUNDED_RECTANGLE 1",
+  "profile_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM",
+  "schema_version": 1,
+  "segments": [
+    {
+      "end_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v1",
+      "segment_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-s0",
+      "start_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v0",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v2",
+      "segment_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-s1",
+      "start_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v1",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v3",
+      "segment_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-s2",
+      "start_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v2",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v4",
+      "segment_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-s3",
+      "start_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v3",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v5",
+      "segment_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-s4",
+      "start_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v4",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v6",
+      "segment_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-s5",
+      "start_vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v5",
+      "type": "LINE"
+    }
+  ],
+  "topology": "CLOSED_CONTOUR",
+  "vertices": [
+    {
+      "vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v0",
+      "x": -2.0,
+      "y": -1.0
+    },
+    {
+      "vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v1",
+      "x": 0.0,
+      "y": -1.0
+    },
+    {
+      "vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v2",
+      "x": 2.0,
+      "y": -1.0
+    },
+    {
+      "vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v3",
+      "x": 2.0,
+      "y": 1.0
+    },
+    {
+      "vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v4",
+      "x": 0.0,
+      "y": 1.0
+    },
+    {
+      "vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v5",
+      "x": -2.0,
+      "y": 1.0
+    },
+    {
+      "vertex_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM-v6",
+      "x": -2.0,
+      "y": -1.0
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "closed": true,
+  "computational_seam_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v0",
+  "metadata": {
+    "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+    "expected_ood_class": "IN_DISTRIBUTION",
+    "family": "CLOSED_ASYMMETRIC_LOOP",
+    "negative_probe": false,
+    "requested_station_count": 16,
+    "source": "PUBLIC_SYNTHETIC_TEST",
+    "visual_only": true
+  },
+  "name": "Public golden CLOSED_ASYMMETRIC_LOOP 0.7",
+  "profile_id": "CLOSED_ASYMMETRIC_LOOP_SMALL",
+  "schema_version": 1,
+  "segments": [
+    {
+      "end_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v1",
+      "segment_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-s0",
+      "start_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v0",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v2",
+      "segment_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-s1",
+      "start_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v1",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v3",
+      "segment_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-s2",
+      "start_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v2",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v4",
+      "segment_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-s3",
+      "start_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v3",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v5",
+      "segment_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-s4",
+      "start_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v4",
+      "type": "LINE"
+    },
+    {
+      "end_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v6",
+      "segment_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-s5",
+      "start_vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v5",
+      "type": "LINE"
+    }
+  ],
+  "topology": "CLOSED_CONTOUR",
+  "vertices": [
+    {
+      "vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v0",
+      "x": -1.4,
+      "y": -0.7
+    },
+    {
+      "vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v1",
+      "x": 0.0,
+      "y": -0.7
+    },
+    {
+      "vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v2",
+      "x": 1.4,
+      "y": -0.7
+    },
+    {
+      "vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v3",
+      "x": 1.4,
+      "y": 0.7
+    },
+    {
+      "vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v4",
+      "x": 0.0,
+      "y": 0.7
+    },
+    {
+      "vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v5",
+      "x": -1.4,
+      "y": 0.7
+    },
+    {
+      "vertex_id": "CLOSED_ASYMMETRIC_LOOP_SMALL-v6",
+      "x": -1.4,
+      "y": -0.7
+    }
+  ]
+}
