@@ -40,7 +40,9 @@ export default function VisualFlowerWorkspace() {
   const [candidateLimit, setCandidateLimit] = useState(3);
   const [generationEngine, setGenerationEngine] = useState("AUTO");
   const [message, setMessage] = useState("");
-  const [validated, setValidated] = useState(false);
+  // The bundled public example is known-valid, so the demo can be generated
+  // immediately. Any edit, import, or JSON load resets this gate below.
+  const [validated, setValidated] = useState(true);
   const [guided, setGuided] = useState(false);
   const [reviewer, setReviewer] = useState("");
   const [importId, setImportId] = useState<string | null>(null);
@@ -248,7 +250,7 @@ export default function VisualFlowerWorkspace() {
     setRun(null);
     setCandidateIndex(0);
     setPassIndex(0);
-    setValidated(false);
+    setValidated(true);
     setImportProfiles([]);
     setMessage("Guided demo reset to the public example.");
   }

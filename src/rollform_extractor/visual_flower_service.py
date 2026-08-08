@@ -41,6 +41,14 @@ def profile_hash(profile: dict[str, Any]) -> str:
     ).hexdigest()
 
 
+def _scope_candidate_ids(candidates: list[dict[str, Any]], run_key: str) -> None:
+    """Make result-local candidate IDs unique in the shared visual database."""
+    for index, candidate in enumerate(candidates, start=1):
+        candidate["candidate_id"] = "vfg-" + sha256(
+            f"{run_key}|{index}|{candidate.get('candidate_id', '')}".encode()
+        ).hexdigest()[:16]
+
+
 def historical_dataset() -> dict[str, Any]:
     configured = os.environ.get("ROLLFORM_FLOWER_PROTOTYPE_DATASET")
     if not configured:
@@ -215,6 +223,11 @@ def generate_for_target(
     ).hexdigest()[:16]
     configuration_hash = sha256(configuration_json.encode()).hexdigest()
 
+    # Candidate IDs are persisted globally, while the geometry engine's IDs are
+    # intentionally stable only within a result.  Scope them to the run before
+    # persistence so regenerating the same profile under another target cannot
+    # violate the database uniqueness constraint.
+    _scope_candidate_ids(result.get("candidates", []), run_key)
     with Session(engine) as session:
         existing = session.scalar(
             select(VisualFlowerGenerationRunRow).where(
