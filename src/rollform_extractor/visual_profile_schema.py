@@ -9,7 +9,7 @@ from typing import Any
 
 
 VISUAL_PROFILE_SCHEMA_VERSION = 1
-VISUAL_ALGORITHM_VERSION = "visual_sketch_history_match_v1"
+VISUAL_ALGORITHM_VERSION = "visual_sketch_history_match_v2_constant_length"
 TOPOLOGIES = {"OPEN_PATH", "CLOSED_CONTOUR"}
 
 
