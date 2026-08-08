@@ -42,10 +42,68 @@ def test_model_doctor_is_available_without_private_model(tmp_path, monkeypatch):
 def test_candidate_review_is_append_only_and_exportable(tmp_path):
     candidate_id = "candidate-public-001"
     output = tmp_path / "export"
-    result = {"schema_version": 1, "source_cad_included": False, "candidates": [{"candidate_id": candidate_id, "candidate_style": "DETERMINISTIC", "visual_confidence": {"score": 55.0, "band": "MEDIUM"}, "passes": [{"pass_id": "p1", "order": 1, "progress": 1.0, "profile": {"points": [[0, 0], [1, 0]], "topology": "OPEN_PATH"}, "visual_confidence": {"score": 55.0}, "historical_match": {"best_match": {"source_pass_id": "PUBLIC-P1"}}}], "warnings": ["Visual prototype only"]}]}
+    strip_constraint = {
+        "constraint_version": "constant_centerline_length_v1",
+        "enabled": True,
+        "reference": "FINAL_TARGET_CENTERLINE",
+        "coordinate_space": "CANONICAL_VISUAL_UNITS",
+        "method": "EXACT_FINAL_TARGET",
+        "target_length": 1.0,
+        "before_length": 1.0,
+        "actual_length": 1.0,
+        "relative_error": 0.0,
+        "relative_tolerance": 1e-6,
+        "satisfied": True,
+        "local_segment_lengths_preserved": True,
+        "projection_rms": 0.0,
+        "visual_only": True,
+    }
+    result = {
+        "schema_version": 1,
+        "source_cad_included": False,
+        "candidates": [
+            {
+                "candidate_id": candidate_id,
+                "candidate_style": "DETERMINISTIC",
+                "visual_confidence": {"score": 55.0, "band": "MEDIUM"},
+                "geometry_constraints": {
+                    "enabled": True,
+                    "constraint_version": "constant_centerline_length_v1",
+                    "reference": "FINAL_TARGET_CENTERLINE",
+                    "coordinate_space": "CANONICAL_VISUAL_UNITS",
+                    "target_length": 1.0,
+                    "maximum_relative_error": 0.0,
+                    "relative_tolerance": 1e-6,
+                    "satisfied": True,
+                    "open_path_local_segment_lengths_preserved": True,
+                    "visual_only": True,
+                },
+                "passes": [
+                    {
+                        "pass_id": "p1",
+                        "order": 1,
+                        "progress": 1.0,
+                        "profile": {
+                            "points": [[0, 0], [1, 0]],
+                            "topology": "OPEN_PATH",
+                        },
+                        "generation": {
+                            "strip_length_constraint": strip_constraint,
+                        },
+                        "visual_confidence": {"score": 55.0},
+                        "historical_match": {
+                            "best_match": {"source_pass_id": "PUBLIC-P1"}
+                        },
+                    }
+                ],
+                "warnings": ["Visual prototype only"],
+            }
+        ],
+    }
     export_visual_run(result, output)
     verification = verify_visual_export(output)
     assert verification["status"] == "PASS"
+    assert verification["checks"]["constant_strip_length"] is True
 
 
 def test_candidate_review_api_preserves_provenance(tmp_path):
