@@ -722,6 +722,12 @@ function MatchDetails({ item }: { item: any }) {
       <summary>Top three historical matches and score components</summary>
       {matches.map((match: any, index: number) => (
         <div key={`${match.source_flower_id}-${match.source_pass_id}-${index}`}>
+          <div className="historical-match-preview">
+            <img
+              src={`http://127.0.0.1:8000/api/visual-flower/historical-preview/${encodeURIComponent(match.source_flower_id)}/${encodeURIComponent(match.source_pass_id)}.png`}
+              alt={`Historical geometry ${match.source_flower_id} ${match.source_pass_id}`}
+            />
+            <div>
           <strong>
             #{index + 1} {match.source_flower_id} / {match.source_pass_id}
           </strong>
@@ -750,6 +756,8 @@ function MatchDetails({ item }: { item: any }) {
               3,
             ) ?? "n/a"}
           </p>
+            </div>
+          </div>
         </div>
       ))}
     </details>

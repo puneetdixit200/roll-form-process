@@ -9,7 +9,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from rollform_extractor.web.backend.jobs.store import JobStore
 from rollform_extractor.web.backend.services.analysis import AnalysisService
@@ -28,7 +28,7 @@ from rollform_extractor.validated_usage import (
     lock_dataset_version, promote_confirmed_usage, search_historical_usage, submit_label_assertion,
     validate_dataset,
 )
-from rollform_extractor.visual_flower_service import create_candidate_review, create_target as create_visual_target, export_candidate as export_visual_candidate, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, list_candidate_reviews, list_targets as list_visual_targets
+from rollform_extractor.visual_flower_service import create_candidate_review, create_target as create_visual_target, export_candidate as export_visual_candidate, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, historical_pass_preview, list_candidate_reviews, list_targets as list_visual_targets
 from rollform_extractor.visual_profile_schema import VisualProfileError
 from rollform_extractor.clrsg_service import list_models, model_status
 from rollform_extractor.private_clrsg_readiness import doctor_private_model
@@ -90,6 +90,13 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
             raise HTTPException(status_code=404, detail={"code": "DATASET_UNAVAILABLE", "message": "configured prototype dataset is unavailable"})
         payload = json.loads(path.read_text(encoding="utf-8"))
         return {"available": True, "dataset_hash": payload.get("dataset_hash"), "flower_count": len(payload.get("flowers", [])), "pass_count": sum(len(item.get("passes", [])) for item in payload.get("flowers", [])), "source_classification": payload.get("source_classification"), "private_paths_redacted": True}
+
+    @app.get("/api/visual-flower/historical-preview/{source_flower_id}/{source_pass_id}.png")
+    def visual_historical_preview(source_flower_id: str, source_pass_id: str) -> Response:
+        preview = historical_pass_preview(source_flower_id, source_pass_id)
+        if preview is None:
+            raise HTTPException(status_code=404, detail="historical pass preview not found")
+        return Response(content=preview, media_type="image/png", headers={"Cache-Control": "no-store"})
 
     @app.get("/api/visual-flower/model/status")
     def visual_model_status() -> dict[str, Any]:

@@ -15,6 +15,25 @@ import ezdxf
 from PIL import Image, ImageDraw
 
 
+def historical_profile_png(points: list[list[float]], *, label: str = "Historical pass") -> bytes:
+    """Render a customer-safe historical geometry preview without source CAD."""
+    image = Image.new("RGB", (520, 300), "white")
+    draw = ImageDraw.Draw(image)
+    normalized = [(float(point[0]), float(point[1])) for point in points if len(point) >= 2]
+    if len(normalized) >= 2:
+        min_x, max_x = min(point[0] for point in normalized), max(point[0] for point in normalized)
+        min_y, max_y = min(point[1] for point in normalized), max(point[1] for point in normalized)
+        scale = min(470 / max(max_x - min_x, 1e-9), 240 / max(max_y - min_y, 1e-9))
+        projected = [(25 + (x - min_x) * scale, 270 - (y - min_y) * scale) for x, y in normalized]
+        draw.line(projected, fill="#155783", width=5, joint="curve")
+        for x, y in projected:
+            draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill="#c46b00")
+    draw.text((15, 12), label, fill="#17202a")
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
 def export_visual_run(result: dict, output: Path) -> dict[str, str]:
     output.mkdir(parents=True, exist_ok=True)
     files: dict[str, str] = {}
