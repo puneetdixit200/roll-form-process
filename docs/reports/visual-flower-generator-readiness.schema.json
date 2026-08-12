@@ -1,0 +1,1 @@
+{"type":"object","required":["status","metrics","tests","safety"],"properties":{"status":{"type":"object"},"metrics":{"type":"object"},"tests":{"type":"object"},"safety":{"type":"object"}}}

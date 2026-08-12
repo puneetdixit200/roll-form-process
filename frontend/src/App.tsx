@@ -1,11 +1,51 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { applyReview, artifactUrl, createRecognitionRun, getArtifacts, getInventoryDesigns, getInventoryStats, getJob, getProject, getRecognitionCandidates, getRecognitionRuns, getReportData, inventoryExportUrl, importInventory, reviewRecognitionCandidate, uploadDrawing, validateInventory } from "./api/client";
 import type { CompositeFlower, FlowerPass, JobRecord, ProjectRecord, ReportData, StepChange } from "./types/report";
 import "./styles.css";
+import VisualFlowerWorkspace from "./features/visual-flower/VisualFlowerWorkspace";
 
 const STAGES = ["UPLOADED", "CONVERTING", "PARSING", "DETECTING_FLOWERS", "EXTRACTING_PASSES", "ANALYSING_GEOMETRY", "GENERATING_REPORT", "CANDIDATE_READY"];
 
 export default function App() {
+  return <AuthGate><Application /></AuthGate>;
+}
+
+function AuthGate({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<"checking" | "login" | "ready">("checking");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/auth/status", { credentials: "same-origin" })
+      .then((response) => response.json())
+      .then((status) => setState(status.auth_enabled && !status.authenticated ? "login" : "ready"))
+      .catch(() => setState("ready"));
+  }, []);
+
+  async function login(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!response.ok) {
+      setError("Login failed. Check the demo credentials.");
+      return;
+    }
+    setPassword("");
+    setState("ready");
+  }
+
+  if (state === "checking") return <main className="panel"><p>Checking demo access…</p></main>;
+  if (state === "login") return <main className="panel auth-panel"><h1>Rollform Extractor Demo</h1><p>This private customer demo requires authentication.</p><form onSubmit={login}><label>Username<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" required /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required /></label>{error && <p role="alert">{error}</p>}<button type="submit">Sign in</button></form></main>;
+  return <>{children}</>;
+}
+
+function Application() {
   const [projectId, setProjectId] = useState("");
   const [jobId, setJobId] = useState("");
   const [project, setProject] = useState<ProjectRecord | null>(null);
@@ -86,7 +126,7 @@ export default function App() {
           <h1>Rollform Extractor</h1>
           <p>Candidate extraction - not approved for production use</p>
         </div>
-        <nav>{["Dashboard", "New Project / Upload", "Processing Progress", "Project Summary", "Flower Viewer", "Pass Detail", "What Changed", "Bend-Zone Progression", "Warnings", "Engineer Review", "Exports", "Inventory", "Roller Recognition", "Validation & Usage Search"].map((item) => <a href={`#${item.replaceAll(" ", "-")}`} key={item}>{item}</a>)}</nav>
+        <nav>{["Dashboard", "New Project / Upload", "Processing Progress", "Project Summary", "Flower Viewer", "Pass Detail", "What Changed", "Bend-Zone Progression", "Warnings", "Engineer Review", "Exports", "Inventory", "Roller Recognition", "Validation & Usage Search", "Flower Sequence Prototype"].map((item) => <a href={`#${item.replaceAll(" ", "-")}`} key={item}>{item}</a>)}</nav>
       </header>
       <section id="Dashboard" className="panel"><Dashboard project={project} report={report} /></section>
       <section id="New-Project-/-Upload" className="panel"><Upload onUpload={onUpload} /></section>
@@ -104,6 +144,7 @@ export default function App() {
       <section id="Inventory" className="panel"><Inventory /></section>
       <section id="Roller-Recognition" className="panel"><RollerRecognition projectId={projectId} /></section>
       <section id="Validation-&-Usage-Search" className="panel"><ValidatedUsage /></section>
+      <section id="Flower-Sequence-Prototype" className="panel"><VisualFlowerWorkspace /></section>
     </main>
   );
 }
@@ -131,6 +172,10 @@ function RollerRecognition({ projectId }: { projectId: string }) {
 
 function ValidatedUsage() {
   return <><h2>Validation &amp; Usage Search</h2><p className="notice"><strong>Historical design evidence only.</strong> A confirmed design relationship does not identify a physical roller asset and does not constitute a tooling recommendation.</p><div className="metrics"><Metric label="Datasets" value="Review governed" /><Metric label="Ground truth" value="Adjudicated" /><Metric label="Search" value="Offline evidence" /></div><p>Use independent engineer labels, explicit adjudication, locked dataset versions, and confirmed historical design usage to explore evidence. Synthetic fixtures are excluded from operational search by default.</p></>;
+}
+
+function FlowerSequencePrototype() {
+  return <><h2>Flower Sequence Prototype</h2><p className="notice"><strong>Historically grounded flower-sequence candidate for engineer review.</strong> This prototype does not approve manufacturing, recommend tooling, or identify a physical roller.</p><div className="metrics"><Metric label="Historical flowers" value="2 private" /><Metric label="Generation" value="8–28 stations" /><Metric label="Validation" value="Forward rules" /><Metric label="Data mode" value="Offline" /></div><h3>Workflow</h3><p>Private complete flowers are extracted into canonical pass evidence, retrieved by explainable geometry components, aligned monotonically, adapted within bounded station counts, and validated forward. Generated passes retain historical source provenance.</p><h3>Review boundary</h3><ul><li>Candidate geometry is not a production sequence.</li><li>Partial roller drawings are optional supporting evidence only.</li><li>Physical asset availability and tooling compatibility are not determined.</li></ul></>;
 }
 
 function Dashboard({ project, report }: { project: ProjectRecord | null; report: ReportData | null }) {

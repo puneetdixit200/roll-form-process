@@ -37,10 +37,21 @@ from rollform_extractor.validated_usage import (
     submit_label_assertion,
     validate_dataset,
 )
+from rollform_extractor.flower_prototype_dataset import build_dataset, ingest_private_flower, ingest_private_roller_evidence, persist_dataset
+from rollform_extractor.flower_retrieval import target_from_pass, retrieve_historical_flowers
+from rollform_extractor.flower_generation import generate_candidates
+from rollform_extractor.flower_reconstruction_benchmark import benchmark_dataset
+from rollform_extractor.flower_exports import export_generation, export_prototype_dataset, export_benchmark
+from rollform_extractor.visual_profile_schema import VisualProfileError, validate_profile
+from rollform_extractor.visual_flower_engine import generate_visual_candidates
+from rollform_extractor.visual_flower_exports import export_visual_run
 from rollform_extractor.database import create_project_database
 from rollform_extractor.pipeline import ExtractionRequest, extract_project, reprocess_project
 from rollform_extractor.review_apply import ReviewApplyError, apply_review_decisions
 from rollform_extractor.validation import validate_project
+from rollform_extractor.synthetic_sequence_factory import generate_public_corpus_to
+from rollform_extractor.synthetic_corpus_schema import load_corpus
+from rollform_extractor.clrsg_service import activate_model, inspect_corpus, model_status, register_dataset, train_and_register, validate_corpus
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -175,6 +186,64 @@ def main(argv: list[str] | None = None) -> int:
     usage_stale_cmd = sub.add_parser("usage-stale-check")
     usage_stale_cmd.add_argument("--project-id", type=int)
     usage_stale_cmd.add_argument("--database", type=Path, required=True)
+    flower_ingest_cmd = sub.add_parser("flower-prototype-ingest")
+    flower_ingest_cmd.add_argument("source_root", type=Path)
+    flower_ingest_cmd.add_argument("output_root", type=Path)
+    flower_ingest_cmd.add_argument("--database", type=Path)
+    flower_ingest_cmd.add_argument("--json", action="store_true")
+    flower_generate_cmd = sub.add_parser("flower-generate")
+    flower_generate_cmd.add_argument("dataset", type=Path)
+    flower_generate_cmd.add_argument("--flower-id", required=True)
+    flower_generate_cmd.add_argument("--output", type=Path, required=True)
+    flower_generate_cmd.add_argument("--scale-x", type=float, default=1.0)
+    flower_generate_cmd.add_argument("--scale-y", type=float, default=1.0)
+    flower_generate_cmd.add_argument("--json", action="store_true")
+    flower_benchmark_cmd = sub.add_parser("flower-benchmark")
+    flower_benchmark_cmd.add_argument("dataset", type=Path)
+    flower_benchmark_cmd.add_argument("--output", type=Path, required=True)
+    flower_benchmark_cmd.add_argument("--json", action="store_true")
+    visual_validate_cmd = sub.add_parser("visual-profile-validate")
+    visual_validate_cmd.add_argument("target", type=Path)
+    visual_generate_cmd = sub.add_parser("visual-flower-generate")
+    visual_generate_cmd.add_argument("target", type=Path)
+    visual_generate_cmd.add_argument("--database", type=Path)
+    visual_generate_cmd.add_argument("--stations", type=int)
+    visual_generate_cmd.add_argument("--min-stations", type=int, default=8)
+    visual_generate_cmd.add_argument("--max-stations", type=int, default=28)
+    visual_generate_cmd.add_argument("--candidate-limit", type=int, default=3)
+    visual_generate_cmd.add_argument("--output", type=Path, required=True)
+    visual_show_cmd = sub.add_parser("visual-flower-show")
+    visual_show_cmd.add_argument("run_id")
+    visual_show_cmd.add_argument("--database", type=Path, required=True)
+    corpus_plan_cmd = sub.add_parser("synthetic-corpus-plan")
+    corpus_plan_cmd.add_argument("--config", type=Path)
+    corpus_generate_cmd = sub.add_parser("synthetic-corpus-generate")
+    corpus_generate_cmd.add_argument("--config", type=Path)
+    corpus_generate_cmd.add_argument("--output", type=Path, required=True)
+    corpus_generate_cmd.add_argument("--samples-per-family", type=int, default=6)
+    corpus_generate_cmd.add_argument("--seed", type=int, default=1729)
+    corpus_inspect_cmd = sub.add_parser("synthetic-corpus-inspect")
+    corpus_inspect_cmd.add_argument("dataset", type=Path)
+    corpus_validate_cmd = sub.add_parser("synthetic-corpus-validate")
+    corpus_validate_cmd.add_argument("dataset", type=Path)
+    clrsg_train_cmd = sub.add_parser("clrsg-train")
+    clrsg_train_cmd.add_argument("dataset", type=Path)
+    clrsg_train_cmd.add_argument("--output", type=Path, required=True)
+    clrsg_train_cmd.add_argument("--ensemble-members", type=int, default=5)
+    clrsg_train_cmd.add_argument("--seed", type=int, default=1729)
+    clrsg_register_cmd = sub.add_parser("clrsg-register")
+    clrsg_register_cmd.add_argument("model", type=Path)
+    clrsg_register_cmd.add_argument("--database", type=Path, required=True)
+    clrsg_activate_cmd = sub.add_parser("clrsg-activate")
+    clrsg_activate_cmd.add_argument("model_id")
+    clrsg_activate_cmd.add_argument("--database", type=Path, required=True)
+    sub.add_parser("clrsg-status").add_argument("--database", type=Path, required=True)
+    clrsg_generate_cmd = sub.add_parser("clrsg-generate")
+    clrsg_generate_cmd.add_argument("target", type=Path)
+    clrsg_generate_cmd.add_argument("--stations", type=int, default=16)
+    clrsg_generate_cmd.add_argument("--model", type=Path)
+    clrsg_generate_cmd.add_argument("--historical-dataset", type=Path)
+    clrsg_generate_cmd.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
 
     if args.command == "inspect":
@@ -444,4 +513,124 @@ def main(argv: list[str] | None = None) -> int:
         except (ValueError, LookupError, OSError) as exc:
             print(str(exc), file=sys.stderr)
             return 2
+    if args.command == "flower-prototype-ingest":
+        try:
+            root = args.source_root.resolve()
+            args.output_root.mkdir(parents=True, exist_ok=True)
+            flowers = (
+                ingest_private_flower(root / "flower 1.dwg", args.output_root / "private-flower-001", "PRIVATE-FLOWER-001"),
+                ingest_private_flower(root / "flower2.dwg", args.output_root / "private-flower-002", "PRIVATE-FLOWER-002"),
+            )
+            rollers = (
+                ingest_private_roller_evidence(root / "roller1_sequnece aprtial.dwg", args.output_root / "private-roller-001", "PRIVATE-ROLLER-PARTIAL-001"),
+                ingest_private_roller_evidence(root / "roller2_sequence partial.dwg", args.output_root / "private-roller-002", "PRIVATE-ROLLER-PARTIAL-002"),
+            )
+            dataset = build_dataset(flowers, rollers)
+            export_prototype_dataset(dataset, args.output_root / "dataset")
+            if args.database:
+                persist_dataset(create_project_database(args.database), dataset)
+            result = {"dataset_id": dataset.dataset_id, "dataset_hash": dataset.dataset_hash, "flowers": [{"flower_id": f.flower_id, "station_count": len(f.passes)} for f in flowers], "roller_evidence": len(rollers), "private_paths_redacted": True}
+            print(json.dumps(result, sort_keys=True) if args.json else f"dataset={dataset.dataset_id} flowers=2 stations={[len(f.passes) for f in flowers]} rollers=2")
+            return 0
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "flower-generate":
+        try:
+            payload = json.loads((args.dataset / "dataset.json").read_text(encoding="utf-8"))
+            from rollform_extractor.flower_prototype_dataset import _dataset_from_dict
+            dataset = _dataset_from_dict(payload)
+            flower = next(item for item in dataset.flowers if item.flower_id == args.flower_id)
+            target = target_from_pass(flower.passes[-1], target_id="SYNTHETIC-TARGET-001", scale_x=args.scale_x, scale_y=args.scale_y)
+            candidates = generate_candidates(dataset, target)
+            export_generation(candidates, args.output)
+            result = {"target_id": target.target_id, "candidate_count": len(candidates), "candidates": [c.to_dict() for c in candidates]}
+            print(json.dumps(result, sort_keys=True) if args.json else f"candidates={len(candidates)} output={args.output}")
+            return 0
+        except (OSError, RuntimeError, ValueError, StopIteration, KeyError, json.JSONDecodeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "flower-benchmark":
+        try:
+            payload = json.loads((args.dataset / "dataset.json").read_text(encoding="utf-8"))
+            from rollform_extractor.flower_prototype_dataset import _dataset_from_dict
+            result = benchmark_dataset(_dataset_from_dict(payload).flowers)
+            export_benchmark(_dataset_from_dict(payload).flowers, args.output)
+            print(json.dumps(result, sort_keys=True) if args.json else f"cases={result['case_count']} output={args.output}")
+            return 0
+        except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    if args.command == "visual-profile-validate":
+        try:
+            profile = validate_profile(json.loads(args.target.read_text(encoding="utf-8")))
+            print(json.dumps({"valid": True, "profile_id": profile.profile_id, "topology": profile.topology, "vertex_count": len(profile.vertices), "segment_count": len(profile.segments)}, sort_keys=True))
+            return 0
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(json.dumps({"valid": False, "error": getattr(exc, "code", "INVALID_PROFILE"), "message": str(exc)}), file=sys.stderr)
+            return 1
+    if args.command == "visual-flower-generate":
+        try:
+            profile = validate_profile(json.loads(args.target.read_text(encoding="utf-8")))
+            from rollform_extractor.visual_flower_service import historical_dataset
+            result = generate_visual_candidates(profile, historical_dataset().get("flowers", []), station_mode="EXACT" if args.stations else "RANGE", exact_station_count=args.stations, minimum_station_count=args.min_stations, maximum_station_count=args.max_stations, candidate_limit=args.candidate_limit)
+            files = export_visual_run(result, args.output)
+            print(json.dumps({"status": "READY", "candidate_count": result["candidate_count"], "output": str(args.output), "files": files}, sort_keys=True))
+            return 0
+        except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+            print(json.dumps({"status": "FAILED", "error": getattr(exc, "code", "GENERATION_FAILED"), "message": str(exc)}), file=sys.stderr)
+            return 2
+    if args.command == "visual-flower-show":
+        try:
+            from rollform_extractor.visual_flower_service import get_run
+            result = get_run(create_project_database(args.database), args.run_id)
+            if result is None:
+                print("visual run not found", file=sys.stderr); return 1
+            print(json.dumps(result, sort_keys=True)); return 0
+        except (OSError, ValueError) as exc:
+            print(str(exc), file=sys.stderr); return 2
+    if args.command == "synthetic-corpus-plan":
+        from rollform_extractor.synthetic_profile_families import public_family_catalog
+        print(json.dumps({"generator_version": "synthetic_visual_corpus_v1", "families": public_family_catalog(), "station_counts": list(range(8, 29)), "classification": "PUBLIC_PROCEDURAL_SYNTHETIC"}, sort_keys=True))
+        return 0
+    if args.command == "synthetic-corpus-generate":
+        try:
+            corpus = generate_public_corpus_to(args.output, samples_per_family=args.samples_per_family, seed=args.seed)
+            print(json.dumps({"dataset_id": corpus.manifest.dataset_id, "dataset_hash": corpus.manifest.content_hash, "sample_count": len(corpus.samples), "output": str(args.output), "privacy": corpus.manifest.privacy}, sort_keys=True)); return 0
+        except (OSError, ValueError, RuntimeError) as exc:
+            print(str(exc), file=sys.stderr); return 2
+    if args.command == "synthetic-corpus-inspect":
+        try: print(json.dumps(inspect_corpus(args.dataset), sort_keys=True)); return 0
+        except (OSError, ValueError, KeyError) as exc: print(str(exc), file=sys.stderr); return 2
+    if args.command == "synthetic-corpus-validate":
+        try:
+            result = validate_corpus(args.dataset); print(json.dumps(result, sort_keys=True)); return 0 if result["valid"] else 1
+        except (OSError, ValueError, KeyError) as exc: print(str(exc), file=sys.stderr); return 2
+    if args.command == "clrsg-train":
+        try:
+            args.output.mkdir(parents=True, exist_ok=True)
+            print(json.dumps(train_and_register(create_project_database(args.output.parent / (args.output.name + ".sqlite")), args.dataset, args.output, ensemble_members=args.ensemble_members, seed=args.seed), sort_keys=True)); return 0
+        except (OSError, ValueError, RuntimeError) as exc: print(str(exc), file=sys.stderr); return 2
+    if args.command == "clrsg-register":
+        try:
+            corpus = load_corpus(args.model.parent / "corpus") if (args.model.parent / "corpus" / "manifest.json").is_file() else None
+            if corpus is None: raise ValueError("model registration requires sibling corpus directory for dataset provenance")
+            result = register_dataset(create_project_database(args.database), corpus); print(json.dumps(result, sort_keys=True)); return 0
+        except (OSError, ValueError, KeyError) as exc: print(str(exc), file=sys.stderr); return 2
+    if args.command == "clrsg-activate":
+        try: print(json.dumps(activate_model(create_project_database(args.database), args.model_id), sort_keys=True)); return 0
+        except (OSError, ValueError, LookupError) as exc: print(str(exc), file=sys.stderr); return 2
+    if args.command == "clrsg-status":
+        print(json.dumps(model_status(create_project_database(args.database)), sort_keys=True)); return 0
+    if args.command == "clrsg-generate":
+        try:
+            from rollform_extractor.clrsg_model import load_clrsg_model
+            from rollform_extractor.clrsg_inference import infer_learned_candidates
+            profile = validate_profile(json.loads(args.target.read_text(encoding="utf-8")))
+            model = load_clrsg_model(args.model) if args.model else None
+            result = generate_visual_candidates(profile, [], station_mode="EXACT", exact_station_count=args.stations, candidate_limit=1)
+            result["learned_model"] = infer_learned_candidates(profile, result, model)
+            args.output.mkdir(parents=True, exist_ok=True); (args.output / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")
+            print(json.dumps({"status": result["learned_model"]["status"], "output": str(args.output), "deterministic_fallback": True}, sort_keys=True)); return 0
+        except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc: print(str(exc), file=sys.stderr); return 2
     return 2

@@ -2,11 +2,12 @@ name: quality
 
 on:
   pull_request:
-    branches: [main]
   push:
     branches:
       - main
       - 'feature/**'
+      - 'fix/**'
+      - 'release/**'
 
 concurrency:
   group: quality-${{ github.workflow }}-${{ github.ref }}
@@ -25,6 +26,10 @@ jobs:
       - run: python -m pip install -e ".[backend,test]"
       - run: python -m compileall src backend
       - run: pytest -q
+      - name: History-constrained flower prototype regression
+        run: pytest -q tests/test_flower_prototype.py
+      - name: Interactive visual flower generator regression
+        run: pytest -q tests/test_visual_flower.py tests/test_visual_flower_api.py tests/test_visual_flower_import.py
       - run: pytest -q tests/test_roller_recognition.py tests/test_roller_recognition_api.py
       - name: Synthetic recognition acceptance and determinism
         run: |
@@ -37,6 +42,20 @@ jobs:
           python scripts/run_phase18_synthetic.py --output /tmp/phase18-b.json
           cmp --silent /tmp/phase18-a.json /tmp/phase18-b.json
           pytest -q tests/test_validated_usage.py
+      - name: Phase 19 public CLRSG corpus and model determinism
+        run: |
+          set -euo pipefail
+          python -m rollform_extractor synthetic-corpus-plan
+          python -m rollform_extractor synthetic-corpus-generate --output /tmp/clrsg-corpus-a --samples-per-family 3 --seed 1729
+          python -m rollform_extractor synthetic-corpus-validate /tmp/clrsg-corpus-a
+          python -m rollform_extractor synthetic-corpus-generate --output /tmp/clrsg-corpus-b --samples-per-family 3 --seed 1729
+          cmp --silent /tmp/clrsg-corpus-a/manifest.json /tmp/clrsg-corpus-b/manifest.json
+          python -m rollform_extractor clrsg-train /tmp/clrsg-corpus-a --output /tmp/clrsg-model --ensemble-members 5 --seed 1729
+          pytest -q tests/test_clrsg.py
+      - name: Phase 20 private pipeline public-fixture regression
+        run: |
+          set -euo pipefail
+          pytest -q tests/test_private_clrsg.py
 
   frontend:
     runs-on: ubuntu-latest
@@ -76,3 +95,73 @@ jobs:
           docker compose up -d
           curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8000/api/health
           curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:5173/
+
+  railway_runtime:
+    needs: [python, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build Railway image
+        run: docker build --file Dockerfile.railway --tag rollform-railway-ci:local .
+      - name: Smoke test Railway image with public fixture mode
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cleanup() {
+            exit_code=$?
+            docker logs railway-demo-ci || true
+            docker rm -f railway-demo-ci || true
+            exit "$exit_code"
+          }
+          trap cleanup EXIT
+          docker run --detach --name railway-demo-ci --publish 8080:8000 \
+            --env PORT=8000 \
+            --env DEMO_AUTH_ENABLED=false \
+            --env ROLLFORM_REQUIRE_PRIVATE_DATASET=false \
+            --env ROLLFORM_REQUIRE_ACTIVE_MODEL=false \
+            rollform-railway-ci:local
+          curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/api/health
+          curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/api/ready
+          curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/
+      - name: Smoke test Railway image with authentication enabled
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          PASSWORD='correct horse'
+          PASSWORD_HASH="$(python3 - <<'PY'
+          import base64, hashlib
+          password = b'correct horse'
+          salt = b'0123456789abcdef'
+          digest = hashlib.pbkdf2_hmac('sha256', password, salt, 310000)
+          print('pbkdf2_sha256$310000$%s$%s' % (
+              base64.urlsafe_b64encode(salt).decode(),
+              base64.urlsafe_b64encode(digest).decode(),
+          ))
+          PY
+          )"
+          cleanup() {
+            exit_code=$?
+            docker logs railway-demo-auth-ci || true
+            docker rm -f railway-demo-auth-ci || true
+            rm -f /tmp/rollform-cookies.txt
+            exit "$exit_code"
+          }
+          trap cleanup EXIT
+          docker run --detach --name railway-demo-auth-ci --publish 8081:8000 \
+            --env PORT=8000 \
+            --env DEMO_AUTH_ENABLED=true \
+            --env DEMO_USERNAME=demo \
+            --env DEMO_PASSWORD_HASH="$PASSWORD_HASH" \
+            --env DEMO_SESSION_SECRET='0123456789abcdef0123456789abcdef0123456789abcdef' \
+            --env DEMO_SESSION_TTL_SECONDS=28800 \
+            --env ROLLFORM_REQUIRE_PRIVATE_DATASET=false \
+            --env ROLLFORM_REQUIRE_ACTIVE_MODEL=false \
+            rollform-railway-ci:local
+          curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8081/api/health
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8081/api/inventory/stats)" = "401"
+          curl --fail --cookie-jar /tmp/rollform-cookies.txt \
+            --header 'Content-Type: application/json' \
+            --data '{"username":"demo","password":"correct horse"}' \
+            http://127.0.0.1:8081/api/auth/login
+          curl --fail --cookie /tmp/rollform-cookies.txt http://127.0.0.1:8081/api/inventory/stats

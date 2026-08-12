@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "report_version": "phase20_private_clrsg_readiness_v1",
+  "generated_at": "2026-08-07T01:34:04Z",
+  "verified_commit": "7827fb3e88376bd651e0168d440ed31ccc26a193",
+  "branch": "feature/private-clrsg-training-evaluation",
+  "technical_readiness": "PASS",
+  "customer_visual_prototype": "READY",
+  "private_seed_evidence": {
+    "flower_count": 2,
+    "pass_count": 31,
+    "flower_pass_counts": [14, 17],
+    "independent_generalization_claim": false
+  },
+  "private_corpus": {
+    "classification": "PRIVATE_PROTOTYPE_CORPUS",
+    "generated": 200,
+    "accepted": 200,
+    "rejected": 0,
+    "duplicates": 0,
+    "train": 135,
+    "validation": 33,
+    "test": 32,
+    "station_range": [8, 28],
+    "private_artifacts_committed": false
+  },
+  "model": {
+    "model_id": "clrsg-19c816e906b6e1f1",
+    "privacy_classification": "PRIVATE_PROTOTYPE_MODEL",
+    "ensemble_members": 5,
+    "target_pca_dimensions": 12,
+    "residual_pca_dimensions": 2,
+    "ridge_lambda": 1.0,
+    "approval_status": "APPROVED_FOR_PRIVATE_PROTOTYPE",
+    "activation_status": "ACTIVE",
+    "artifact_health": "VERIFIED",
+    "ood_thresholds": {
+      "in_distribution": 1.2147028491,
+      "near_distribution": 1.3062798988
+    },
+    "evaluation": {
+      "test_baseline_rms": 0.4859359,
+      "test_learned_rms": 0.1280796,
+      "test_relative_improvement": 0.7364,
+      "validation_baseline_rms": 0.5318531,
+      "validation_learned_rms": 0.1294414,
+      "ood_true_positive_rate": 1.0,
+      "validation_false_rejection_rate": 0.0303,
+      "test_fallback_rate": 0.0625,
+      "exact_seed_1_baseline_rms": 0.2206278,
+      "exact_seed_1_learned_rms": 0.1206276,
+      "exact_seed_2_baseline_rms": 0.2248231,
+      "exact_seed_2_learned_rms": 0.1492280
+    }
+  },
+  "verification": {
+    "git_pull": "PASS",
+    "editable_install": "PASS",
+    "compile": "PASS",
+    "focused_tests": 14,
+    "full_python_tests": 260,
+    "frontend_tests": 4,
+    "frontend_build": "PASS",
+    "reevaluation": "PASS",
+    "status_command": "PASS",
+    "working_tree": "CLEAN",
+    "private_paths_redacted": true
+  },
+  "quality_gates": {
+    "test_improvement_at_least_5_percent": true,
+    "ood_true_positive_at_least_75_percent": true,
+    "validation_false_rejection_at_most_20_percent": true,
+    "deterministic_fallback": true,
+    "approved_for_private_prototype": true,
+    "active": true
+  },
+  "safety": {
+    "private_geometry_committed": false,
+    "private_model_weights_committed": false,
+    "private_paths_redacted": true,
+    "manufacturing_approval": "NOT_APPROVED",
+    "physical_roller_availability": "NOT_DETERMINED"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "audit": "pre-visual-flower-customer-demo",
+  "starting_branch": "feature/interactive-visual-flower-generator",
+  "starting_sha": "0d1f51a9476e887ce15a30a4349c6108926f743b",
+  "pr_6": {"number": 6, "state": "OPEN", "head": "90f1cbbc12ca44f0a44708b4fbec0b6ec7abbed2", "base": "main"},
+  "pr_7": {"number": 7, "state": "OPEN", "head": "0d1f51a9476e887ce15a30a4349c6108926f743b", "base": "feature/history-constrained-flower-prototype"},
+  "baseline": {"python_tests": 243, "frontend_tests": 3, "frontend_build": "PASS", "historical_flowers": 2, "historical_passes": 31},
+  "preserved_areas": ["Phase 15-18 schemas and APIs", "PR #6 flower prototype", "PR #7 visual schema/canonicalization/generation", "existing CLI commands", "existing frontend sections", "private CAD safeguards"],
+  "new_branch": "feature/visual-flower-customer-demo",
+  "new_tables": [],
+  "note": "Captured before customer-demo implementation; source CAD remains outside the repository."
+}

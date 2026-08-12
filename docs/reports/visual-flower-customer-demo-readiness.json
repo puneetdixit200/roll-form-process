@@ -1,0 +1,6 @@
+{
+  "status": {"software_implementation": "PASS", "customer_demo": "READY", "manufacturing_approval": "NOT APPROVED", "physical_roller_availability": "NOT DETERMINED"},
+  "metrics": {"historical_flowers": 2, "historical_passes": 31, "generated_station_examples": [8, 16, 28], "browser_candidates": 3, "browser_passes": 16, "imported_profiles": 2},
+  "tests": {"python": "247 passed", "focused_visual": "9 passed", "frontend": "4 passed", "frontend_build": "PASS", "browser": "PASS: DXF import, profile selection, arc rendering, validation, 16-stage generation, playback, overlay, exports", "determinism": "PASS", "private_data_hygiene": "PASS", "docker_local": "environment-specific captive portal limitation", "docker_ci": "PASS — GitHub Actions run 30924832019 on f68ed013b8ab43cd27e326411d7038503d90dc1a; Docker build and smoke passed"},
+  "safety": {"source_cad_included": false, "external_service": false, "production_boundary": "NOT APPROVED"}
+}

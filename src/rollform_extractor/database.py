@@ -1035,6 +1035,171 @@ class RollerUsageRelationship(Base):
     limitations_json: Mapped[list[str]] = mapped_column(JSON, default=list)
 
 
+class FlowerPrototypeDatasetRow(Base):
+    __tablename__ = "flower_prototype_datasets"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String, unique=True)
+    dataset_hash: Mapped[str] = mapped_column(String)
+    schema_version: Mapped[int] = mapped_column(Integer)
+    algorithm_version: Mapped[str] = mapped_column(String)
+    source_classification: Mapped[str] = mapped_column(String)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    quality_flags_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class FlowerPrototypeSourceRow(Base):
+    __tablename__ = "flower_prototype_sources"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("flower_prototype_datasets.dataset_id", ondelete="CASCADE"))
+    source_id: Mapped[str] = mapped_column(String)
+    source_sha256: Mapped[str] = mapped_column(String)
+    source_classification: Mapped[str] = mapped_column(String)
+    raw_profile_count: Mapped[int] = mapped_column(Integer)
+    entity_count: Mapped[int] = mapped_column(Integer)
+    association_status: Mapped[str | None] = mapped_column(String)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class HistoricalFlowerRow(Base):
+    __tablename__ = "historical_flowers"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("flower_prototype_datasets.dataset_id", ondelete="CASCADE"))
+    flower_id: Mapped[str] = mapped_column(String)
+    source_sha256: Mapped[str] = mapped_column(String)
+    topology: Mapped[str] = mapped_column(String)
+    pass_count: Mapped[int] = mapped_column(Integer)
+    quality_flags_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    __table_args__ = (UniqueConstraint("dataset_id", "flower_id"),)
+
+
+class HistoricalFlowerPassRow(Base):
+    __tablename__ = "historical_flower_passes"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    flower_id: Mapped[str] = mapped_column(String)
+    pass_id: Mapped[str] = mapped_column(String)
+    source_handle: Mapped[str] = mapped_column(String)
+    inferred_order: Mapped[int] = mapped_column(Integer)
+    geometry_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    feature_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    __table_args__ = (UniqueConstraint("dataset_id", "flower_id", "pass_id"),)
+
+
+class HistoricalPassTransitionRow(Base):
+    __tablename__ = "historical_pass_transitions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    flower_id: Mapped[str] = mapped_column(String)
+    from_pass_id: Mapped[str] = mapped_column(String)
+    to_pass_id: Mapped[str] = mapped_column(String)
+    transition_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class HistoricalBendProgressionRow(Base):
+    __tablename__ = "historical_bend_progressions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    flower_id: Mapped[str] = mapped_column(String)
+    bend_key: Mapped[str] = mapped_column(String)
+    progression_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class FlowerGenerationRunRow(Base):
+    __tablename__ = "flower_generation_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String, unique=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    algorithm_version: Mapped[str] = mapped_column(String)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    input_hash: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    candidate_count: Mapped[int] = mapped_column(Integer, default=0)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class FlowerGenerationInputRow(Base):
+    __tablename__ = "flower_generation_inputs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String)
+    target_id: Mapped[str] = mapped_column(String)
+    input_hash: Mapped[str] = mapped_column(String)
+    input_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class FlowerGenerationCandidateRow(Base):
+    __tablename__ = "flower_generation_candidates"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String)
+    candidate_id: Mapped[str] = mapped_column(String)
+    candidate_type: Mapped[str] = mapped_column(String)
+    station_count: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String)
+    confidence: Mapped[float] = mapped_column(Float)
+    candidate_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class FlowerGenerationPassRow(Base):
+    __tablename__ = "flower_generation_passes"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(String)
+    pass_id: Mapped[str] = mapped_column(String)
+    inferred_order: Mapped[int] = mapped_column(Integer)
+    pass_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    provenance_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class FlowerGenerationProvenanceRow(Base):
+    __tablename__ = "flower_generation_provenance"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(String)
+    pass_id: Mapped[str | None] = mapped_column(String)
+    source_flower_id: Mapped[str | None] = mapped_column(String)
+    source_pass_ids_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    transformation_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class FlowerGenerationValidationRow(Base):
+    __tablename__ = "flower_generation_validations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    warnings_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class FlowerGenerationReviewRow(Base):
+    __tablename__ = "flower_generation_reviews"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(String)
+    decision: Mapped[str] = mapped_column(String)
+    reviewer: Mapped[str] = mapped_column(String)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class FlowerReconstructionBenchmarkRow(Base):
+    __tablename__ = "flower_reconstruction_benchmarks"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    benchmark_id: Mapped[str] = mapped_column(String, unique=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    summary_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class FlowerReconstructionMetricRow(Base):
+    __tablename__ = "flower_reconstruction_metrics"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    benchmark_id: Mapped[str] = mapped_column(String)
+    flower_id: Mapped[str] = mapped_column(String)
+    pass_id: Mapped[str] = mapped_column(String)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
 def create_project_database(path: Path) -> Engine:
     engine = create_engine(f"sqlite:///{path}")
 
@@ -1621,3 +1786,205 @@ def _linestring_z(points: Sequence[tuple[float, float, float]]) -> str | None:
 
 def _fmt(value: float) -> str:
     return f"{value:g}"
+
+
+class VisualProfileTargetRow(Base):
+    __tablename__ = "visual_profile_targets"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    target_id: Mapped[str] = mapped_column(String, unique=True)
+    name: Mapped[str] = mapped_column(String)
+    schema_version: Mapped[int] = mapped_column(Integer)
+    topology: Mapped[str] = mapped_column(String)
+    current_revision: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String, default="DRAFT")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class VisualProfileTargetRevisionRow(Base):
+    __tablename__ = "visual_profile_target_revisions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    target_id: Mapped[int] = mapped_column(ForeignKey("visual_profile_targets.id", ondelete="CASCADE"))
+    revision: Mapped[int] = mapped_column(Integer)
+    input_hash: Mapped[str] = mapped_column(String)
+    profile_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    validation_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    __table_args__ = (UniqueConstraint("target_id", "revision", name="uq_visual_target_revision"),)
+
+
+class VisualFlowerGenerationRunRow(Base):
+    __tablename__ = "visual_flower_generation_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String, unique=True)
+    target_id: Mapped[int] = mapped_column(ForeignKey("visual_profile_targets.id", ondelete="CASCADE"))
+    algorithm_version: Mapped[str] = mapped_column(String)
+    dataset_hash: Mapped[str] = mapped_column(String)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    warnings_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    result_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class VisualFlowerCandidateRow(Base):
+    __tablename__ = "visual_flower_candidates"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(String, unique=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("visual_flower_generation_runs.id", ondelete="CASCADE"))
+    candidate_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String)
+    visual_confidence: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class VisualFlowerCandidatePassRow(Base):
+    __tablename__ = "visual_flower_candidate_passes"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("visual_flower_candidates.id", ondelete="CASCADE"))
+    pass_id: Mapped[str] = mapped_column(String)
+    order_index: Mapped[int] = mapped_column(Integer)
+    pass_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    __table_args__ = (UniqueConstraint("candidate_id", "pass_id", name="uq_visual_candidate_pass"),)
+
+
+class VisualHistoricalPassMatchRow(Base):
+    __tablename__ = "visual_historical_pass_matches"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_pass_id: Mapped[int] = mapped_column(ForeignKey("visual_flower_candidate_passes.id", ondelete="CASCADE"))
+    rank: Mapped[int] = mapped_column(Integer)
+    match_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class VisualConfidenceComponentRow(Base):
+    __tablename__ = "visual_confidence_components"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("visual_flower_candidates.id", ondelete="CASCADE"))
+    scope: Mapped[str] = mapped_column(String)
+    component_name: Mapped[str] = mapped_column(String)
+    score: Mapped[float | None] = mapped_column(Float)
+    weight: Mapped[float | None] = mapped_column(Float)
+    explanation: Mapped[str | None] = mapped_column(String)
+
+
+class VisualFlowerReviewRow(Base):
+    __tablename__ = "visual_flower_reviews"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("visual_flower_candidates.id", ondelete="CASCADE"))
+    decision: Mapped[str] = mapped_column(String)
+    reviewer: Mapped[str] = mapped_column(String)
+    notes: Mapped[str] = mapped_column(String, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class VisualFlowerCandidateReviewRow(Base):
+    """Append-only engineer feedback with model and target provenance."""
+    __tablename__ = "visual_flower_candidate_reviews"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    review_id: Mapped[str] = mapped_column(String, unique=True)
+    candidate_id: Mapped[str] = mapped_column(String, index=True)
+    run_id: Mapped[str] = mapped_column(String, index=True)
+    candidate_type: Mapped[str] = mapped_column(String)
+    decision: Mapped[str] = mapped_column(String)
+    reason_codes_json: Mapped[list[str]] = mapped_column(JSON, default=list)
+    reviewer: Mapped[str] = mapped_column(String)
+    notes: Mapped[str] = mapped_column(String, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    model_id: Mapped[str | None] = mapped_column(String)
+    algorithm_version: Mapped[str | None] = mapped_column(String)
+    target_hash: Mapped[str | None] = mapped_column(String)
+
+
+class VisualFlowerExportArtifactRow(Base):
+    __tablename__ = "visual_flower_export_artifacts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("visual_flower_candidates.id", ondelete="CASCADE"))
+    relative_path: Mapped[str] = mapped_column(String)
+    sha256: Mapped[str] = mapped_column(String)
+    media_type: Mapped[str] = mapped_column(String)
+
+
+class SyntheticCorpusDatasetRow(Base):
+    __tablename__ = "synthetic_corpus_datasets"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String, unique=True)
+    dataset_hash: Mapped[str] = mapped_column(String)
+    classification: Mapped[str] = mapped_column(String)
+    generator_version: Mapped[str] = mapped_column(String)
+    manifest_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String, default="GENERATED")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class SyntheticCorpusGenerationRunRow(Base):
+    __tablename__ = "synthetic_corpus_generation_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(ForeignKey("synthetic_corpus_datasets.id", ondelete="CASCADE"))
+    run_key: Mapped[str] = mapped_column(String, unique=True)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    result_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class SyntheticCorpusSampleRow(Base):
+    __tablename__ = "synthetic_corpus_samples"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(ForeignKey("synthetic_corpus_datasets.id", ondelete="CASCADE"))
+    sample_id: Mapped[str] = mapped_column(String)
+    parent_group_id: Mapped[str] = mapped_column(String)
+    classification: Mapped[str] = mapped_column(String)
+    split: Mapped[str] = mapped_column(String)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    __table_args__ = (UniqueConstraint("dataset_id", "sample_id", name="uq_synthetic_corpus_sample"),)
+
+
+class CLRSGTrainingRunRow(Base):
+    __tablename__ = "clrsg_training_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(String, unique=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    model_id: Mapped[str | None] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class CLRSGModelRow(Base):
+    __tablename__ = "clrsg_models"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    model_id: Mapped[str] = mapped_column(String, unique=True)
+    algorithm_version: Mapped[str] = mapped_column(String)
+    dataset_id: Mapped[str] = mapped_column(String)
+    dataset_hash: Mapped[str] = mapped_column(String)
+    privacy_classification: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, default="TRAINED")
+    manifest_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    model_path: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class CLRSGModelMemberRow(Base):
+    __tablename__ = "clrsg_model_members"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    model_id: Mapped[int] = mapped_column(ForeignKey("clrsg_models.id", ondelete="CASCADE"))
+    member_id: Mapped[str] = mapped_column(String)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
+class CLRSGEvaluationRunRow(Base):
+    __tablename__ = "clrsg_evaluation_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    evaluation_id: Mapped[str] = mapped_column(String, unique=True)
+    model_id: Mapped[str] = mapped_column(String)
+    dataset_id: Mapped[str] = mapped_column(String)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class CLRSGModelActivationRow(Base):
+    __tablename__ = "clrsg_model_activations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    model_id: Mapped[str] = mapped_column(String)
+    topology_scope: Mapped[str] = mapped_column(String)
+    active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)

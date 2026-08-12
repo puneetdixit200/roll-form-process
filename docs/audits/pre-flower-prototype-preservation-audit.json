@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "base_branch": "main",
+  "starting_sha": "c428714507eda2d9f6a98ee35280a13875b8c0e3",
+  "prototype_branch": "feature/history-constrained-flower-prototype",
+  "existing_tags": ["phase-15-v1", "phase-16-v1", "phase-17-v1", "phase-18-v1"],
+  "python_tests_passed": 235,
+  "private_sources": {
+    "complete_flowers": 2,
+    "partial_roller_files": 2,
+    "public_paths_emitted": false,
+    "source_files_committed": false
+  },
+  "preservation": {
+    "existing_database_tables_removed": false,
+    "existing_cli_commands_removed": false,
+    "existing_api_endpoints_removed": false,
+    "existing_frontend_sections_removed": false,
+    "existing_release_records_modified": false
+  },
+  "status": "BASELINE_RECORDED"
+}

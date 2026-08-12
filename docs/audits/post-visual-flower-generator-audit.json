@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "base_sha": "90f1cbbc12ca44f0a44708b4fbec0b6ec7abbed2",
+  "branch": "feature/interactive-visual-flower-generator",
+  "existing_functionality_preserved": true,
+  "private_source_files_committed": false,
+  "private_paths_in_public_visual_report": false,
+  "new_database_tables": 9,
+  "new_api_surface": "visual-flower targets, dataset status, generation runs and candidates",
+  "frontend_existing_sections_preserved": true,
+  "notes": ["Visual generation abstains when no historical dataset is configured.", "Manufacturing approval and physical roller availability remain explicitly undetermined."]
+}

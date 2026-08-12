@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "phase", "technical_readiness", "production_approval", "corpus", "model", "safety"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "phase": {"type": "string"},
+    "technical_readiness": {"enum": ["PASS", "FAIL"]},
+    "production_approval": {"const": "NOT_APPROVED"},
+    "corpus": {"type": "object"},
+    "model": {"type": "object"},
+    "safety": {"type": "object"}
+  }
+}

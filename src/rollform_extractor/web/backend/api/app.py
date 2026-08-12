@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from rollform_extractor.web.backend.jobs.store import JobStore
 from rollform_extractor.web.backend.services.analysis import AnalysisService
@@ -28,6 +29,12 @@ from rollform_extractor.validated_usage import (
     lock_dataset_version, promote_confirmed_usage, search_historical_usage, submit_label_assertion,
     validate_dataset,
 )
+from rollform_extractor.visual_flower_service import create_candidate_review, create_target as create_visual_target, export_candidate as export_visual_candidate, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, historical_pass_preview, list_candidate_reviews, list_targets as list_visual_targets
+from rollform_extractor.visual_profile_schema import VisualProfileError
+from rollform_extractor.clrsg_service import list_models, model_status
+from rollform_extractor.private_clrsg_readiness import doctor_private_model
+from rollform_extractor.visual_flower_import import create_import as create_visual_import, get_import as get_visual_import, list_profiles as list_visual_import_profiles, selected_profile as selected_visual_import_profile
+from rollform_extractor.web.backend.demo_auth import COOKIE_NAME, enabled as demo_auth_enabled, hash_password, issue_session, login_allowed, record_failed_login, valid_session, verify_password
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -36,7 +43,13 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     root = workspace or Path(os.environ.get("ROLLFORM_WEB_WORKSPACE", Path.cwd() / "web-workspace"))
     store = JobStore(root)
     service = AnalysisService(store)
-    app = FastAPI(title="Rollform Extractor Offline API")
+    auth_enabled = demo_auth_enabled()
+    app = FastAPI(
+        title="Rollform Extractor Offline API",
+        docs_url=None if auth_enabled else "/docs",
+        redoc_url=None if auth_enabled else "/redoc",
+        openapi_url=None if auth_enabled else "/openapi.json",
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -46,9 +59,13 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     app.state.store = store
     app.state.service = service
     inventory_database = root / "roller_inventory.sqlite"
+    visual_database = root / "visual_flower.sqlite"
 
     def inventory_engine():
         return create_project_database(inventory_database)
+
+    def visual_engine():
+        return create_project_database(visual_database)
 
     def recognition_engine(project_id: str):
         try:
@@ -66,9 +83,296 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
                 raise HTTPException(status_code=404, detail="Project not found")
             return row.id
 
+    def request_origin_allowed(request: Request) -> bool:
+        origin = request.headers.get("origin")
+        if not origin:
+            return True
+        return origin == str(request.base_url).rstrip("/") or origin in {
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        }
+
+    @app.middleware("http")
+    async def security_boundary(request: Request, call_next):
+        path = request.url.path
+        if auth_enabled and path.startswith("/api/") and path not in {
+            "/api/health",
+            "/api/ready",
+            "/api/auth/login",
+            "/api/auth/status",
+        }:
+            if not valid_session(request.cookies.get(COOKIE_NAME)):
+                return JSONResponse(status_code=401, content={"detail": "demo authentication required"})
+            if request.method not in {"GET", "HEAD", "OPTIONS"} and not request_origin_allowed(request):
+                return JSONResponse(status_code=403, content={"detail": "request origin not allowed"})
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        if auth_enabled:
+            response.headers["Cache-Control"] = "private, no-store"
+        return response
+
+    @app.post("/api/auth/login")
+    async def auth_login(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+        if not auth_enabled:
+            return {"authenticated": True, "auth_enabled": False}
+        ip = request.client.host if request.client else "unknown"
+        if not login_allowed(ip):
+            raise HTTPException(status_code=429, detail="too many failed login attempts")
+        import os
+        username = os.environ.get("DEMO_USERNAME", "")
+        password_hash = os.environ.get("DEMO_PASSWORD_HASH", "")
+        supplied_user = str(body.get("username") or "")
+        supplied_password = str(body.get("password") or "")
+        if not hmac_compare(supplied_user, username) or not verify_password(supplied_password, password_hash):
+            record_failed_login(ip)
+            raise HTTPException(status_code=401, detail="invalid credentials")
+        response = JSONResponse({"authenticated": True, "username": username})
+        response.set_cookie(COOKIE_NAME, issue_session(username), httponly=True, secure=request.url.scheme == "https", samesite="lax", path="/")
+        return response
+
+    @app.post("/api/auth/logout")
+    async def auth_logout() -> Response:
+        response = JSONResponse({"authenticated": False})
+        response.delete_cookie(COOKIE_NAME, path="/")
+        return response
+
+    @app.get("/api/auth/status")
+    async def auth_status(request: Request) -> dict[str, Any]:
+        authenticated = not auth_enabled or valid_session(request.cookies.get(COOKIE_NAME))
+        return {"authenticated": authenticated, "auth_enabled": auth_enabled}
+
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "mode": "offline"}
+
+    @app.get("/api/ready")
+    def readiness() -> Response:
+        require_dataset = os.environ.get("ROLLFORM_REQUIRE_PRIVATE_DATASET", "false").lower() in {"1", "true", "yes"}
+        require_model = os.environ.get("ROLLFORM_REQUIRE_ACTIVE_MODEL", "false").lower() in {"1", "true", "yes"}
+        checks: dict[str, bool] = {"workspace_writable": root.exists() and os.access(root, os.W_OK)}
+        frontend_root = Path(os.environ.get("ROLLFORM_FRONTEND_DIST", "/app/frontend-dist"))
+        checks["frontend"] = (frontend_root / "index.html").is_file() if frontend_root.exists() else not require_dataset and not require_model
+        configured_dataset = os.environ.get("ROLLFORM_FLOWER_PROTOTYPE_DATASET")
+        dataset_ok = False
+        if configured_dataset:
+            try:
+                payload = json.loads(Path(configured_dataset).read_text(encoding="utf-8"))
+                dataset_ok = len(payload.get("flowers", [])) == 2 and sum(len(item.get("passes", [])) for item in payload.get("flowers", [])) == 31
+            except (OSError, json.JSONDecodeError, TypeError):
+                dataset_ok = False
+        checks["private_dataset"] = dataset_ok if require_dataset else True
+        model_ok = False
+        configured_model = os.environ.get("ROLLFORM_ACTIVE_CLRSG_MODEL")
+        if configured_model:
+            try:
+                doctor = doctor_private_model(Path(configured_model))
+                model_ok = doctor.get("status") == "READY" and doctor.get("model", {}).get("approval_status") == "APPROVED_FOR_PRIVATE_PROTOTYPE"
+            except (OSError, ValueError, TypeError):
+                model_ok = False
+        checks["active_model"] = model_ok if require_model else True
+        body = {"status": "ready" if all(checks.values()) else "not_ready", "checks": checks, "private_paths_redacted": True}
+        return JSONResponse(body, status_code=200 if all(checks.values()) else 503)
+
+    def hmac_compare(left: str, right: str) -> bool:
+        return __import__("hmac").compare_digest(left.encode(), right.encode())
+
+    async def read_upload(file: UploadFile) -> bytes:
+        limit = int(os.environ.get("ROLLFORM_MAX_UPLOAD_BYTES", "20971520"))
+        extension = Path(file.filename or "").suffix.lower()
+        if extension not in {".dxf", ".dwg"}:
+            raise HTTPException(status_code=400, detail="only DWG or DXF files are supported")
+        content = await file.read(limit + 1)
+        if len(content) > limit:
+            raise HTTPException(status_code=413, detail="CAD upload exceeds the configured size limit")
+        return content
+
+    @app.get("/api/visual-flower/dataset-status")
+    def visual_dataset_status() -> dict[str, Any]:
+        import os
+        configured = os.environ.get("ROLLFORM_FLOWER_PROTOTYPE_DATASET")
+        if not configured:
+            return {"available": False, "dataset_hash": "UNCONFIGURED", "flower_count": 0, "pass_count": 0, "warning": "Configure the local prototype dataset to enable historical matching."}
+        path = Path(configured).expanduser().resolve()
+        if not path.is_file() or path.name != "dataset.json":
+            raise HTTPException(status_code=404, detail={"code": "DATASET_UNAVAILABLE", "message": "configured prototype dataset is unavailable"})
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return {"available": True, "dataset_hash": payload.get("dataset_hash"), "flower_count": len(payload.get("flowers", [])), "pass_count": sum(len(item.get("passes", [])) for item in payload.get("flowers", [])), "source_classification": payload.get("source_classification"), "private_paths_redacted": True}
+
+    @app.get("/api/visual-flower/historical-preview/{source_flower_id}/{source_pass_id}.png")
+    def visual_historical_preview(source_flower_id: str, source_pass_id: str) -> Response:
+        preview = historical_pass_preview(source_flower_id, source_pass_id)
+        if preview is None:
+            raise HTTPException(status_code=404, detail="historical pass preview not found")
+        return Response(content=preview, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+    @app.get("/api/visual-flower/model/status")
+    def visual_model_status() -> dict[str, Any]:
+        return model_status(visual_engine())
+
+    @app.get("/api/visual-flower/model/doctor")
+    def visual_model_doctor() -> dict[str, Any]:
+        configured = os.environ.get("ROLLFORM_ACTIVE_CLRSG_MODEL")
+        if not configured:
+            return {"status": "NOT_READY", "checks": {"environment_configured": False}, "model": {}, "deterministic_fallback": True, "private_paths_redacted": True, "production_approval": "NOT_APPROVED"}
+        return doctor_private_model(Path(configured))
+
+    @app.get("/api/visual-flower/model/models")
+    def visual_model_list() -> list[dict[str, Any]]:
+        return list_models(visual_engine())
+
+    @app.get("/api/visual-flower/model/models/{model_id}")
+    def visual_model_detail(model_id: str) -> dict[str, Any]:
+        item = next((row for row in list_models(visual_engine()) if row["model_id"] == model_id), None)
+        if item is None:
+            raise HTTPException(status_code=404, detail="CLRSG model not found")
+        return item
+
+    @app.post("/api/visual-flower/import")
+    async def visual_import(file: UploadFile = File(...)) -> dict[str, Any]:
+        try:
+            return create_visual_import(root, file.filename or "profile.dxf", await read_upload(file))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_CAD_FILE", "message": str(exc)}) from exc
+
+    @app.get("/api/visual-flower/imports/{import_id}")
+    def visual_import_status(import_id: str) -> dict[str, Any]:
+        result = get_visual_import(root, import_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual import not found")
+        return {key: value for key, value in result.items() if key != "profiles"} | {"profile_count": len(result.get("profiles", []))}
+
+    @app.get("/api/visual-flower/imports/{import_id}/profiles")
+    def visual_import_profiles(import_id: str) -> list[dict[str, Any]]:
+        result = list_visual_import_profiles(root, import_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual import not found")
+        return result
+
+    @app.post("/api/visual-flower/imports/{import_id}/profiles/{profile_id}/use")
+    def visual_use_import_profile(import_id: str, profile_id: str) -> dict[str, Any]:
+        profile = selected_visual_import_profile(root, import_id, profile_id)
+        if profile is None:
+            raise HTTPException(status_code=404, detail="visual import profile not found")
+        try:
+            return create_visual_target(visual_engine(), {"profile": profile})
+        except (ValueError, VisualProfileError) as exc:
+            raise HTTPException(status_code=422, detail={"code": getattr(exc, "code", "INVALID_PROFILE"), "message": str(exc)}) from exc
+
+    @app.post("/api/visual-flower/targets")
+    def visual_create_target(payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return create_visual_target(visual_engine(), payload)
+        except VisualProfileError as exc:
+            raise HTTPException(status_code=422, detail={"code": exc.code, "message": exc.message}) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_PROFILE", "message": str(exc)}) from exc
+
+    @app.get("/api/visual-flower/targets")
+    def visual_list_targets() -> list[dict[str, Any]]:
+        return list_visual_targets(visual_engine())
+
+    @app.get("/api/visual-flower/targets/{target_id}")
+    def visual_get_target(target_id: str) -> dict[str, Any]:
+        result = get_visual_target(visual_engine(), target_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual target not found")
+        return result
+
+    @app.post("/api/visual-flower/targets/{target_id}/generate")
+    def visual_generate(target_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        try:
+            return generate_visual_for_target(visual_engine(), target_id, payload or {})
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except (ValueError, VisualProfileError) as exc:
+            raise HTTPException(status_code=422, detail={"code": getattr(exc, "code", "GENERATION_FAILED"), "message": str(exc)}) from exc
+
+    @app.get("/api/visual-flower/runs/{run_id}")
+    def visual_get_run(run_id: str) -> dict[str, Any]:
+        result = get_visual_run(visual_engine(), run_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual run not found")
+        return result
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}")
+    def visual_get_candidate(candidate_id: str) -> dict[str, Any]:
+        result = get_visual_candidate(visual_engine(), candidate_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        return result
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}/export/{artifact}")
+    def visual_export_candidate(candidate_id: str, artifact: str):
+        directory = export_visual_candidate(visual_engine(), candidate_id, root)
+        if directory is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        names = {"json": "visual_run.json", "csv": "passes.csv", "zip": "visual_flower_export.zip"}
+        if artifact in {"dxf", "svg", "png", "html"}:
+            suffix = {"dxf": "combined.dxf", "svg": "combined.svg", "png": "contact-sheet.png", "html": "report.html"}[artifact]
+            path = directory / candidate_id / suffix
+        else:
+            path = directory / names.get(artifact, "")
+        if not path.is_file() or directory not in path.resolve().parents:
+            raise HTTPException(status_code=404, detail="visual export artifact not found")
+        return FileResponse(path, filename=path.name)
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}/passes")
+    def visual_get_candidate_passes(candidate_id: str) -> dict[str, Any]:
+        result = get_visual_candidate(visual_engine(), candidate_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        return {"candidate_id": candidate_id, "passes": result.get("passes", []), "provenance": result.get("provenance", {})}
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}/matches")
+    def visual_get_candidate_matches(candidate_id: str) -> dict[str, Any]:
+        result = get_visual_candidate(visual_engine(), candidate_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        return {"candidate_id": candidate_id, "matches": [item.get("historical_match", {}) for item in result.get("passes", [])]}
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}/export.json")
+    def visual_export_candidate_json(candidate_id: str) -> dict[str, Any]:
+        result = get_visual_candidate(visual_engine(), candidate_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        return {"schema_version": 1, "export_type": "VISUAL_FLOWER_CANDIDATE", "candidate": result, "source_cad_included": False}
+
+    @app.post("/api/visual-flower/candidates/{candidate_id}/review")
+    def visual_candidate_review(candidate_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return create_candidate_review(visual_engine(), candidate_id, str(body.get("decision") or ""), str(body.get("reviewer") or ""), reason_codes=list(body.get("reason_codes") or []), notes=str(body.get("notes") or ""))
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail={"code": str(exc), "message": str(exc)}) from exc
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}/reviews")
+    def visual_candidate_reviews(candidate_id: str) -> list[dict[str, Any]]:
+        if get_visual_candidate(visual_engine(), candidate_id) is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        return list_candidate_reviews(visual_engine(), candidate_id)
+
+    @app.get("/api/visual-flower/reviews/export.json")
+    def visual_reviews_export() -> dict[str, Any]:
+        return {"schema_version": 1, "export_type": "VISUAL_FLOWER_CANDIDATE_REVIEWS", "reviews": list_candidate_reviews(visual_engine()), "private_source_included": False, "safety_boundary": "Visual geometry prototype only; not manufacturing approval."}
+
+    @app.get("/api/flower-prototype/status")
+    def flower_prototype_status() -> dict[str, Any]:
+        """Return only redacted prototype metadata when a local dataset is configured."""
+        configured = os.environ.get("ROLLFORM_FLOWER_PROTOTYPE_DATASET")
+        if not configured:
+            return {"available": False, "reason": "no local prototype dataset configured"}
+        dataset_path = Path(configured).expanduser().resolve()
+        if not dataset_path.is_file() or dataset_path.name != "dataset.json":
+            raise HTTPException(status_code=404, detail="prototype dataset not found")
+        try:
+            payload = json.loads(dataset_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=422, detail="prototype dataset is invalid") from exc
+        return {"available": True, "dataset_id": payload.get("dataset_id"), "dataset_hash": payload.get("dataset_hash"), "source_classification": payload.get("source_classification"), "flowers": [{"flower_id": item.get("flower_id"), "station_count": len(item.get("passes", [])), "topology": item.get("topology"), "quality_flags": item.get("quality_flags", [])} for item in payload.get("flowers", [])], "roller_evidence_count": len(payload.get("roller_evidence", [])), "private_paths_redacted": True}
 
     @app.get("/api/inventory/stats")
     def inventory_statistics() -> dict[str, int]:
@@ -335,7 +639,7 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
 
     @app.post("/api/projects", status_code=202)
     async def upload_project(background: BackgroundTasks, file: UploadFile = File(...)) -> dict[str, str]:
-        content = await file.read()
+        content = await read_upload(file)
         try:
             record = store.create_upload(file.filename or "drawing.dxf", content)
         except ValueError as exc:
@@ -449,6 +753,19 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         if auto_run_jobs:
             background.add_task(service.run_job, project_id, job_id)
         return {"project_id": project_id, "job_id": job_id}
+
+    frontend_root = Path(os.environ.get("ROLLFORM_FRONTEND_DIST", "/app/frontend-dist"))
+    if (frontend_root / "assets").is_dir():
+        app.mount("/assets", StaticFiles(directory=frontend_root / "assets"), name="frontend-assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa(path: str):
+        if path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API route not found")
+        index = frontend_root / "index.html"
+        if not index.is_file():
+            raise HTTPException(status_code=404, detail="frontend build not available")
+        return FileResponse(index)
 
     return app
 

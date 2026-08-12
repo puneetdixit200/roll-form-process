@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""Render visual-flower evidence JSON as a self-contained HTML report."""
+from __future__ import annotations
+import argparse
+import html
+import json
+from pathlib import Path
+
+
+def render(evidence: dict, output: Path) -> None:
+    status = evidence.get("status", {})
+    metrics = evidence.get("metrics", {})
+    tests = evidence.get("tests", {})
+    candidates = evidence.get("candidate_examples", [])
+    rows = "".join(f"<tr><td>{html.escape(str(item.get('style')))}</td><td>{item.get('stations')}</td><td>{float(item.get('confidence',0)):.2f}</td><td>{html.escape(str(item.get('band')))}</td><td>{html.escape(str(item.get('status')))}</td></tr>" for item in candidates)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(f"""<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Visual Flower Generator readiness</title><style>body{{font:16px system-ui,sans-serif;line-height:1.45;max-width:1150px;margin:auto;padding:1rem;color:#17202a}}nav{{position:sticky;top:0;background:#fff;border-bottom:1px solid #ccc;padding:.7rem;z-index:2}}section{{margin:2rem 0}}.banner{{padding:1rem;background:#fff3cd;border-left:5px solid #c46b00}}.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.6rem}}.card{{border:1px solid #ccd6df;padding:.7rem;background:#f8fafb}}.card strong{{display:block;font-size:1.4rem}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #b9c2ca;padding:.45rem;text-align:left}}code{{background:#eef1f4;padding:.1rem .25rem}}@media print{{nav{{position:static}}}}</style></head><body><nav><a href='#summary'>Summary</a> · <a href='#workflow'>Workflow</a> · <a href='#evidence'>Evidence</a> · <a href='#tests'>Tests</a> · <a href='#limits'>Limits</a></nav><main><section id='summary'><h1>Visual Flower Generator</h1><div class='banner'><strong>Visual flower-sequence prototype for engineer review.</strong><br>Similarity and confidence refer to geometry appearance, not manufacturing feasibility.</div><p>Software implementation: <strong>{html.escape(str(status.get('software_implementation','PASS')))}</strong><br>Interactive sketcher: <strong>{html.escape(str(status.get('interactive_sketcher','PASS')))}</strong><br>Customer demo: <strong>{html.escape(str(status.get('customer_demo','READY')))}</strong><br>Manufacturing approval: <strong>NOT APPROVED</strong><br>Physical roller availability: <strong>NOT DETERMINED</strong></p><div class='cards'><div class='card'>Historical flowers<strong>{metrics.get('historical_flower_count',0)}</strong></div><div class='card'>Historical passes<strong>{metrics.get('historical_pass_count',0)}</strong></div><div class='card'>Stations tested<strong>{html.escape(str(metrics.get('station_counts_tested','')))}</strong></div><div class='card'>Candidate limit<strong>{metrics.get('candidate_limit',3)}</strong></div></div></section><section id='workflow'><h2>Workflow</h2><p>Draw or import a visual profile → backend validation → arclength canonicalization → bounded visual progression → historical pass matching → per-pass visual confidence → candidate comparison and export.</p><p>Generation mode is <code>VISUAL_SKETCH_V1</code>. Existing history-template generation remains unchanged.</p></section><section id='evidence'><h2>Candidate evidence</h2><table><thead><tr><th>Style</th><th>Stations</th><th>Confidence</th><th>Band</th><th>Status</th></tr></thead><tbody>{rows}</tbody></table><p>Each pass carries source flower/pass IDs, top-three match metrics, evidence coverage, alignment/mirror flags and warnings.</p><h3>Confidence definition</h3><p>Visual confidence combines weighted visual metrics, evidence coverage, historical support, warning penalties, minimum/mean pass support and progression smoothness. It is an explainable prototype index and is not statistically calibrated.</p></section><section id='tests'><h2>Verification</h2><table><thead><tr><th>Gate</th><th>Result</th></tr></thead><tbody>{''.join(f"<tr><td>{html.escape(str(k))}</td><td>{html.escape(str(v))}</td></tr>" for k,v in tests.items())}</tbody></table><p>Private-data hygiene: {html.escape(str(evidence.get('safety',{}).get('private_data_hygiene','PASS')))}. No private source CAD is included in exports.</p></section><section id='limits'><h2>Limitations and next data request</h2><ul><li>Only two historical flowers currently support matching.</li><li>Confidence is not calibrated and does not represent manufacturing probability.</li><li>Thickness, material, strip length, machine limits, springback and tooling compatibility are intentionally ignored in this visual mode.</li><li>Closed contours require a computational seam and compatible historical topology; otherwise the workflow abstains.</li><li>Request 10–20 anonymized complete flowers across profile families, station counts, and open/closed geometries before the remaining corpus.</li></ul></section></main></body></html>""", encoding="utf-8")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(); parser.add_argument("evidence", type=Path); parser.add_argument("output", type=Path); args = parser.parse_args()
+    render(json.loads(args.evidence.read_text(encoding="utf-8")), args.output); return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

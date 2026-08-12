@@ -1,0 +1,14 @@
+schema_version: 1
+generator_version: private_two_seed_visual_corpus_v1
+teacher_version: historical_warp_teacher_v1
+seed: 1729
+samples_per_seed: 100
+station_range: [8, 28]
+private_dataset_env: ROLLFORM_FLOWER_PROTOTYPE_DATASET
+output_root_env: ROLLFORM_SYNTHETIC_CORPUS_ROOT
+model_registry_root_env: ROLLFORM_MODEL_REGISTRY_ROOT
+privacy_classification: PRIVATE_PROTOTYPE_CORPUS
+committable: false
+notes:
+  - Private source geometry, derived corpus shards, and trained weights remain outside Git.
+  - Synthetic variants are not independent manufacturing evidence.

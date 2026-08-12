@@ -1,0 +1,409 @@
+{
+  "classification": "PUBLIC_SYNTHETIC_TEST",
+  "fixture_count": 40,
+  "fixtures": [
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_U_CHANNEL",
+      "fixture_id": "OPEN_U_CHANNEL_SMALL",
+      "path": "OPEN_U_CHANNEL_SMALL.json",
+      "requested_station_count": 16,
+      "variant": "SMALL"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_U_CHANNEL",
+      "fixture_id": "OPEN_U_CHANNEL_MEDIUM",
+      "path": "OPEN_U_CHANNEL_MEDIUM.json",
+      "requested_station_count": 16,
+      "variant": "MEDIUM"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_U_CHANNEL",
+      "fixture_id": "OPEN_U_CHANNEL_LARGE",
+      "path": "OPEN_U_CHANNEL_LARGE.json",
+      "requested_station_count": 16,
+      "variant": "LARGE"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_C_CHANNEL",
+      "fixture_id": "OPEN_C_CHANNEL_SMALL",
+      "path": "OPEN_C_CHANNEL_SMALL.json",
+      "requested_station_count": 28,
+      "variant": "SMALL"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_C_CHANNEL",
+      "fixture_id": "OPEN_C_CHANNEL_MEDIUM",
+      "path": "OPEN_C_CHANNEL_MEDIUM.json",
+      "requested_station_count": 28,
+      "variant": "MEDIUM"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_C_CHANNEL",
+      "fixture_id": "OPEN_C_CHANNEL_LARGE",
+      "path": "OPEN_C_CHANNEL_LARGE.json",
+      "requested_station_count": 28,
+      "variant": "LARGE"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_Z_PROFILE",
+      "fixture_id": "OPEN_Z_PROFILE_SMALL",
+      "path": "OPEN_Z_PROFILE_SMALL.json",
+      "requested_station_count": 8,
+      "variant": "SMALL"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_Z_PROFILE",
+      "fixture_id": "OPEN_Z_PROFILE_MEDIUM",
+      "path": "OPEN_Z_PROFILE_MEDIUM.json",
+      "requested_station_count": 8,
+      "variant": "MEDIUM"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_Z_PROFILE",
+      "fixture_id": "OPEN_Z_PROFILE_LARGE",
+      "path": "OPEN_Z_PROFILE_LARGE.json",
+      "requested_station_count": 8,
+      "variant": "LARGE"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_HAT_PROFILE",
+      "fixture_id": "OPEN_HAT_PROFILE_SMALL",
+      "path": "OPEN_HAT_PROFILE_SMALL.json",
+      "requested_station_count": 16,
+      "variant": "SMALL"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_HAT_PROFILE",
+      "fixture_id": "OPEN_HAT_PROFILE_MEDIUM",
+      "path": "OPEN_HAT_PROFILE_MEDIUM.json",
+      "requested_station_count": 16,
+      "variant": "MEDIUM"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_HAT_PROFILE",
+      "fixture_id": "OPEN_HAT_PROFILE_LARGE",
+      "path": "OPEN_HAT_PROFILE_LARGE.json",
+      "requested_station_count": 16,
+      "variant": "LARGE"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_STEP_PROFILE",
+      "fixture_id": "OPEN_STEP_PROFILE_SMALL",
+      "path": "OPEN_STEP_PROFILE_SMALL.json",
+      "requested_station_count": 28,
+      "variant": "SMALL"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_STEP_PROFILE",
+      "fixture_id": "OPEN_STEP_PROFILE_MEDIUM",
+      "path": "OPEN_STEP_PROFILE_MEDIUM.json",
+      "requested_station_count": 28,
+      "variant": "MEDIUM"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_STEP_PROFILE",
+      "fixture_id": "OPEN_STEP_PROFILE_LARGE",
+      "path": "OPEN_STEP_PROFILE_LARGE.json",
+      "requested_station_count": 28,
+      "variant": "LARGE"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_ASYMMETRIC_CHANNEL",
+      "fixture_id": "OPEN_ASYMMETRIC_CHANNEL_SMALL",
+      "path": "OPEN_ASYMMETRIC_CHANNEL_SMALL.json",
+      "requested_station_count": 8,
+      "variant": "SMALL"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_ASYMMETRIC_CHANNEL",
+      "fixture_id": "OPEN_ASYMMETRIC_CHANNEL_MEDIUM",
+      "path": "OPEN_ASYMMETRIC_CHANNEL_MEDIUM.json",
+      "requested_station_count": 8,
+      "variant": "MEDIUM"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_ASYMMETRIC_CHANNEL",
+      "fixture_id": "OPEN_ASYMMETRIC_CHANNEL_LARGE",
+      "path": "OPEN_ASYMMETRIC_CHANNEL_LARGE.json",
+      "requested_station_count": 8,
+      "variant": "LARGE"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_CURVED_WAVE",
+      "fixture_id": "OPEN_CURVED_WAVE_SMALL",
+      "path": "OPEN_CURVED_WAVE_SMALL.json",
+      "requested_station_count": 16,
+      "variant": "SMALL"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_CURVED_WAVE",
+      "fixture_id": "OPEN_CURVED_WAVE_MEDIUM",
+      "path": "OPEN_CURVED_WAVE_MEDIUM.json",
+      "requested_station_count": 16,
+      "variant": "MEDIUM"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_CURVED_WAVE",
+      "fixture_id": "OPEN_CURVED_WAVE_LARGE",
+      "path": "OPEN_CURVED_WAVE_LARGE.json",
+      "requested_station_count": 16,
+      "variant": "LARGE"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_MIXED_LINE_ARC",
+      "fixture_id": "OPEN_MIXED_LINE_ARC_SMALL",
+      "path": "OPEN_MIXED_LINE_ARC_SMALL.json",
+      "requested_station_count": 28,
+      "variant": "SMALL"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_MIXED_LINE_ARC",
+      "fixture_id": "OPEN_MIXED_LINE_ARC_MEDIUM",
+      "path": "OPEN_MIXED_LINE_ARC_MEDIUM.json",
+      "requested_station_count": 28,
+      "variant": "MEDIUM"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OPEN_MIXED_LINE_ARC",
+      "fixture_id": "OPEN_MIXED_LINE_ARC_LARGE",
+      "path": "OPEN_MIXED_LINE_ARC_LARGE.json",
+      "requested_station_count": 28,
+      "variant": "LARGE"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "CLOSED_CONTOUR",
+      "family": "CLOSED_ROUNDED_RECTANGLE",
+      "fixture_id": "CLOSED_ROUNDED_RECTANGLE_SMALL",
+      "path": "CLOSED_ROUNDED_RECTANGLE_SMALL.json",
+      "requested_station_count": 8,
+      "variant": "SMALL"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "CLOSED_CONTOUR",
+      "family": "CLOSED_ROUNDED_RECTANGLE",
+      "fixture_id": "CLOSED_ROUNDED_RECTANGLE_MEDIUM",
+      "path": "CLOSED_ROUNDED_RECTANGLE_MEDIUM.json",
+      "requested_station_count": 8,
+      "variant": "MEDIUM"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "CLOSED_CONTOUR",
+      "family": "CLOSED_ROUNDED_RECTANGLE",
+      "fixture_id": "CLOSED_ROUNDED_RECTANGLE_LARGE",
+      "path": "CLOSED_ROUNDED_RECTANGLE_LARGE.json",
+      "requested_station_count": 8,
+      "variant": "LARGE"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "CLOSED_CONTOUR",
+      "family": "CLOSED_ASYMMETRIC_LOOP",
+      "fixture_id": "CLOSED_ASYMMETRIC_LOOP_SMALL",
+      "path": "CLOSED_ASYMMETRIC_LOOP_SMALL.json",
+      "requested_station_count": 16,
+      "variant": "SMALL"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "CLOSED_CONTOUR",
+      "family": "CLOSED_ASYMMETRIC_LOOP",
+      "fixture_id": "CLOSED_ASYMMETRIC_LOOP_MEDIUM",
+      "path": "CLOSED_ASYMMETRIC_LOOP_MEDIUM.json",
+      "requested_station_count": 16,
+      "variant": "MEDIUM"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK_OR_LEARNED",
+      "expected_ood_class": "IN_DISTRIBUTION",
+      "expected_topology": "CLOSED_CONTOUR",
+      "family": "CLOSED_ASYMMETRIC_LOOP",
+      "fixture_id": "CLOSED_ASYMMETRIC_LOOP_LARGE",
+      "path": "CLOSED_ASYMMETRIC_LOOP_LARGE.json",
+      "requested_station_count": 16,
+      "variant": "LARGE"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK",
+      "expected_ood_class": "OUT_OF_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OOD_HIGH_FREQUENCY",
+      "fixture_id": "OOD_HIGH_FREQUENCY_01",
+      "path": "OOD_HIGH_FREQUENCY_01.json",
+      "requested_station_count": 16,
+      "variant": "1"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK",
+      "expected_ood_class": "OUT_OF_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OOD_HIGH_FREQUENCY",
+      "fixture_id": "OOD_HIGH_FREQUENCY_02",
+      "path": "OOD_HIGH_FREQUENCY_02.json",
+      "requested_station_count": 16,
+      "variant": "2"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK",
+      "expected_ood_class": "OUT_OF_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OOD_HIGH_FREQUENCY",
+      "fixture_id": "OOD_HIGH_FREQUENCY_03",
+      "path": "OOD_HIGH_FREQUENCY_03.json",
+      "requested_station_count": 16,
+      "variant": "3"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK",
+      "expected_ood_class": "OUT_OF_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OOD_HIGH_FREQUENCY",
+      "fixture_id": "OOD_HIGH_FREQUENCY_04",
+      "path": "OOD_HIGH_FREQUENCY_04.json",
+      "requested_station_count": 16,
+      "variant": "4"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK",
+      "expected_ood_class": "OUT_OF_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OOD_HIGH_FREQUENCY",
+      "fixture_id": "OOD_HIGH_FREQUENCY_05",
+      "path": "OOD_HIGH_FREQUENCY_05.json",
+      "requested_station_count": 16,
+      "variant": "5"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK",
+      "expected_ood_class": "OUT_OF_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OOD_HIGH_FREQUENCY",
+      "fixture_id": "OOD_HIGH_FREQUENCY_06",
+      "path": "OOD_HIGH_FREQUENCY_06.json",
+      "requested_station_count": 16,
+      "variant": "6"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK",
+      "expected_ood_class": "OUT_OF_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OOD_HIGH_FREQUENCY",
+      "fixture_id": "OOD_HIGH_FREQUENCY_07",
+      "path": "OOD_HIGH_FREQUENCY_07.json",
+      "requested_station_count": 16,
+      "variant": "7"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK",
+      "expected_ood_class": "OUT_OF_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OOD_HIGH_FREQUENCY",
+      "fixture_id": "OOD_HIGH_FREQUENCY_08",
+      "path": "OOD_HIGH_FREQUENCY_08.json",
+      "requested_station_count": 16,
+      "variant": "8"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK",
+      "expected_ood_class": "OUT_OF_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OOD_HIGH_FREQUENCY",
+      "fixture_id": "OOD_HIGH_FREQUENCY_09",
+      "path": "OOD_HIGH_FREQUENCY_09.json",
+      "requested_station_count": 16,
+      "variant": "9"
+    },
+    {
+      "expected_engine": "DETERMINISTIC_FALLBACK",
+      "expected_ood_class": "OUT_OF_DISTRIBUTION",
+      "expected_topology": "OPEN_PATH",
+      "family": "OOD_HIGH_FREQUENCY",
+      "fixture_id": "OOD_HIGH_FREQUENCY_10",
+      "path": "OOD_HIGH_FREQUENCY_10.json",
+      "requested_station_count": 16,
+      "variant": "10"
+    }
+  ],
+  "negative_count": 10,
+  "schema_version": 1,
+  "supported_count": 30
+}

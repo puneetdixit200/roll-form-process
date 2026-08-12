@@ -1,0 +1,37 @@
+{
+  "phase": "Phase 20 private CLRSG",
+  "implementation_branch": "feature/private-clrsg-training-evaluation",
+  "base_sha": "c73762d7becfbb49e9ead1c5f400c3dc28d89188",
+  "implemented": [
+    "private seed loading and validation",
+    "geometry-derived historical progression schedules",
+    "controlled private target transformations",
+    "complete historical-sequence warp teachers",
+    "private grouped corpus generation",
+    "parent-group bootstrap CLRSG training",
+    "validation-derived OOD thresholds",
+    "separate training, validation, evaluation, and calibration evidence",
+    "negative OOD probes",
+    "exact-seed and masked-pass diagnostics",
+    "approval and local activation gates",
+    "single-command local workflow",
+    "public-fixture CI regression",
+    "local execution prompt"
+  ],
+  "verification": {
+    "syntax_validation": "PASS",
+    "isolated_runtime_harness": "PASS: 40 private-like samples, 29 train, 5 validation, 6 test",
+    "isolated_artifact_loading": "PASS",
+    "validation_derived_ood": "PASS",
+    "negative_ood_probe": "PASS in isolated harness",
+    "full_repository_ci": "PENDING_BRANCH_PUSH_WORKFLOW",
+    "actual_private_model_training": "REQUIRES_USER_LOCAL_PRIVATE_DATASET"
+  },
+  "private_artifacts_committed": false,
+  "private_paths_committed": false,
+  "deterministic_fallback_preserved": true,
+  "model_activation_requires_approval": true,
+  "manufacturing_approval": "NOT_APPROVED",
+  "physical_roller_availability": "NOT_DETERMINED",
+  "unexpected_removals": []
+}

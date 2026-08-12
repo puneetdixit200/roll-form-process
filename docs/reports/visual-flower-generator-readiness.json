@@ -1,0 +1,69 @@
+{
+  "candidate_examples": [
+    {
+      "band": "INSUFFICIENT_VISUAL_SUPPORT",
+      "confidence": 48.8823,
+      "stations": 16,
+      "status": "VISUAL_OPEN_PROGRESSION",
+      "style": "UNIFORM_PROGRESSION"
+    },
+    {
+      "band": "WEAK_VISUAL_SUPPORT",
+      "confidence": 53.4397,
+      "stations": 16,
+      "status": "VISUAL_OPEN_PROGRESSION",
+      "style": "HISTORICAL_TEMPLATE_001"
+    },
+    {
+      "band": "WEAK_VISUAL_SUPPORT",
+      "confidence": 53.4397,
+      "stations": 16,
+      "status": "VISUAL_OPEN_PROGRESSION",
+      "style": "HISTORICAL_TEMPLATE_002"
+    }
+  ],
+  "determinism": {
+    "candidate_order_equal": true,
+    "semantic_json_equal": true,
+    "two_identical_cli_runs": true
+  },
+  "export_hashes": {},
+  "metrics": {
+    "candidate_count": 3,
+    "candidate_limit": 3,
+    "closed_target_generation_cases": 0,
+    "historical_flower_count": 2,
+    "historical_pass_count": 31,
+    "open_target_generation_cases": 1,
+    "private_source_paths_redacted": true,
+    "station_counts_tested": "8, 16, 28",
+    "synthetic_target_count": 1
+  },
+  "run_hash": null,
+  "safety": {
+    "external_ai_or_cloud_service": false,
+    "local_docker_environment_note": "captive portal only; normal TLS verification retained",
+    "private_data_hygiene": "PASS",
+    "private_source_included_in_exports": false,
+    "visual_only_boundary": "PASS"
+  },
+  "status": {
+    "customer_demo": "READY",
+    "historical_pass_matching": "PASS",
+    "interactive_sketcher": "PASS",
+    "manufacturing_approval": "NOT APPROVED",
+    "physical_roller_availability": "NOT DETERMINED",
+    "software_implementation": "PASS",
+    "visual_confidence": "PASS",
+    "visual_sequence_generation": "PASS"
+  },
+  "tests": {
+    "Frontend build": "passed",
+    "Frontend tests": "3 passed",
+    "GitHub Actions": "pending new branch run; PR #6 prior run 30761899493 passed clean Docker/smoke",
+    "Local Docker build": "BLOCKED: captive portal returned invalid Debian signatures; no TLS bypass used",
+    "Python existing baseline": "238 passed on PR #6 baseline",
+    "Python focused visual tests": "5 passed",
+    "Python full suite": "243 passed"
+  }
+}

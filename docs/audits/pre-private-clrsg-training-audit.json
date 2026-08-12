@@ -1,0 +1,20 @@
+{
+  "phase": "Phase 20 private CLRSG",
+  "base_branch": "feature/synthetic-corpus-learned-sequence-model",
+  "base_sha": "c73762d7becfbb49e9ead1c5f400c3dc28d89188",
+  "baseline": {
+    "python_tests": 253,
+    "frontend_tests": 4,
+    "public_model_classification": "PUBLIC_TEST_MODEL",
+    "public_corpus_samples": 30
+  },
+  "preserved": [
+    "Phases 15-18",
+    "PR 6 history-constrained prototype",
+    "PR 7 interactive visual generator",
+    "PR 8 customer demo",
+    "PR 9 public CLRSG framework",
+    "deterministic fallback"
+  ],
+  "private_data_policy": "Private corpus and model artifacts remain outside Git."
+}
