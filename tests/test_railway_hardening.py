@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from rollform_extractor.web.backend.demo_auth import configuration_errors, hash_password
+from rollform_extractor.web.backend.deployment_security import redact_private_paths
 from rollform_extractor.web.backend.jobs.store import JobStore
 
 
@@ -38,6 +39,22 @@ def test_demo_auth_configuration_accepts_valid_configuration(monkeypatch):
     monkeypatch.setenv("DEMO_SESSION_TTL_SECONDS", "28800")
 
     assert configuration_errors() == []
+
+
+def test_hosted_path_redaction_is_recursive_and_keeps_public_values():
+    payload = {
+        "project_id": "demo-1",
+        "source": {"stored_path": "/data/web-workspace/projects/demo/source/input.dxf"},
+        "summary": {"project_path": "/app/output/demo", "count": 7},
+        "rows": ["ok", "/home/pd/rollform-private/model"],
+    }
+    redacted = redact_private_paths(payload)
+
+    assert redacted["project_id"] == "demo-1"
+    assert redacted["source"]["stored_path"] == "<redacted-path>"
+    assert redacted["summary"]["project_path"] == "<redacted-path>"
+    assert redacted["summary"]["count"] == 7
+    assert redacted["rows"] == ["ok", "<redacted-path>"]
 
 
 def test_railway_dockerfile_uses_fail_closed_entrypoint():
