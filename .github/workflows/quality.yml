@@ -124,3 +124,44 @@ jobs:
           curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/api/health
           curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/api/ready
           curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/
+      - name: Smoke test Railway image with authentication enabled
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          PASSWORD='correct horse'
+          PASSWORD_HASH="$(python3 - <<'PY'
+          import base64, hashlib
+          password = b'correct horse'
+          salt = b'0123456789abcdef'
+          digest = hashlib.pbkdf2_hmac('sha256', password, salt, 310000)
+          print('pbkdf2_sha256$310000$%s$%s' % (
+              base64.urlsafe_b64encode(salt).decode(),
+              base64.urlsafe_b64encode(digest).decode(),
+          ))
+          PY
+          )"
+          cleanup() {
+            exit_code=$?
+            docker logs railway-demo-auth-ci || true
+            docker rm -f railway-demo-auth-ci || true
+            rm -f /tmp/rollform-cookies.txt
+            exit "$exit_code"
+          }
+          trap cleanup EXIT
+          docker run --detach --name railway-demo-auth-ci --publish 8081:8000 \
+            --env PORT=8000 \
+            --env DEMO_AUTH_ENABLED=true \
+            --env DEMO_USERNAME=demo \
+            --env DEMO_PASSWORD_HASH="$PASSWORD_HASH" \
+            --env DEMO_SESSION_SECRET='0123456789abcdef0123456789abcdef0123456789abcdef' \
+            --env DEMO_SESSION_TTL_SECONDS=28800 \
+            --env ROLLFORM_REQUIRE_PRIVATE_DATASET=false \
+            --env ROLLFORM_REQUIRE_ACTIVE_MODEL=false \
+            rollform-railway-ci:local
+          curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8081/api/health
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8081/api/inventory/stats)" = "401"
+          curl --fail --cookie-jar /tmp/rollform-cookies.txt \
+            --header 'Content-Type: application/json' \
+            --data '{"username":"demo","password":"correct horse"}' \
+            http://127.0.0.1:8081/api/auth/login
+          curl --fail --cookie /tmp/rollform-cookies.txt http://127.0.0.1:8081/api/inventory/stats
