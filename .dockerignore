@@ -1,0 +1,17 @@
+.git
+.github
+.worktrees
+node_modules
+frontend/dist
+web-workspace
+output
+*.sqlite
+*.sqlite3
+*.db
+*.dwg
+*.dxf
+**/private/**
+**/customer/**
+**/factory/**
+/home/
+/tmp/

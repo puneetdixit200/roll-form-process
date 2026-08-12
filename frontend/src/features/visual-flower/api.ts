@@ -1,6 +1,6 @@
 import type { VisualProfile, VisualRun } from "./types";
 
-const API_ROOT = import.meta.env.VITE_API_ROOT ?? "http://127.0.0.1:8000";
+const API_ROOT = import.meta.env.VITE_API_ROOT ?? "";
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_ROOT}${path}`, init);
   if (!response.ok) throw new Error(await response.text());

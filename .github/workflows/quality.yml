@@ -95,3 +95,32 @@ jobs:
           docker compose up -d
           curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8000/api/health
           curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:5173/
+
+  railway_runtime:
+    needs: [python, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build Railway image
+        run: docker build --file Dockerfile.railway --tag rollform-railway-ci:local .
+      - name: Smoke test Railway image with public fixture mode
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cleanup() {
+            exit_code=$?
+            docker logs railway-demo-ci || true
+            docker rm -f railway-demo-ci || true
+            exit "$exit_code"
+          }
+          trap cleanup EXIT
+          docker run --detach --name railway-demo-ci --publish 8080:8000 \
+            --env PORT=8000 \
+            --env DEMO_AUTH_ENABLED=false \
+            --env ROLLFORM_REQUIRE_PRIVATE_DATASET=false \
+            --env ROLLFORM_REQUIRE_ACTIVE_MODEL=false \
+            rollform-railway-ci:local
+          curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/api/health
+          curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/api/ready
+          curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/

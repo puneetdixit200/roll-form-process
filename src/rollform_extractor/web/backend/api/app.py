@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from rollform_extractor.web.backend.jobs.store import JobStore
 from rollform_extractor.web.backend.services.analysis import AnalysisService
@@ -33,6 +34,7 @@ from rollform_extractor.visual_profile_schema import VisualProfileError
 from rollform_extractor.clrsg_service import list_models, model_status
 from rollform_extractor.private_clrsg_readiness import doctor_private_model
 from rollform_extractor.visual_flower_import import create_import as create_visual_import, get_import as get_visual_import, list_profiles as list_visual_import_profiles, selected_profile as selected_visual_import_profile
+from rollform_extractor.web.backend.demo_auth import COOKIE_NAME, enabled as demo_auth_enabled, hash_password, issue_session, login_allowed, record_failed_login, valid_session, verify_password
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -41,7 +43,13 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     root = workspace or Path(os.environ.get("ROLLFORM_WEB_WORKSPACE", Path.cwd() / "web-workspace"))
     store = JobStore(root)
     service = AnalysisService(store)
-    app = FastAPI(title="Rollform Extractor Offline API")
+    auth_enabled = demo_auth_enabled()
+    app = FastAPI(
+        title="Rollform Extractor Offline API",
+        docs_url=None if auth_enabled else "/docs",
+        redoc_url=None if auth_enabled else "/redoc",
+        openapi_url=None if auth_enabled else "/openapi.json",
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -75,9 +83,111 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
                 raise HTTPException(status_code=404, detail="Project not found")
             return row.id
 
+    def request_origin_allowed(request: Request) -> bool:
+        origin = request.headers.get("origin")
+        if not origin:
+            return True
+        return origin == str(request.base_url).rstrip("/") or origin in {
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        }
+
+    @app.middleware("http")
+    async def security_boundary(request: Request, call_next):
+        path = request.url.path
+        if auth_enabled and path.startswith("/api/") and path not in {
+            "/api/health",
+            "/api/ready",
+            "/api/auth/login",
+            "/api/auth/status",
+        }:
+            if not valid_session(request.cookies.get(COOKIE_NAME)):
+                return JSONResponse(status_code=401, content={"detail": "demo authentication required"})
+            if request.method not in {"GET", "HEAD", "OPTIONS"} and not request_origin_allowed(request):
+                return JSONResponse(status_code=403, content={"detail": "request origin not allowed"})
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        if auth_enabled:
+            response.headers["Cache-Control"] = "private, no-store"
+        return response
+
+    @app.post("/api/auth/login")
+    async def auth_login(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+        if not auth_enabled:
+            return {"authenticated": True, "auth_enabled": False}
+        ip = request.client.host if request.client else "unknown"
+        if not login_allowed(ip):
+            raise HTTPException(status_code=429, detail="too many failed login attempts")
+        import os
+        username = os.environ.get("DEMO_USERNAME", "")
+        password_hash = os.environ.get("DEMO_PASSWORD_HASH", "")
+        supplied_user = str(body.get("username") or "")
+        supplied_password = str(body.get("password") or "")
+        if not hmac_compare(supplied_user, username) or not verify_password(supplied_password, password_hash):
+            record_failed_login(ip)
+            raise HTTPException(status_code=401, detail="invalid credentials")
+        response = JSONResponse({"authenticated": True, "username": username})
+        response.set_cookie(COOKIE_NAME, issue_session(username), httponly=True, secure=request.url.scheme == "https", samesite="lax", path="/")
+        return response
+
+    @app.post("/api/auth/logout")
+    async def auth_logout() -> Response:
+        response = JSONResponse({"authenticated": False})
+        response.delete_cookie(COOKIE_NAME, path="/")
+        return response
+
+    @app.get("/api/auth/status")
+    async def auth_status(request: Request) -> dict[str, Any]:
+        authenticated = not auth_enabled or valid_session(request.cookies.get(COOKIE_NAME))
+        return {"authenticated": authenticated, "auth_enabled": auth_enabled}
+
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "mode": "offline"}
+
+    @app.get("/api/ready")
+    def readiness() -> Response:
+        require_dataset = os.environ.get("ROLLFORM_REQUIRE_PRIVATE_DATASET", "false").lower() in {"1", "true", "yes"}
+        require_model = os.environ.get("ROLLFORM_REQUIRE_ACTIVE_MODEL", "false").lower() in {"1", "true", "yes"}
+        checks: dict[str, bool] = {"workspace_writable": root.exists() and os.access(root, os.W_OK)}
+        frontend_root = Path(os.environ.get("ROLLFORM_FRONTEND_DIST", "/app/frontend-dist"))
+        checks["frontend"] = (frontend_root / "index.html").is_file() if frontend_root.exists() else not require_dataset and not require_model
+        configured_dataset = os.environ.get("ROLLFORM_FLOWER_PROTOTYPE_DATASET")
+        dataset_ok = False
+        if configured_dataset:
+            try:
+                payload = json.loads(Path(configured_dataset).read_text(encoding="utf-8"))
+                dataset_ok = len(payload.get("flowers", [])) == 2 and sum(len(item.get("passes", [])) for item in payload.get("flowers", [])) == 31
+            except (OSError, json.JSONDecodeError, TypeError):
+                dataset_ok = False
+        checks["private_dataset"] = dataset_ok if require_dataset else True
+        model_ok = False
+        configured_model = os.environ.get("ROLLFORM_ACTIVE_CLRSG_MODEL")
+        if configured_model:
+            try:
+                doctor = doctor_private_model(Path(configured_model))
+                model_ok = doctor.get("status") == "READY" and doctor.get("model", {}).get("approval_status") == "APPROVED_FOR_PRIVATE_PROTOTYPE"
+            except (OSError, ValueError, TypeError):
+                model_ok = False
+        checks["active_model"] = model_ok if require_model else True
+        body = {"status": "ready" if all(checks.values()) else "not_ready", "checks": checks, "private_paths_redacted": True}
+        return JSONResponse(body, status_code=200 if all(checks.values()) else 503)
+
+    def hmac_compare(left: str, right: str) -> bool:
+        return __import__("hmac").compare_digest(left.encode(), right.encode())
+
+    async def read_upload(file: UploadFile) -> bytes:
+        limit = int(os.environ.get("ROLLFORM_MAX_UPLOAD_BYTES", "20971520"))
+        extension = Path(file.filename or "").suffix.lower()
+        if extension not in {".dxf", ".dwg"}:
+            raise HTTPException(status_code=400, detail="only DWG or DXF files are supported")
+        content = await file.read(limit + 1)
+        if len(content) > limit:
+            raise HTTPException(status_code=413, detail="CAD upload exceeds the configured size limit")
+        return content
 
     @app.get("/api/visual-flower/dataset-status")
     def visual_dataset_status() -> dict[str, Any]:
@@ -123,7 +233,7 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     @app.post("/api/visual-flower/import")
     async def visual_import(file: UploadFile = File(...)) -> dict[str, Any]:
         try:
-            return create_visual_import(root, file.filename or "profile.dxf", await file.read())
+            return create_visual_import(root, file.filename or "profile.dxf", await read_upload(file))
         except ValueError as exc:
             raise HTTPException(status_code=400, detail={"code": "INVALID_CAD_FILE", "message": str(exc)}) from exc
 
@@ -529,7 +639,7 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
 
     @app.post("/api/projects", status_code=202)
     async def upload_project(background: BackgroundTasks, file: UploadFile = File(...)) -> dict[str, str]:
-        content = await file.read()
+        content = await read_upload(file)
         try:
             record = store.create_upload(file.filename or "drawing.dxf", content)
         except ValueError as exc:
@@ -643,6 +753,19 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         if auto_run_jobs:
             background.add_task(service.run_job, project_id, job_id)
         return {"project_id": project_id, "job_id": job_id}
+
+    frontend_root = Path(os.environ.get("ROLLFORM_FRONTEND_DIST", "/app/frontend-dist"))
+    if (frontend_root / "assets").is_dir():
+        app.mount("/assets", StaticFiles(directory=frontend_root / "assets"), name="frontend-assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa(path: str):
+        if path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API route not found")
+        index = frontend_root / "index.html"
+        if not index.is_file():
+            raise HTTPException(status_code=404, detail="frontend build not available")
+        return FileResponse(index)
 
     return app
 

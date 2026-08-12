@@ -58,8 +58,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("renders every required offline application screen", () => {
+test("renders every required offline application screen", async () => {
   render(<App />);
+  await screen.findAllByText("Dashboard");
   for (const heading of ["Dashboard", "New Project / Upload", "Processing Progress", "Project Summary", "Flower Viewer", "Pass Detail", "What Changed", "Bend-Zone Progression", "Warnings", "Engineer Review", "Exports", "Physical Roller Inventory", "Roller Recognition"]) {
     expect(screen.getAllByText(heading)[0]).toBeInTheDocument();
   }
@@ -67,6 +68,7 @@ test("renders every required offline application screen", () => {
 
 test("frontend can display the pilot project metrics from report data", async () => {
   render(<App />);
+  await screen.findByText("Candidate extraction - not approved for production use");
   // The app starts without a project; direct report rendering is covered by headings and API shape through TypeScript build.
   expect(screen.getByText("Candidate extraction - not approved for production use")).toBeInTheDocument();
   expect(screen.getByText("single")).toBeInTheDocument();

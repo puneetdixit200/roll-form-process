@@ -1,0 +1,29 @@
+FROM node:22-slim AS frontend-build
+
+WORKDIR /build/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+ARG VITE_API_ROOT=""
+ENV VITE_API_ROOT=${VITE_API_ROOT}
+RUN npm run build
+
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_NO_CACHE_DIR=1
+ENV PYTHONPATH=/app/src
+WORKDIR /app
+
+COPY pyproject.toml ./
+COPY src ./src
+COPY backend ./backend
+RUN pip install --no-cache-dir -e ".[backend]"
+COPY --from=frontend-build /build/frontend/dist /app/frontend-dist
+
+ENV ROLLFORM_FRONTEND_DIST=/app/frontend-dist
+ENV ROLLFORM_WEB_WORKSPACE=/data/web-workspace
+EXPOSE 8000
+CMD ["sh", "-c", "exec uvicorn backend.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
