@@ -148,7 +148,11 @@ export default function VisualFlowerWorkspace() {
       setRun(next);
       setCandidateIndex(0);
       setPassIndex(0);
-      setMessage("Candidate sequences ready for engineer review.");
+      setMessage(
+        next.candidates.length
+          ? "Candidate sequences ready for engineer review."
+          : "No candidate sequences were generated. Confirm that the historical dataset is configured and contains compatible passes.",
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Generation failed");
     }
@@ -456,7 +460,9 @@ export default function VisualFlowerWorkspace() {
               />
             </label>
             <button
-              disabled={!validation.valid || !validated}
+              disabled={
+                !validation.valid || !validated || dataset?.available === false
+              }
               onClick={generate}
             >
               Generate Flower Sequence
