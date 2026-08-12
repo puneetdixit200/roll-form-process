@@ -22,7 +22,7 @@ from rollform_extractor.database import (
 )
 from rollform_extractor.strip_length_constraint import STRIP_LENGTH_CONSTRAINT_VERSION
 from rollform_extractor.visual_flower_engine import generate_visual_candidates
-from rollform_extractor.visual_flower_exports import export_visual_run
+from rollform_extractor.visual_flower_exports import export_visual_run, historical_profile_png
 from rollform_extractor.visual_profile_schema import (
     VISUAL_ALGORITHM_VERSION,
     VisualProfileError,
@@ -41,6 +41,14 @@ def profile_hash(profile: dict[str, Any]) -> str:
     ).hexdigest()
 
 
+def _scope_candidate_ids(candidates: list[dict[str, Any]], run_key: str) -> None:
+    """Make result-local candidate IDs unique in the shared visual database."""
+    for index, candidate in enumerate(candidates, start=1):
+        candidate["candidate_id"] = "vfg-" + sha256(
+            f"{run_key}|{index}|{candidate.get('candidate_id', '')}".encode()
+        ).hexdigest()[:16]
+
+
 def historical_dataset() -> dict[str, Any]:
     configured = os.environ.get("ROLLFORM_FLOWER_PROTOTYPE_DATASET")
     if not configured:
@@ -53,6 +61,25 @@ def historical_dataset() -> dict[str, Any]:
     if not path.is_file() or path.name != "dataset.json":
         raise ValueError("configured visual prototype dataset is unavailable")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def historical_pass_preview(
+    source_flower_id: str, source_pass_id: str
+) -> bytes | None:
+    """Return a customer-safe PNG of one historical pass geometry."""
+    for flower in historical_dataset().get("flowers", []):
+        if flower.get("flower_id") != source_flower_id:
+            continue
+        for item in flower.get("passes", []):
+            if item.get("pass_id") == source_pass_id:
+                points = (
+                    item.get("profile", {}).get("points")
+                    or item.get("points")
+                    or item.get("canonical_points")
+                )
+                if points:
+                    return historical_profile_png(points, label=f"{source_flower_id} / {source_pass_id}")
+    return None
 
 
 def create_target(engine, payload: dict[str, Any]) -> dict[str, Any]:
@@ -215,6 +242,11 @@ def generate_for_target(
     ).hexdigest()[:16]
     configuration_hash = sha256(configuration_json.encode()).hexdigest()
 
+    # Candidate IDs are persisted globally, while the geometry engine's IDs are
+    # intentionally stable only within a result.  Scope them to the run before
+    # persistence so regenerating the same profile under another target cannot
+    # violate the database uniqueness constraint.
+    _scope_candidate_ids(result.get("candidates", []), run_key)
     with Session(engine) as session:
         existing = session.scalar(
             select(VisualFlowerGenerationRunRow).where(

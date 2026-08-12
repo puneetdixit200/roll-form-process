@@ -40,7 +40,9 @@ export default function VisualFlowerWorkspace() {
   const [candidateLimit, setCandidateLimit] = useState(3);
   const [generationEngine, setGenerationEngine] = useState("AUTO");
   const [message, setMessage] = useState("");
-  const [validated, setValidated] = useState(false);
+  // The bundled public example is known-valid, so the demo can be generated
+  // immediately. Any edit, import, or JSON load resets this gate below.
+  const [validated, setValidated] = useState(true);
   const [guided, setGuided] = useState(false);
   const [reviewer, setReviewer] = useState("");
   const [importId, setImportId] = useState<string | null>(null);
@@ -146,7 +148,11 @@ export default function VisualFlowerWorkspace() {
       setRun(next);
       setCandidateIndex(0);
       setPassIndex(0);
-      setMessage("Candidate sequences ready for engineer review.");
+      setMessage(
+        next.candidates.length
+          ? "Candidate sequences ready for engineer review."
+          : "No candidate sequences were generated. Confirm that the historical dataset is configured and contains compatible passes.",
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Generation failed");
     }
@@ -248,7 +254,7 @@ export default function VisualFlowerWorkspace() {
     setRun(null);
     setCandidateIndex(0);
     setPassIndex(0);
-    setValidated(false);
+    setValidated(true);
     setImportProfiles([]);
     setMessage("Guided demo reset to the public example.");
   }
@@ -454,7 +460,9 @@ export default function VisualFlowerWorkspace() {
               />
             </label>
             <button
-              disabled={!validation.valid || !validated}
+              disabled={
+                !validation.valid || !validated || dataset?.available === false
+              }
               onClick={generate}
             >
               Generate Flower Sequence
@@ -525,6 +533,7 @@ export default function VisualFlowerWorkspace() {
                         }/${candidate.passes.length}`}
                       />
                     </div>
+                    <StripLengthCandidateStatus candidate={candidate} />
                     <div className="candidate-comparison">
                       <strong>Candidate comparison</strong>
                       {run.candidates.slice(0, 3).map((item) => (
@@ -692,6 +701,7 @@ export default function VisualFlowerWorkspace() {
                       {Math.round((currentPass?.progress ?? 0) * 100)}% progress
                       · {currentPass?.visual_confidence.band}
                     </p>
+                    <StripLengthPassStatus pass={currentPass} />
                     <p>
                       Legend:{" "}
                       <span className="generated-key">orange = generated</span>;
@@ -720,6 +730,12 @@ function MatchDetails({ item }: { item: any }) {
       <summary>Top three historical matches and score components</summary>
       {matches.map((match: any, index: number) => (
         <div key={`${match.source_flower_id}-${match.source_pass_id}-${index}`}>
+          <div className="historical-match-preview">
+            <img
+              src={`http://127.0.0.1:8000/api/visual-flower/historical-preview/${encodeURIComponent(match.source_flower_id)}/${encodeURIComponent(match.source_pass_id)}.png`}
+              alt={`Historical geometry ${match.source_flower_id} ${match.source_pass_id}`}
+            />
+            <div>
           <strong>
             #{index + 1} {match.source_flower_id} / {match.source_pass_id}
           </strong>
@@ -748,9 +764,57 @@ function MatchDetails({ item }: { item: any }) {
               3,
             ) ?? "n/a"}
           </p>
+            </div>
+          </div>
         </div>
       ))}
     </details>
+  );
+}
+
+function StripLengthCandidateStatus({ candidate }: { candidate: VisualCandidate }) {
+  const constraint = candidate.geometry_constraints;
+  if (!constraint) {
+    return (
+      <section className="strip-length-status legacy" aria-label="Strip length status">
+        <strong>Strip length: UNKNOWN / LEGACY RESULT</strong>
+        <span>This saved result has no constant centerline-length evidence.</span>
+      </section>
+    );
+  }
+  const locked = constraint.enabled && constraint.satisfied;
+  const target = constraint.target_length?.toFixed(4) ?? "unknown";
+  const maximum = constraint.maximum_relative_error === undefined
+    ? "unknown"
+    : `${(constraint.maximum_relative_error * 100).toFixed(6)}%`;
+  return (
+    <section className={`strip-length-status ${locked ? "locked" : "warning"}`} aria-label="Strip length status">
+      <strong>Strip length: {locked ? "LOCKED" : "WARNING"}</strong>
+      <span>Target centerline: {target} visual units</span>
+      <span>Maximum error: {maximum}</span>
+      <span>Constraint version: {constraint.constraint_version}</span>
+      <p>Centerline strip length is locked to the final target at every generated stage. This is a visual geometry constraint, not a neutral-axis, strain, springback, tooling, or manufacturing calculation.</p>
+    </section>
+  );
+}
+
+function StripLengthPassStatus({ pass }: { pass: VisualCandidate["passes"][number] | undefined }) {
+  const constraint = pass?.generation?.strip_length_constraint;
+  if (!constraint) return null;
+  const closed = pass?.profile.topology === "CLOSED_CONTOUR";
+  return (
+    <section className="strip-length-pass" aria-label="Current station strip length details">
+      <strong>Current station centerline constraint</strong>
+      <span>Current centerline: {constraint.actual_length.toFixed(4)} visual units</span>
+      <span>Target centerline: {constraint.target_length.toFixed(4)} visual units</span>
+      <span>Relative error: {(constraint.relative_error * 100).toFixed(6)}%</span>
+      <span>Projection method: {constraint.method}</span>
+      <span>{closed
+        ? "Perimeter: PRESERVED · Local segment lengths: NOT CLAIMED"
+        : constraint.local_segment_lengths_preserved
+        ? "Material-coordinate segment lengths: PRESERVED"
+        : "Material-coordinate segment lengths: NOT CLAIMED"}</span>
+    </section>
   );
 }
 function Metric({ label, value }: { label: string; value: string }) {

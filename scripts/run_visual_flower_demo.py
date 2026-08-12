@@ -27,11 +27,88 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = Path(os.environ.get("ROLLFORM_DEMO_RUNTIME", "/tmp/rollform-visual-flower-demo"))
 PID_FILE = RUNTIME / "pids.json"
 LOG_DIR = RUNTIME / "logs"
+CONFIG_KEYS = {
+    "dataset": "ROLLFORM_FLOWER_PROTOTYPE_DATASET",
+    "model": "ROLLFORM_ACTIVE_CLRSG_MODEL",
+    "registry": "ROLLFORM_MODEL_REGISTRY_ROOT",
+}
+
+
+def _config_path() -> Path:
+    configured = os.environ.get("ROLLFORM_DEMO_CONFIG")
+    if configured:
+        return Path(configured).expanduser()
+    config_root = Path(
+        os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")
+    ).expanduser()
+    return config_root / "rollform-extractor" / "visual-flower-demo.json"
+
+
+def _saved_configuration() -> dict[str, str]:
+    try:
+        payload = json.loads(_config_path().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError):
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    result: dict[str, str] = {}
+    for label, environment_name in CONFIG_KEYS.items():
+        value = payload.get(label)
+        if isinstance(value, str) and Path(value).expanduser().exists():
+            result[environment_name] = str(Path(value).expanduser().resolve())
+    return result
+
+
+def _runtime_environment() -> dict[str, str]:
+    env = os.environ.copy()
+    for name, value in _saved_configuration().items():
+        env.setdefault(name, value)
+    return env
 
 
 def _configured(name: str) -> str | None:
-    value = os.environ.get(name)
+    value = _runtime_environment().get(name)
     return value if value and Path(value).expanduser().exists() else None
+
+
+def configure(
+    dataset: str | None,
+    model: str | None,
+    registry: str | None,
+) -> dict[str, object]:
+    if not dataset:
+        raise ValueError("--dataset is required")
+    resolved = {
+        "dataset": Path(dataset).expanduser().resolve(),
+        "model": Path(model).expanduser().resolve() if model else None,
+        "registry": Path(registry).expanduser().resolve() if registry else None,
+    }
+    if not resolved["dataset"].is_file() or resolved["dataset"].name != "dataset.json":
+        raise ValueError("dataset must point to an existing dataset.json")
+    for label in ("model", "registry"):
+        path = resolved[label]
+        if path is not None and not path.is_dir():
+            raise ValueError(f"{label} must point to an existing directory")
+    config_path = _config_path()
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        label: str(path)
+        for label, path in resolved.items()
+        if path is not None
+    }
+    config_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    config_path.chmod(0o600)
+    return {
+        "status": "PASS",
+        "configuration_saved": True,
+        "dataset_configured": True,
+        "model_configured": resolved["model"] is not None,
+        "registry_configured": resolved["registry"] is not None,
+        "private_paths_redacted": True,
+    }
 
 
 def _port_available(port: int) -> bool:
@@ -155,7 +232,7 @@ def start() -> dict:
         for pid in existing.values()
     ):
         return status()
-    env = os.environ.copy()
+    env = _runtime_environment()
     env["PYTHONPATH"] = str(ROOT / "src") + os.pathsep + env.get("PYTHONPATH", "")
     backend_log = (LOG_DIR / "backend.log").open("ab")
     backend = subprocess.Popen(
@@ -491,11 +568,18 @@ def verify() -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the offline visual flower demo")
     parser.add_argument(
-        "command", choices=("doctor", "start", "stop", "status", "verify")
+        "command",
+        choices=("configure", "doctor", "start", "stop", "status", "verify"),
     )
+    parser.add_argument("--dataset")
+    parser.add_argument("--model")
+    parser.add_argument("--registry")
     args = parser.parse_args()
     try:
         result = {
+            "configure": lambda: configure(
+                args.dataset, args.model, args.registry
+            ),
             "doctor": doctor,
             "start": start,
             "stop": stop,

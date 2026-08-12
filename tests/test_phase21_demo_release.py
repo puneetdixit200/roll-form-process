@@ -125,3 +125,13 @@ def test_candidate_review_api_preserves_provenance(tmp_path):
     assert review["candidate_id"] == "candidate-api-001"
     assert review["target_hash"]
     assert client.get("/api/visual-flower/candidates/candidate-api-001/reviews").json()[0]["decision"] == "PREFER_DETERMINISTIC"
+
+
+def test_generation_candidate_ids_are_scoped_to_the_run():
+    from rollform_extractor.visual_flower_service import _scope_candidate_ids
+
+    first = [{"candidate_id": "vfg-engine-001"}, {"candidate_id": "vfg-engine-002"}]
+    second = [{"candidate_id": "vfg-engine-001"}, {"candidate_id": "vfg-engine-002"}]
+    _scope_candidate_ids(first, "vrun-one")
+    _scope_candidate_ids(second, "vrun-two")
+    assert len({item["candidate_id"] for item in first + second}) == 4
