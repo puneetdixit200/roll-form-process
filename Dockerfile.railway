@@ -26,4 +26,4 @@ COPY --from=frontend-build /build/frontend/dist /app/frontend-dist
 ENV ROLLFORM_FRONTEND_DIST=/app/frontend-dist
 ENV ROLLFORM_WEB_WORKSPACE=/data/web-workspace
 EXPOSE 8000
-CMD ["sh", "-c", "exec uvicorn backend.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "exec uvicorn backend.api.railway_main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
