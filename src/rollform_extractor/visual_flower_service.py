@@ -77,8 +77,18 @@ def historical_pass_preview(
                     or item.get("points")
                     or item.get("canonical_points")
                 )
+                if not points:
+                    vector = item.get("shape_vector") or []
+                    points = [
+                        vector[index : index + 2]
+                        for index in range(0, len(vector), 2)
+                        if len(vector[index : index + 2]) == 2
+                    ]
                 if points:
-                    return historical_profile_png(points, label=f"{source_flower_id} / {source_pass_id}")
+                    return historical_profile_png(
+                        points,
+                        label=f"{source_flower_id} / {source_pass_id}",
+                    )
     return None
 
 
