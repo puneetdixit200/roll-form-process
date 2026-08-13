@@ -4,10 +4,10 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import os
 import secrets
 import time
 from collections import defaultdict, deque
-from dataclasses import dataclass
 
 
 COOKIE_NAME = "rollform_demo_session"
@@ -15,11 +15,10 @@ _failed_logins: dict[str, deque[float]] = defaultdict(deque)
 
 
 def enabled() -> bool:
-    return str(__import__("os").environ.get("DEMO_AUTH_ENABLED", "false")).lower() in {"1", "true", "yes"}
+    return str(os.environ.get("DEMO_AUTH_ENABLED", "false")).lower() in {"1", "true", "yes"}
 
 
 def _secret() -> bytes:
-    import os
     return os.environ.get("DEMO_SESSION_SECRET", "").encode("utf-8")
 
 
@@ -30,6 +29,40 @@ def hash_password(password: str, *, salt: bytes | None = None) -> str:
         base64.urlsafe_b64encode(salt).decode(),
         base64.urlsafe_b64encode(digest).decode(),
     )
+
+
+def valid_password_hash(encoded: str) -> bool:
+    try:
+        algorithm, iterations, salt_text, digest_text = encoded.split("$", 3)
+        if algorithm != "pbkdf2_sha256" or int(iterations) < 200_000:
+            return False
+        salt = base64.urlsafe_b64decode(salt_text.encode())
+        digest = base64.urlsafe_b64decode(digest_text.encode())
+        return len(salt) >= 16 and len(digest) >= 32
+    except (TypeError, ValueError):
+        return False
+
+
+def configuration_errors() -> list[str]:
+    if not enabled():
+        return []
+    errors: list[str] = []
+    username = os.environ.get("DEMO_USERNAME", "")
+    password_hash = os.environ.get("DEMO_PASSWORD_HASH", "")
+    session_secret = os.environ.get("DEMO_SESSION_SECRET", "")
+    if not username.strip():
+        errors.append("DEMO_USERNAME is required when demo auth is enabled")
+    if not valid_password_hash(password_hash):
+        errors.append("DEMO_PASSWORD_HASH must be a valid PBKDF2-SHA256 hash")
+    if len(session_secret.encode("utf-8")) < 32:
+        errors.append("DEMO_SESSION_SECRET must contain at least 32 bytes")
+    try:
+        ttl = int(os.environ.get("DEMO_SESSION_TTL_SECONDS", "28800"))
+        if ttl < 300 or ttl > 86400:
+            errors.append("DEMO_SESSION_TTL_SECONDS must be between 300 and 86400")
+    except ValueError:
+        errors.append("DEMO_SESSION_TTL_SECONDS must be an integer")
+    return errors
 
 
 def verify_password(password: str, encoded: str) -> bool:
@@ -74,7 +107,7 @@ def valid_session(value: str | None, now: int | None = None) -> bool:
         timestamp = int(timestamp_text)
         if not username or not nonce:
             return False
-        ttl = int(__import__("os").environ.get("DEMO_SESSION_TTL_SECONDS", "28800"))
+        ttl = int(os.environ.get("DEMO_SESSION_TTL_SECONDS", "28800"))
         current = int(now or time.time())
         if timestamp > current + 30 or current - timestamp > ttl:
             return False

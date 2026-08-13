@@ -39,24 +39,25 @@ class JobStore:
         self.outputs_root.mkdir(parents=True, exist_ok=True)
 
     def create_upload(self, filename: str, content: bytes) -> UploadRecord:
-        suffix = Path(filename).suffix.lower()
+        safe_name = Path(filename or "drawing.dxf").name
+        suffix = Path(safe_name).suffix.lower()
         if suffix not in {".dwg", ".dxf"}:
             raise ValueError("Upload must be a DWG or DXF file")
         if suffix == ".dxf" and b"SECTION" not in content[:4096] and b"EOF" not in content[-4096:]:
             raise ValueError("DXF content signature was not recognised")
-        project_id = self._project_id(Path(filename).stem)
+        project_id = self._project_id(Path(safe_name).stem)
         job_id = uuid4().hex
         project_dir = self.project_dir(project_id)
         source_dir = project_dir / "source"
         source_dir.mkdir(parents=True, exist_ok=True)
-        stored = source_dir / filename
+        stored = source_dir / safe_name
         stored.write_bytes(content)
         digest = sha256(content).hexdigest()
         record = {
             "project_id": project_id,
             "job_id": job_id,
             "revision": 1,
-            "original_filename": filename,
+            "original_filename": safe_name,
             "source": {"stored_path": str(stored), "sha256": digest},
             "status": "UPLOADED",
             "created_at": _now(),
@@ -75,7 +76,7 @@ class JobStore:
                 "updated_at": _now(),
             },
         )
-        return UploadRecord(project_id, job_id, stored, filename, digest)
+        return UploadRecord(project_id, job_id, stored, safe_name, digest)
 
     def project_dir(self, project_id: str) -> Path:
         return self.projects_root / project_id

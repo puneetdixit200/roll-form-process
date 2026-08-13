@@ -46,6 +46,6 @@ def test_railway_image_contract_and_same_origin_defaults():
     root = Path(__file__).parents[1]
     dockerfile = (root / "Dockerfile.railway").read_text(encoding="utf-8")
     client = (root / "frontend/src/api/client.ts").read_text(encoding="utf-8")
-    assert "uvicorn backend.api.main:app" in dockerfile
+    assert "uvicorn backend.api.railway_main:app" in dockerfile
     assert "VITE_API_ROOT ?? \"\"" in client
     assert "/home/pd" not in dockerfile
