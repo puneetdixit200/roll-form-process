@@ -732,7 +732,7 @@ function MatchDetails({ item }: { item: any }) {
         <div key={`${match.source_flower_id}-${match.source_pass_id}-${index}`}>
           <div className="historical-match-preview">
             <img
-              src={`http://127.0.0.1:8000/api/visual-flower/historical-preview/${encodeURIComponent(match.source_flower_id)}/${encodeURIComponent(match.source_pass_id)}.png`}
+              src={`/api/visual-flower/historical-preview/${encodeURIComponent(match.source_flower_id)}/${encodeURIComponent(match.source_pass_id)}.png`}
               alt={`Historical geometry ${match.source_flower_id} ${match.source_pass_id}`}
             />
             <div>
