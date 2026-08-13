@@ -114,3 +114,12 @@ export function visualExportUrl(candidateId: string, artifact: string): string {
     encodeURIComponent(candidateId)
   }/export/${artifact}`;
 }
+
+export function visualHistoricalPreviewUrl(
+  sourceFlowerId: string,
+  sourcePassId: string,
+): string {
+  return `${API_ROOT}/api/visual-flower/historical-preview/${
+    encodeURIComponent(sourceFlowerId)
+  }/${encodeURIComponent(sourcePassId)}.png`;
+}
