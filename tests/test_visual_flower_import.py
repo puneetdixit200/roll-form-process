@@ -56,3 +56,15 @@ def test_connected_line_arc_chain_imports_as_one_editable_target(tmp_path):
         target = client.post(f"/api/visual-flower/imports/{response.json()['import_id']}/profiles/{profiles[0]['profile_id']}/use")
         assert target.status_code == 200
         assert target.json()["profile"]["segments"][1]["type"] == "ARC"
+
+
+def test_integrated_import_creates_linked_visual_and_project_workflow(tmp_path):
+    with TestClient(create_app(tmp_path, auto_run_jobs=False)) as client:
+        response = client.post("/api/rollform-workflows/import", files={"file": ("synthetic.dxf", _dxf_bytes(), "application/dxf")})
+        assert response.status_code == 200
+        workflow = response.json()
+        assert workflow["visual_import_id"].startswith("vimport-")
+        assert workflow["project_id"]
+        status = client.get(f"/api/rollform-workflows/{workflow['workflow_id']}")
+        assert status.status_code == 200
+        assert status.json()["source_sha256"] == workflow["source_sha256"]

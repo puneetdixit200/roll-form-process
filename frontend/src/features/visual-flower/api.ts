@@ -86,7 +86,7 @@ export async function importVisualCad(
 > {
   const body = new FormData();
   body.append("file", file);
-  return request("/api/visual-flower/import", { method: "POST", body });
+  return request("/api/rollform-workflows/import", { method: "POST", body });
 }
 export const getVisualImportProfiles = (importId: string) =>
   request<
@@ -107,6 +107,11 @@ export const useVisualImportProfile = (importId: string, profileId: string) =>
     `/api/visual-flower/imports/${encodeURIComponent(importId)}/profiles/${
       encodeURIComponent(profileId)
     }/use`,
+    { method: "POST" },
+  );
+export const useWorkflowImportProfile = (workflowId: string, profileId: string) =>
+  request<{ target: { target_id: string; profile: VisualProfile } }>(
+    `/api/rollform-workflows/${encodeURIComponent(workflowId)}/profiles/${encodeURIComponent(profileId)}/select`,
     { method: "POST" },
   );
 export function visualExportUrl(candidateId: string, artifact: string): string {

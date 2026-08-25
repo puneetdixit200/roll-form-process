@@ -9,6 +9,7 @@ import {
   importVisualCad,
   reviewVisualCandidate,
   useVisualImportProfile,
+  useWorkflowImportProfile,
   visualExportUrl,
 } from "./api";
 import { exampleProfile, ProfileSketcher } from "./ProfileSketcher";
@@ -46,6 +47,7 @@ export default function VisualFlowerWorkspace() {
   const [guided, setGuided] = useState(false);
   const [reviewer, setReviewer] = useState("");
   const [importId, setImportId] = useState<string | null>(null);
+  const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [importProfiles, setImportProfiles] = useState<ImportedProfile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dataset, setDataset] = useState<
@@ -196,6 +198,7 @@ export default function VisualFlowerWorkspace() {
     try {
       const result = await importVisualCad(file);
       setImportId(result.import_id);
+      setWorkflowId((result as { workflow_id?: string }).workflow_id ?? null);
       const profiles = await getVisualImportProfiles(result.import_id);
       setImportProfiles(profiles);
       setMessage(
@@ -212,7 +215,9 @@ export default function VisualFlowerWorkspace() {
   async function useImported(profileId: string) {
     if (!importId) return;
     try {
-      const result = await useVisualImportProfile(importId, profileId);
+      const result = workflowId
+        ? await useWorkflowImportProfile(workflowId, profileId).then((item) => item.target)
+        : await useVisualImportProfile(importId, profileId);
       if (result.profile) setProfile(result.profile);
       setValidated(false);
       setMessage(

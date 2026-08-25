@@ -34,6 +34,7 @@ from rollform_extractor.visual_profile_schema import VisualProfileError
 from rollform_extractor.clrsg_service import list_models, model_status
 from rollform_extractor.private_clrsg_readiness import doctor_private_model
 from rollform_extractor.visual_flower_import import create_import as create_visual_import, get_import as get_visual_import, list_profiles as list_visual_import_profiles, selected_profile as selected_visual_import_profile
+from rollform_extractor.integrated_rollform_workflow import create_workflow, get_workflow, select_profile as select_workflow_profile
 from rollform_extractor.web.backend.demo_auth import COOKIE_NAME, enabled as demo_auth_enabled, hash_password, issue_session, login_allowed, record_failed_login, valid_session, verify_password
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -237,6 +238,32 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         except ValueError as exc:
             raise HTTPException(status_code=400, detail={"code": "INVALID_CAD_FILE", "message": str(exc)}) from exc
 
+    @app.post("/api/rollform-workflows/import")
+    async def integrated_rollform_import(background: BackgroundTasks, file: UploadFile = File(...)) -> dict[str, Any]:
+        """One upload feeds both target discovery and the existing CAD pipeline."""
+        content = await read_upload(file)
+        try:
+            visual = create_visual_import(root, file.filename or "profile.dxf", content)
+            project = store.create_upload(file.filename or "drawing.dxf", content)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_CAD_FILE", "message": str(exc)}) from exc
+        if auto_run_jobs:
+            background.add_task(service.run_job, project.project_id, project.job_id)
+        workflow = create_workflow(root, source_sha256=str(visual["source_sha256"]), visual_import_id=str(visual["import_id"]), project_id=project.project_id, analysis_job_id=project.job_id, profile_count=int(visual["profile_count"]))
+        return workflow | {"status": "PROFILE_SELECTION_READY" if workflow["profile_count"] else "NO_PROFILE_FOUND"}
+
+    @app.get("/api/rollform-workflows/{workflow_id}")
+    def integrated_rollform_status(workflow_id: str) -> dict[str, Any]:
+        workflow = get_workflow(root, workflow_id)
+        if workflow is None:
+            raise HTTPException(status_code=404, detail="rollform workflow not found")
+        try:
+            project = store.read_project(str(workflow["project_id"]))
+            workflow = workflow | {"analysis_status": project.get("status", workflow["analysis_status"])}
+        except FileNotFoundError:
+            workflow = workflow | {"analysis_status": "UNAVAILABLE"}
+        return workflow
+
     @app.get("/api/visual-flower/imports/{import_id}")
     def visual_import_status(import_id: str) -> dict[str, Any]:
         result = get_visual_import(root, import_id)
@@ -260,6 +287,21 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
             return create_visual_target(visual_engine(), {"profile": profile})
         except (ValueError, VisualProfileError) as exc:
             raise HTTPException(status_code=422, detail={"code": getattr(exc, "code", "INVALID_PROFILE"), "message": str(exc)}) from exc
+
+    @app.post("/api/rollform-workflows/{workflow_id}/profiles/{profile_id}/select")
+    def integrated_rollform_select_profile(workflow_id: str, profile_id: str) -> dict[str, Any]:
+        workflow = get_workflow(root, workflow_id)
+        if workflow is None:
+            raise HTTPException(status_code=404, detail="rollform workflow not found")
+        profile = selected_visual_import_profile(root, str(workflow["visual_import_id"]), profile_id)
+        if profile is None:
+            raise HTTPException(status_code=404, detail="visual import profile not found")
+        try:
+            target = create_visual_target(visual_engine(), {"profile": profile})
+        except (ValueError, VisualProfileError) as exc:
+            raise HTTPException(status_code=422, detail={"code": getattr(exc, "code", "INVALID_PROFILE"), "message": str(exc)}) from exc
+        selected = select_workflow_profile(root, workflow_id, profile_id, str(target["target_id"]))
+        return (selected or workflow) | {"target": target}
 
     @app.post("/api/visual-flower/targets")
     def visual_create_target(payload: dict[str, Any]) -> dict[str, Any]:
