@@ -20,6 +20,10 @@ type ImportedProfile = {
   profile?: VisualProfile;
   open_closed: string;
   entity_count: number;
+  width?: number;
+  height?: number;
+  source_layers?: string[];
+  source_units?: string | null;
   aspect_ratio: number | null;
   warnings: string[];
   thumbnail_svg: string;
@@ -198,7 +202,7 @@ export default function VisualFlowerWorkspace() {
     try {
       const result = await importVisualCad(file);
       setImportId(result.import_id);
-      setWorkflowId((result as { workflow_id?: string }).workflow_id ?? null);
+      setWorkflowId(result.workflow_id ?? null);
       const profiles = await getVisualImportProfiles(result.import_id);
       setImportProfiles(profiles);
       setMessage(
@@ -375,6 +379,13 @@ export default function VisualFlowerWorkspace() {
                       {item.open_closed} · {item.entity_count} entities · aspect
                       {" "}
                       {item.aspect_ratio?.toFixed(2) ?? "unknown"}
+                    </p>
+                    <p>
+                      {item.width?.toFixed(2) ?? "?"} × {item.height?.toFixed(2) ?? "?"}
+                      {item.source_units ? ` ${item.source_units}` : " drawing units"}
+                      {item.source_layers?.length
+                        ? ` · layers ${item.source_layers.join(", ")}`
+                        : ""}
                     </p>
                     <p>
                       {item.warnings.length

@@ -78,6 +78,7 @@ export async function importVisualCad(
 ): Promise<
   {
     import_id: string;
+    workflow_id?: string;
     status: string;
     profile_count: number;
     converter?: string;
@@ -96,6 +97,11 @@ export const getVisualImportProfiles = (importId: string) =>
         profile?: VisualProfile;
         open_closed: string;
         entity_count: number;
+        width?: number;
+        height?: number;
+        source_layers?: string[];
+        source_units?: string | null;
+        unit_status?: string;
         aspect_ratio: number | null;
         warnings: string[];
         thumbnail_svg: string;
