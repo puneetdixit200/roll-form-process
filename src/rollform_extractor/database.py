@@ -1909,6 +1909,23 @@ class VisualFlowerRollerEvidenceBundleRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 
+class VisualFlowerRollerEvidenceReviewRow(Base):
+    """Append-only review of a design evidence bundle; never a tooling approval."""
+    __tablename__ = "visual_flower_roller_evidence_reviews"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    review_id: Mapped[str] = mapped_column(String, unique=True)
+    candidate_id: Mapped[str] = mapped_column(String, index=True)
+    pass_id: Mapped[str] = mapped_column(String)
+    role: Mapped[str] = mapped_column(String)
+    decision: Mapped[str] = mapped_column(String)
+    selected_design_id: Mapped[str | None] = mapped_column(String)
+    selected_revision_id: Mapped[str | None] = mapped_column(String)
+    reviewer: Mapped[str] = mapped_column(String)
+    notes: Mapped[str] = mapped_column(String, default="")
+    evidence_bundle_hash: Mapped[str | None] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
 class VisualFlowerExportArtifactRow(Base):
     __tablename__ = "visual_flower_export_artifacts"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

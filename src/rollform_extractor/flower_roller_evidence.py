@@ -134,3 +134,28 @@ def build_candidate_roller_evidence(
         })
     payload = {"schema_version": 1, "algorithm_version": FLOWER_ROLLER_EVIDENCE_VERSION, "candidate_id": candidate.get("candidate_id"), "historical_dataset_hash": dataset.get("dataset_hash", "UNCONFIGURED"), "inventory_snapshot_hash": inventory_snapshot_hash, "stations": stations, "manufacturing_approval": "NOT_APPROVED", "physical_asset_assignment": False, "safety_boundary": SAFETY_LIMITATION}
     return payload | {"evidence_bundle_hash": _hash(payload)}
+
+
+REVIEW_DECISIONS = {"ACCEPT_DESIGN_EVIDENCE", "REJECT_DESIGN_EVIDENCE", "NEEDS_REVIEW"}
+
+
+def create_roller_evidence_review(engine: Any, candidate_id: str, pass_id: str, role: str, decision: str, reviewer: str, notes: str = "") -> dict[str, Any]:
+    if decision not in REVIEW_DECISIONS:
+        raise ValueError("invalid roller evidence review decision")
+    if not reviewer.strip():
+        raise ValueError("reviewer is required")
+    from sqlalchemy import select
+    from sqlalchemy.orm import Session
+    from rollform_extractor.database import VisualFlowerCandidateRow, VisualFlowerRollerEvidenceReviewRow
+    with Session(engine) as session, session.begin():
+        candidate = session.scalar(select(VisualFlowerCandidateRow).where(VisualFlowerCandidateRow.candidate_id == candidate_id))
+        if candidate is None:
+            raise LookupError("visual candidate not found")
+        evidence = (candidate.candidate_json or {}).get("roller_evidence") or {}
+        station = next((item for item in evidence.get("stations", []) if item.get("pass_id") == pass_id), None)
+        if station is None:
+            raise LookupError("roller evidence pass not found")
+        review_id = "vfr-" + sha256(f"{candidate_id}|{pass_id}|{role}|{decision}|{reviewer}|{notes}".encode()).hexdigest()[:20]
+        row = VisualFlowerRollerEvidenceReviewRow(review_id=review_id, candidate_id=candidate_id, pass_id=pass_id, role=role, decision=decision, selected_design_id=None, selected_revision_id=None, reviewer=reviewer.strip(), notes=notes, evidence_bundle_hash=evidence.get("evidence_bundle_hash"))
+        session.add(row)
+        return {"review_id": review_id, "candidate_id": candidate_id, "pass_id": pass_id, "role": role, "decision": decision, "reviewer": reviewer.strip(), "manufacturing_approval": "NOT_APPROVED"}

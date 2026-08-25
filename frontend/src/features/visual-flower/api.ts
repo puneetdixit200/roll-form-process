@@ -120,6 +120,10 @@ export const useWorkflowImportProfile = (workflowId: string, profileId: string) 
     `/api/rollform-workflows/${encodeURIComponent(workflowId)}/profiles/${encodeURIComponent(profileId)}/select`,
     { method: "POST" },
   );
+export const reviewRollerEvidence = (candidateId: string, passId: string, body: { role: string; decision: string; reviewer: string; notes?: string }) =>
+  request(`/api/visual-flower/candidates/${encodeURIComponent(candidateId)}/passes/${encodeURIComponent(passId)}/roller-evidence/review`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
 export function visualExportUrl(candidateId: string, artifact: string): string {
   return `${API_ROOT}/api/visual-flower/candidates/${
     encodeURIComponent(candidateId)

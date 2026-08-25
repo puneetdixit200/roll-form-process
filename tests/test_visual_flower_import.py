@@ -68,3 +68,13 @@ def test_integrated_import_creates_linked_visual_and_project_workflow(tmp_path):
         status = client.get(f"/api/rollform-workflows/{workflow['workflow_id']}")
         assert status.status_code == 200
         assert status.json()["source_sha256"] == workflow["source_sha256"]
+
+
+def test_integrated_workflow_exposes_profiles_and_requires_selected_target_for_generation(tmp_path):
+    with TestClient(create_app(tmp_path, auto_run_jobs=False)) as client:
+        imported = client.post("/api/rollform-workflows/import", files={"file": ("synthetic.dxf", _dxf_bytes(), "application/dxf")}).json()
+        profiles = client.get(f"/api/rollform-workflows/{imported['workflow_id']}/profiles")
+        assert profiles.status_code == 200
+        assert len(profiles.json()) == 2
+        generate = client.post(f"/api/rollform-workflows/{imported['workflow_id']}/generate", json={"station_mode": "EXACT", "exact_station_count": 16})
+        assert generate.status_code == 409

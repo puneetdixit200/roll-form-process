@@ -35,6 +35,7 @@ from rollform_extractor.clrsg_service import list_models, model_status
 from rollform_extractor.private_clrsg_readiness import doctor_private_model
 from rollform_extractor.visual_flower_import import create_import as create_visual_import, get_import as get_visual_import, list_profiles as list_visual_import_profiles, selected_profile as selected_visual_import_profile
 from rollform_extractor.integrated_rollform_workflow import create_workflow, get_workflow, select_profile as select_workflow_profile
+from rollform_extractor.flower_roller_evidence import create_roller_evidence_review
 from rollform_extractor.web.backend.demo_auth import COOKIE_NAME, enabled as demo_auth_enabled, hash_password, issue_session, login_allowed, record_failed_login, valid_session, verify_password
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -264,6 +265,31 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
             workflow = workflow | {"analysis_status": "UNAVAILABLE"}
         return workflow
 
+    @app.get("/api/rollform-workflows/{workflow_id}/profiles")
+    def integrated_rollform_profiles(workflow_id: str) -> list[dict[str, Any]]:
+        workflow = get_workflow(root, workflow_id)
+        if workflow is None:
+            raise HTTPException(status_code=404, detail="rollform workflow not found")
+        profiles = list_visual_import_profiles(root, str(workflow["visual_import_id"]))
+        if profiles is None:
+            raise HTTPException(status_code=404, detail="visual import not found")
+        return profiles
+
+    @app.post("/api/rollform-workflows/{workflow_id}/generate")
+    def integrated_rollform_generate(workflow_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        workflow = get_workflow(root, workflow_id)
+        if workflow is None:
+            raise HTTPException(status_code=404, detail="rollform workflow not found")
+        target_id = workflow.get("selected_target_id")
+        if not target_id:
+            raise HTTPException(status_code=409, detail="select a detected profile before generation")
+        try:
+            return generate_visual_for_target(visual_engine(), str(target_id), payload or {}, inventory_engine=inventory_engine()) | {"workflow_id": workflow_id}
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except (ValueError, VisualProfileError) as exc:
+            raise HTTPException(status_code=422, detail={"code": getattr(exc, "code", "GENERATION_FAILED"), "message": str(exc)}) from exc
+
     @app.get("/api/visual-flower/imports/{import_id}")
     def visual_import_status(import_id: str) -> dict[str, Any]:
         result = get_visual_import(root, import_id)
@@ -326,7 +352,7 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     @app.post("/api/visual-flower/targets/{target_id}/generate")
     def visual_generate(target_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
-            return generate_visual_for_target(visual_engine(), target_id, payload or {})
+            return generate_visual_for_target(visual_engine(), target_id, payload or {}, inventory_engine=inventory_engine())
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except (ValueError, VisualProfileError) as exc:
@@ -398,6 +424,15 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         if station is None:
             raise HTTPException(status_code=404, detail="roller evidence pass not found")
         return {"candidate_id": candidate_id, "algorithm_version": evidence.get("algorithm_version"), "manufacturing_approval": "NOT_APPROVED", "physical_asset_assignment": False, "station": station}
+
+    @app.post("/api/visual-flower/candidates/{candidate_id}/passes/{pass_id}/roller-evidence/review")
+    def visual_pass_roller_evidence_review(candidate_id: str, pass_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return create_roller_evidence_review(visual_engine(), candidate_id, pass_id, str(body.get("role") or "UNKNOWN"), str(body.get("decision") or ""), str(body.get("reviewer") or ""), str(body.get("notes") or ""))
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @app.get("/api/visual-flower/candidates/{candidate_id}/export.json")
     def visual_export_candidate_json(candidate_id: str) -> dict[str, Any]:

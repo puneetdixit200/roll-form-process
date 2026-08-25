@@ -8,6 +8,7 @@ import {
   getVisualModelStatus,
   importVisualCad,
   reviewVisualCandidate,
+  reviewRollerEvidence,
   useVisualImportProfile,
   useWorkflowImportProfile,
   visualExportUrl,
@@ -728,7 +729,17 @@ export default function VisualFlowerWorkspace() {
                     </p>
                     <MatchDetails item={currentPass} />
                     <RollerEvidenceDetails
+                      candidateId={candidate.candidate_id}
                       station={candidate.roller_evidence?.stations.find((item) => item.pass_id === currentPass?.pass_id)}
+                      reviewer={reviewer}
+                      onReview={async (role, decision) => {
+                        if (!currentPass || !reviewer.trim()) {
+                          setMessage("Enter a reviewer name before reviewing roller evidence.");
+                          return;
+                        }
+                        await reviewRollerEvidence(candidate.candidate_id, currentPass.pass_id, { role, decision, reviewer });
+                        setMessage("Roller design evidence review recorded.");
+                      }}
                     />
                   </>
                 )}
@@ -791,9 +802,9 @@ function MatchDetails({ item }: { item: any }) {
   );
 }
 
-function RollerEvidenceDetails({ station }: { station: any }) {
+function RollerEvidenceDetails({ candidateId, station, reviewer, onReview }: { candidateId: string; station: any; reviewer: string; onReview: (role: string, decision: string) => Promise<void> }) {
   return (
-    <section className="roller-evidence" aria-label="Roller design evidence">
+    <section className="roller-evidence" aria-label={`Roller design evidence for ${candidateId}`}>
       <h3>Roller design evidence</h3>
       <p><strong>Historical design evidence only.</strong> A candidate does not select a physical roller asset or approve tooling for manufacturing.</p>
       {!station || station.status === "INSUFFICIENT_ROLLER_EVIDENCE" ? (
@@ -807,6 +818,7 @@ function RollerEvidenceDetails({ station }: { station: any }) {
               {item.geometry_revision_id ? ` / ${item.geometry_revision_id}` : ""} · {item.evidence_tier}
               {item.recognition_score != null ? ` · recognition ${(item.recognition_score * 100).toFixed(1)}%` : ""}
               {item.known_asset_count != null ? ` · known assets ${item.known_asset_count} (informational)` : ""}
+              <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "ACCEPT_DESIGN_EVIDENCE")}>Accept evidence</button>
             </div>
           ))}
         </article>

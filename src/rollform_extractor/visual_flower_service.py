@@ -185,6 +185,7 @@ def generate_for_target(
     engine,
     target_id: str,
     preferences: dict[str, Any],
+    inventory_engine=None,
 ) -> dict[str, Any]:
     with Session(engine) as session:
         target_row = session.scalar(
@@ -260,12 +261,22 @@ def generate_for_target(
     # persistence so regenerating the same profile under another target cannot
     # violate the database uniqueness constraint.
     _scope_candidate_ids(result.get("candidates", []), run_key)
+    inventory_assets: dict[str, list[dict[str, Any]]] = {}
+    inventory_snapshot_hash = "UNCONFIGURED"
+    if inventory_engine is not None:
+        from rollform_extractor.database import RollerAsset
+        with Session(inventory_engine) as inventory_session:
+            assets = inventory_session.scalars(select(RollerAsset).order_by(RollerAsset.design_id, RollerAsset.asset_id)).all()
+            for asset in assets:
+                inventory_assets.setdefault(str(asset.design_id), []).append({"asset_id": asset.asset_id, "condition": asset.condition, "location_id": asset.location_id, "verified": bool(asset.verified)})
+        inventory_snapshot_hash = sha256(json.dumps(inventory_assets, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     if preferences.get("include_roller_evidence", True):
         for candidate in result.get("candidates", []):
             candidate["roller_evidence"] = build_candidate_roller_evidence(
                 candidate,
                 historical_dataset=dataset,
-                inventory_snapshot_hash="UNCONFIGURED",
+                inventory_assets=inventory_assets,
+                inventory_snapshot_hash=inventory_snapshot_hash,
             )
     with Session(engine) as session:
         existing = session.scalar(
