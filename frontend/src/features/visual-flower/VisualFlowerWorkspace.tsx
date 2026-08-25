@@ -711,6 +711,9 @@ export default function VisualFlowerWorkspace() {
                       </span>.
                     </p>
                     <MatchDetails item={currentPass} />
+                    <RollerEvidenceDetails
+                      station={candidate.roller_evidence?.stations.find((item) => item.pass_id === currentPass?.pass_id)}
+                    />
                   </>
                 )}
               </>
@@ -769,6 +772,30 @@ function MatchDetails({ item }: { item: any }) {
         </div>
       ))}
     </details>
+  );
+}
+
+function RollerEvidenceDetails({ station }: { station: any }) {
+  return (
+    <section className="roller-evidence" aria-label="Roller design evidence">
+      <h3>Roller design evidence</h3>
+      <p><strong>Historical design evidence only.</strong> A candidate does not select a physical roller asset or approve tooling for manufacturing.</p>
+      {!station || station.status === "INSUFFICIENT_ROLLER_EVIDENCE" ? (
+        <p>Insufficient evidence — engineer review required.</p>
+      ) : station.roles.map((role: any) => (
+        <article key={role.role}>
+          <strong>{role.role}</strong>
+          {role.candidates.map((item: any) => (
+            <div key={`${role.role}-${item.design_id}-${item.rank}`}>
+              Best-supported design candidate: <strong>{item.design_id}</strong>
+              {item.geometry_revision_id ? ` / ${item.geometry_revision_id}` : ""} · {item.evidence_tier}
+              {item.recognition_score != null ? ` · recognition ${(item.recognition_score * 100).toFixed(1)}%` : ""}
+              {item.known_asset_count != null ? ` · known assets ${item.known_asset_count} (informational)` : ""}
+            </div>
+          ))}
+        </article>
+      ))}
+    </section>
   );
 }
 

@@ -333,6 +333,30 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
             raise HTTPException(status_code=404, detail="visual candidate not found")
         return {"candidate_id": candidate_id, "matches": [item.get("historical_match", {}) for item in result.get("passes", [])]}
 
+    @app.get("/api/visual-flower/candidates/{candidate_id}/roller-evidence")
+    def visual_candidate_roller_evidence(candidate_id: str) -> dict[str, Any]:
+        result = get_visual_candidate(visual_engine(), candidate_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        return result.get("roller_evidence") or {
+            "candidate_id": candidate_id,
+            "status": "INSUFFICIENT_ROLLER_EVIDENCE",
+            "stations": [],
+            "manufacturing_approval": "NOT_APPROVED",
+            "physical_asset_assignment": False,
+        }
+
+    @app.get("/api/visual-flower/candidates/{candidate_id}/passes/{pass_id}/roller-evidence")
+    def visual_pass_roller_evidence(candidate_id: str, pass_id: str) -> dict[str, Any]:
+        result = get_visual_candidate(visual_engine(), candidate_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="visual candidate not found")
+        evidence = result.get("roller_evidence") or {}
+        station = next((item for item in evidence.get("stations", []) if item.get("pass_id") == pass_id), None)
+        if station is None:
+            raise HTTPException(status_code=404, detail="roller evidence pass not found")
+        return {"candidate_id": candidate_id, "algorithm_version": evidence.get("algorithm_version"), "manufacturing_approval": "NOT_APPROVED", "physical_asset_assignment": False, "station": station}
+
     @app.get("/api/visual-flower/candidates/{candidate_id}/export.json")
     def visual_export_candidate_json(candidate_id: str) -> dict[str, Any]:
         result = get_visual_candidate(visual_engine(), candidate_id)

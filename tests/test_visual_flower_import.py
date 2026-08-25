@@ -37,3 +37,22 @@ def test_invalid_cad_extension_is_rejected(tmp_path):
     with TestClient(create_app(tmp_path, auto_run_jobs=False)) as client:
         response = client.post("/api/visual-flower/import", files={"file": ("secret.txt", b"not cad", "text/plain")})
         assert response.status_code == 400
+
+
+def test_connected_line_arc_chain_imports_as_one_editable_target(tmp_path):
+    document = ezdxf.new("R2018")
+    document.header["$INSUNITS"] = 4
+    modelspace = document.modelspace()
+    modelspace.add_line((0, 0), (10, 0), dxfattribs={"layer": "PROFILE"})
+    modelspace.add_arc((10, 5), 5, 270, 360, dxfattribs={"layer": "PROFILE"})
+    modelspace.add_line((15, 5), (22, 5), dxfattribs={"layer": "PROFILE"})
+    with TestClient(create_app(tmp_path, auto_run_jobs=False)) as client:
+        response = client.post("/api/visual-flower/import", files={"file": ("connected.dxf", _save_bytes(document), "application/dxf")})
+        assert response.status_code == 200
+        profiles = client.get(f"/api/visual-flower/imports/{response.json()['import_id']}/profiles").json()
+        assert len(profiles) == 1
+        assert profiles[0]["entity_count"] == 3
+        assert profiles[0]["source_units"] == "mm"
+        target = client.post(f"/api/visual-flower/imports/{response.json()['import_id']}/profiles/{profiles[0]['profile_id']}/use")
+        assert target.status_code == 200
+        assert target.json()["profile"]["segments"][1]["type"] == "ARC"

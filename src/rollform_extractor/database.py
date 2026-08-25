@@ -1895,6 +1895,20 @@ class VisualFlowerCandidateReviewRow(Base):
     target_hash: Mapped[str | None] = mapped_column(String)
 
 
+class VisualFlowerRollerEvidenceBundleRow(Base):
+    """Immutable, design-only evidence snapshot for a generated flower."""
+    __tablename__ = "visual_flower_roller_evidence_bundles"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    bundle_id: Mapped[str] = mapped_column(String, unique=True)
+    candidate_id: Mapped[str] = mapped_column(String, index=True)
+    algorithm_version: Mapped[str] = mapped_column(String)
+    configuration_hash: Mapped[str] = mapped_column(String)
+    historical_dataset_hash: Mapped[str] = mapped_column(String)
+    inventory_snapshot_hash: Mapped[str] = mapped_column(String)
+    payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
 class VisualFlowerExportArtifactRow(Base):
     __tablename__ = "visual_flower_export_artifacts"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

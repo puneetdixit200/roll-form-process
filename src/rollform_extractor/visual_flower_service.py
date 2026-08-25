@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from rollform_extractor.clrsg_inference import infer_learned_candidates, load_active_model
 from rollform_extractor.database import (
     VisualFlowerCandidateReviewRow,
+    VisualFlowerRollerEvidenceBundleRow,
     VisualFlowerCandidateRow,
     VisualFlowerGenerationRunRow,
     VisualProfileTargetRevisionRow,
@@ -21,6 +22,7 @@ from rollform_extractor.database import (
     create_project_database,
 )
 from rollform_extractor.strip_length_constraint import STRIP_LENGTH_CONSTRAINT_VERSION
+from rollform_extractor.flower_roller_evidence import build_candidate_roller_evidence
 from rollform_extractor.visual_flower_engine import generate_visual_candidates
 from rollform_extractor.visual_flower_exports import export_visual_run, historical_profile_png
 from rollform_extractor.visual_profile_schema import (
@@ -175,6 +177,7 @@ def _generation_configuration(preferences: dict[str, Any]) -> dict[str, Any]:
         "preferences": preferences,
         "visual_algorithm_version": VISUAL_ALGORITHM_VERSION,
         "strip_length_constraint_version": STRIP_LENGTH_CONSTRAINT_VERSION,
+        "flower_roller_evidence_version": "flower-roller-evidence-v1",
     }
 
 
@@ -257,6 +260,13 @@ def generate_for_target(
     # persistence so regenerating the same profile under another target cannot
     # violate the database uniqueness constraint.
     _scope_candidate_ids(result.get("candidates", []), run_key)
+    if preferences.get("include_roller_evidence", True):
+        for candidate in result.get("candidates", []):
+            candidate["roller_evidence"] = build_candidate_roller_evidence(
+                candidate,
+                historical_dataset=dataset,
+                inventory_snapshot_hash="UNCONFIGURED",
+            )
     with Session(engine) as session:
         existing = session.scalar(
             select(VisualFlowerGenerationRunRow).where(
@@ -293,6 +303,19 @@ def generate_for_target(
                     visual_confidence=candidate["visual_confidence"]["score"],
                 )
             )
+            evidence = candidate.get("roller_evidence")
+            if evidence:
+                session.add(
+                    VisualFlowerRollerEvidenceBundleRow(
+                        bundle_id="vfre-" + str(evidence["evidence_bundle_hash"])[:24],
+                        candidate_id=candidate["candidate_id"],
+                        algorithm_version=str(evidence["algorithm_version"]),
+                        configuration_hash=configuration_hash,
+                        historical_dataset_hash=str(evidence["historical_dataset_hash"]),
+                        inventory_snapshot_hash=str(evidence["inventory_snapshot_hash"]),
+                        payload_json=evidence,
+                    )
+                )
         session.commit()
 
     return {

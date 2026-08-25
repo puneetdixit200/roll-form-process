@@ -91,6 +91,32 @@ def export_visual_run(result: dict, output: Path) -> dict[str, str]:
         writer.writerows(rows)
     files["passes.csv"] = _hash(output / "passes.csv")
 
+    evidence_rows = []
+    for candidate in result.get("candidates", []):
+        for station in (candidate.get("roller_evidence") or {}).get("stations", []):
+            for role in station.get("roles", []):
+                for item in role.get("candidates", []):
+                    evidence_rows.append({
+                        "candidate_id": candidate["candidate_id"], "pass_id": station.get("pass_id"),
+                        "station_order": station.get("station_index"), "role": role.get("role"),
+                        "design_rank": item.get("rank"), "design_id": item.get("design_id"),
+                        "geometry_revision_id": item.get("geometry_revision_id"),
+                        "evidence_tier": item.get("evidence_tier"), "evidence_status": item.get("evidence_status"),
+                        "association_method": item.get("association_method"),
+                        "recognition_score": item.get("recognition_score"), "recognition_confidence": item.get("recognition_confidence"),
+                        "evidence_coverage": item.get("evidence_coverage"),
+                        "historical_flower_id": item.get("source_flower_id"), "historical_pass_id": item.get("source_pass_id"),
+                        "historical_pass_similarity": item.get("historical_pass_similarity"),
+                        "confirmed_usage_count": item.get("confirmed_usage_count"), "distinct_historical_projects": item.get("distinct_historical_projects"),
+                        "inventory_verification_status": item.get("inventory_verification_status"), "known_asset_count": item.get("known_asset_count"),
+                        "warnings": ";".join(item.get("warnings", [])),
+                    })
+    evidence_fields = ["candidate_id", "pass_id", "station_order", "role", "design_rank", "design_id", "geometry_revision_id", "evidence_tier", "evidence_status", "association_method", "recognition_score", "recognition_confidence", "evidence_coverage", "historical_flower_id", "historical_pass_id", "historical_pass_similarity", "confirmed_usage_count", "distinct_historical_projects", "inventory_verification_status", "known_asset_count", "warnings"]
+    with (output / "roller_evidence.csv").open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=evidence_fields)
+        writer.writeheader(); writer.writerows(evidence_rows)
+    files["roller_evidence.csv"] = _hash(output / "roller_evidence.csv")
+
     for candidate in result.get("candidates", []):
         directory = output / candidate["candidate_id"]
         directory.mkdir(exist_ok=True)
@@ -140,6 +166,7 @@ def export_visual_run(result: dict, output: Path) -> dict[str, str]:
                 "safety_boundary": (
                     "Visual prototype only; not manufacturing approval."
                 ),
+                "roller_evidence": {"included": True, "algorithm_version": "flower-roller-evidence-v1", "manufacturing_approval": "NOT_APPROVED", "physical_asset_assignment": False},
             },
             indent=2,
             sort_keys=True,
@@ -154,6 +181,7 @@ def verify_visual_export(output: Path) -> dict[str, object]:
     required = [
         "visual_run.json",
         "passes.csv",
+        "roller_evidence.csv",
         "manifest.json",
         "visual_flower_export.zip",
     ]
@@ -207,6 +235,8 @@ def verify_visual_export(output: Path) -> dict[str, object]:
         and "strip_length_satisfied" in csv_header
         and "strip_length_relative_error" in csv_header
     )
+    roller_csv = output / "roller_evidence.csv"
+    checks["roller_evidence_csv"] = roller_csv.is_file() and "evidence_tier" in roller_csv.read_text(encoding="utf-8", errors="replace").splitlines()[0]
 
     svg_paths = list(output.glob("*/combined.svg"))
     try:
@@ -394,6 +424,12 @@ def _html(candidate):
         )
         for item in candidate.get("passes", [])
     )
+    roller_rows = "".join(
+        f"<tr><td>{html.escape(str(station.get('station_index')))}</td><td>{html.escape(str(role.get('role')))}</td><td>{html.escape(str(item.get('design_id')))}</td><td>{html.escape(str(item.get('evidence_tier')))}</td></tr>"
+        for station in (candidate.get("roller_evidence") or {}).get("stations", [])
+        for role in station.get("roles", [])
+        for item in role.get("candidates", [])
+    ) or "<tr><td colspan='4'>Insufficient evidence — engineer review required</td></tr>"
     return (
         "<!doctype html><meta charset='utf-8'><title>Visual flower candidate</title>"
         "<style>body{font:16px system-ui;max-width:1000px;margin:2rem auto}"
@@ -413,6 +449,8 @@ def _html(candidate):
         "material strain, tooling contact, or manufacturing feasibility.</p>"
         "<table><tr><th>Station</th><th>Visual confidence</th><th>Historical match</th>"
         f"<th>Strip length</th><th>Relative error</th></tr>{rows}</table>"
+        "<h2>Roller design evidence</h2><p class='notice'>Roller design evidence is historical/geometry support only. This report is not manufacturing tooling approval and does not automatically select a physical roller asset.</p>"
+        f"<table><tr><th>Station</th><th>Role</th><th>Best-supported design candidate</th><th>Evidence tier</th></tr>{roller_rows}</table>"
     )
 
 
