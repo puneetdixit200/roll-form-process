@@ -15,6 +15,7 @@ from uuid import uuid4
 from rollform_extractor.converter import ConversionUnavailableError, stage_input
 from rollform_extractor.dxf_reader import inspect_drawing
 from rollform_extractor.visual_cad_profile_detection import detect_profiles, thumbnail_svg
+from rollform_extractor.visual_cad_preview import build_drawing_preview
 
 
 def _hash(data: bytes) -> str:
@@ -23,6 +24,10 @@ def _hash(data: bytes) -> str:
 
 def _state_path(root: Path, import_id: str) -> Path:
     return root / "visual_imports" / import_id / "import.json"
+
+
+def _preview_path(root: Path, import_id: str) -> Path:
+    return root / "visual_imports" / import_id / "preview.json"
 
 
 def _profile_candidates(dxf_path: Path) -> list[dict[str, Any]]:
@@ -42,7 +47,9 @@ def create_import(root: Path, filename: str, data: bytes) -> dict[str, Any]:
         staged = stage_input(source, directory / "staged")
         inspection = inspect_drawing(staged.converted_file).to_dict()
         profiles = _profile_candidates(staged.converted_file)
-        state = {"import_id": import_id, "original_filename": safe_name, "source_sha256": _hash(data), "converter": staged.converter, "inspection": {"units": inspection.get("units"), "modelspace_entity_count": inspection.get("modelspace_entity_count"), "layers": sorted(inspection.get("layers", {})), "private_paths_redacted": True}, "status": "PROFILES_READY" if profiles else "NO_PROFILES", "profiles": profiles, "source_not_exported": True}
+        preview = build_drawing_preview(staged.converted_file, import_id, _hash(data))
+        _preview_path(root, import_id).write_text(json.dumps(preview, sort_keys=True), encoding="utf-8")
+        state = {"import_id": import_id, "original_filename": safe_name, "source_sha256": _hash(data), "converter": staged.converter, "inspection": {"units": inspection.get("units"), "modelspace_entity_count": inspection.get("modelspace_entity_count"), "layers": sorted(inspection.get("layers", {})), "private_paths_redacted": True}, "status": "PROFILES_READY" if profiles else "NO_PROFILES", "profiles": profiles, "preview_version": preview["preview_version"], "source_not_exported": True}
     except ConversionUnavailableError as exc:
         state = {"import_id": import_id, "original_filename": safe_name, "source_sha256": _hash(data), "status": "FAILED", "profiles": [], "error_code": "CONVERSION_UNAVAILABLE", "error": str(exc), "private_paths_redacted": True, "source_not_exported": True}
     except Exception:
@@ -75,3 +82,8 @@ def selected_profile(root: Path, import_id: str, profile_id: str) -> dict[str, A
         if item.get("profile_id") == profile_id:
             return item["profile"]
     return None
+
+
+def get_preview(root: Path, import_id: str) -> dict[str, Any] | None:
+    path = _preview_path(root, import_id)
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None

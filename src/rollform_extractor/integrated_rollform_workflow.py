@@ -37,3 +37,12 @@ def select_profile(root: Path, workflow_id: str, profile_id: str, target_id: str
     payload.update({"selected_profile_id": profile_id, "selected_target_id": target_id, "visual_status": "TARGET_READY", "updated_at": datetime.now(UTC).isoformat()})
     _path(root, workflow_id).write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return payload
+
+
+def select_target(root: Path, workflow_id: str, target_id: str, profile_id: str | None = None) -> dict[str, Any] | None:
+    payload = get_workflow(root, workflow_id)
+    if payload is None:
+        return None
+    payload.update({"selected_target_id": target_id, "selected_profile_id": profile_id or payload.get("selected_profile_id"), "visual_status": "TARGET_READY", "updated_at": datetime.now(UTC).isoformat()})
+    _path(root, workflow_id).write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    return payload

@@ -4,6 +4,7 @@ import {
   generateVisualFlower,
   getVisualDatasetStatus,
   getVisualImportProfiles,
+  getVisualImportDrawingPreview,
   getVisualModelDoctor,
   getVisualModelStatus,
   importVisualCad,
@@ -11,10 +12,13 @@ import {
   reviewRollerEvidence,
   useVisualImportProfile,
   useWorkflowImportProfile,
+  synchronizeWorkflowTarget,
+  validateVisualProfile,
   visualExportUrl,
 } from "./api";
 import { exampleProfile, ProfileSketcher } from "./ProfileSketcher";
-import type { VisualCandidate, VisualProfile, VisualRun } from "./types";
+import { CadDrawingCanvas } from "./CadDrawingCanvas";
+import type { CadDrawingPreview, VisualCandidate, VisualProfile, VisualRun } from "./types";
 
 type ImportedProfile = {
   profile_id: string;
@@ -25,6 +29,7 @@ type ImportedProfile = {
   height?: number;
   source_layers?: string[];
   source_units?: string | null;
+  source_handles?: string[];
   aspect_ratio: number | null;
   warnings: string[];
   thumbnail_svg: string;
@@ -54,6 +59,9 @@ export default function VisualFlowerWorkspace() {
   const [importId, setImportId] = useState<string | null>(null);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [importProfiles, setImportProfiles] = useState<ImportedProfile[]>([]);
+  const [drawingPreview, setDrawingPreview] = useState<CadDrawingPreview | null>(null);
+  const [selectedImportedProfileId, setSelectedImportedProfileId] = useState<string | null>(null);
+  const [editingImported, setEditingImported] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dataset, setDataset] = useState<
     {
@@ -131,18 +139,19 @@ export default function VisualFlowerWorkspace() {
     };
   }, [profile]);
   function validateProfile() {
-    setValidated(true);
-    setMessage(
-      validation.valid
-        ? "Profile valid with current geometry checks."
-        : "Profile has blocking geometry issues; generation is disabled.",
-    );
+    validateVisualProfile(profile).then((result) => {
+      const valid = result.valid && validation.valid;
+      setValidated(valid);
+      setMessage(valid ? "Profile validated by backend." : "Profile has blocking geometry issues; generation is disabled.");
+    }).catch(() => { setValidated(false); setMessage("Profile validation failed; generation is disabled."); });
   }
   async function generate() {
     try {
       setMessage("Canonicalizing and matching historical passes...");
-      const target = await createVisualTarget(profile);
-      const next = await generateVisualFlower(target.target_id, {
+      const target = workflowId
+        ? await synchronizeWorkflowTarget(workflowId, profile).then((item) => item.target)
+        : await createVisualTarget(profile);
+      const preferences = {
         generation_engine: generationEngine,
         station_mode: stationMode,
         exact_station_count: stationCount,
@@ -151,7 +160,10 @@ export default function VisualFlowerWorkspace() {
         candidate_limit: candidateLimit,
         allow_mirror_matching: true,
         allow_rotation_alignment: true,
-      });
+      };
+      const next = workflowId
+        ? await fetch(`/api/rollform-workflows/${encodeURIComponent(workflowId)}/generate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(preferences) }).then(async (response) => { if (!response.ok) throw new Error("Flower generation failed"); return response.json() as Promise<VisualRun>; })
+        : await generateVisualFlower(target.target_id, preferences);
       setRun(next);
       setCandidateIndex(0);
       setPassIndex(0);
@@ -199,13 +211,16 @@ export default function VisualFlowerWorkspace() {
     const file = event.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    setMessage("Uploading → converting → parsing → detecting profiles...");
+    setRun(null); setCandidateIndex(0); setPassIndex(0); setValidated(false); setProfile(exampleProfile()); setImportProfiles([]); setDrawingPreview(null); setSelectedImportedProfileId(null); setMessage("Uploading → converting → parsing → detecting profiles...");
     try {
       const result = await importVisualCad(file);
       setImportId(result.import_id);
       setWorkflowId(result.workflow_id ?? null);
-      const profiles = await getVisualImportProfiles(result.import_id);
+      const [profiles, preview] = await Promise.all([getVisualImportProfiles(result.import_id), getVisualImportDrawingPreview(result.import_id)]);
       setImportProfiles(profiles);
+      setDrawingPreview(preview);
+      setEditingImported(false);
+      if (profiles.length === 1) setSelectedImportedProfileId(profiles[0].profile_id);
       setMessage(
         `${result.profile_count} profile candidate(s) detected using ${
           result.converter ?? "offline extraction"
@@ -224,6 +239,8 @@ export default function VisualFlowerWorkspace() {
         ? await useWorkflowImportProfile(workflowId, profileId).then((item) => item.target)
         : await useVisualImportProfile(importId, profileId);
       if (result.profile) setProfile(result.profile);
+      setSelectedImportedProfileId(profileId);
+      setEditingImported(true);
       setValidated(false);
       setMessage(
         "Imported profile loaded into the sketch editor. Validate before generation.",
@@ -366,14 +383,23 @@ export default function VisualFlowerWorkspace() {
               />
             </label>
           </div>
+          {drawingPreview && (
+            <>
+              <h4>Imported drawing inspection</h4>
+              <p>Drawing preview: READY · {drawingPreview.unit_status === "UNKNOWN" ? "Units unknown" : drawingPreview.units}</p>
+              <CadDrawingCanvas
+                preview={drawingPreview}
+                candidates={importProfiles}
+                selectedId={selectedImportedProfileId}
+                onSelect={setSelectedImportedProfileId}
+              />
+            </>
+          )}
           {importProfiles.length > 0 && (
             <div className="import-candidates">
               <h4>Detected profile candidates</h4>
               {importProfiles.map((item) => (
-                <article className="import-card" key={item.profile_id}>
-                  <div
-                    dangerouslySetInnerHTML={{ __html: item.thumbnail_svg }}
-                  />
+                <article className={`import-card ${selectedImportedProfileId === item.profile_id ? "selected" : ""}`} key={item.profile_id} onClick={() => setSelectedImportedProfileId(item.profile_id)}>
                   <div>
                     <strong>{item.profile_id}</strong>
                     <p>
@@ -404,15 +430,17 @@ export default function VisualFlowerWorkspace() {
               ))}
             </div>
           )}
-          <ProfileSketcher
-            profile={profile}
-            onChange={(next) => {
-              setProfile(next);
-              setValidated(false);
-            }}
-          />
+          {importId && !editingImported
+            ? <p><button disabled={!selectedImportedProfileId} onClick={() => selectedImportedProfileId && void useImported(selectedImportedProfileId)}>Edit selected profile</button></p>
+            : <ProfileSketcher
+                profile={profile}
+                onChange={(next) => {
+                  setProfile(next);
+                  setValidated(false);
+                }}
+              />}
           <div className="visual-controls">
-            <button onClick={validateProfile}>Validate Profile</button>
+            <button disabled={Boolean(importId && !selectedImportedProfileId)} onClick={() => void validateProfile()}>Validate Profile</button>
             <button onClick={saveTarget}>Save target JSON</button>
             <label>
               Station mode{" "}
