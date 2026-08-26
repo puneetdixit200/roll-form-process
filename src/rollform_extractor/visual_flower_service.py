@@ -19,15 +19,16 @@ from rollform_extractor.database import (
     VisualFlowerGenerationRunRow,
     VisualProfileTargetRevisionRow,
     VisualProfileTargetRow,
-    create_project_database,
+)
+from rollform_extractor.flower_roller_evidence import (
+    FLOWER_ROLLER_EVIDENCE_VERSION,
+    build_candidate_roller_evidence,
 )
 from rollform_extractor.strip_length_constraint import STRIP_LENGTH_CONSTRAINT_VERSION
-from rollform_extractor.flower_roller_evidence import build_candidate_roller_evidence
 from rollform_extractor.visual_flower_engine import generate_visual_candidates
 from rollform_extractor.visual_flower_exports import export_visual_run, historical_profile_png
 from rollform_extractor.visual_profile_schema import (
     VISUAL_ALGORITHM_VERSION,
-    VisualProfileError,
     validate_profile,
 )
 
@@ -171,13 +172,56 @@ def get_target(engine, target_id: str) -> dict[str, Any] | None:
         return target_summary(session, row) if row else None
 
 
-def _generation_configuration(preferences: dict[str, Any]) -> dict[str, Any]:
-    """Version persisted runs so stale pre-constraint results are never reused."""
+def _roller_station_evidence_hash(dataset: dict[str, Any]) -> str:
+    """Hash only station-level roller evidence used by the evidence builder."""
+    records = dataset.get("roller_station_evidence")
+    if records is None:
+        records = dataset.get("historical_roller_station_evidence")
+    if records is None:
+        return "UNCONFIGURED"
+    payload = json.dumps(records, sort_keys=True, separators=(",", ":"), default=str)
+    return sha256(payload.encode()).hexdigest()
+
+
+def _inventory_snapshot(inventory_engine) -> tuple[dict[str, list[dict[str, Any]]], str]:
+    """Return the exact inventory enrichment payload and its deterministic hash."""
+    if inventory_engine is None:
+        return {}, "UNCONFIGURED"
+    from rollform_extractor.database import RollerAsset
+
+    inventory_assets: dict[str, list[dict[str, Any]]] = {}
+    with Session(inventory_engine) as inventory_session:
+        assets = inventory_session.scalars(
+            select(RollerAsset).order_by(RollerAsset.design_id, RollerAsset.asset_id)
+        ).all()
+        for asset in assets:
+            inventory_assets.setdefault(str(asset.design_id), []).append(
+                {
+                    "asset_id": asset.asset_id,
+                    "condition": asset.condition,
+                    "location_id": asset.location_id,
+                    "verified": bool(asset.verified),
+                }
+            )
+    payload = json.dumps(inventory_assets, sort_keys=True, separators=(",", ":"))
+    return inventory_assets, sha256(payload.encode()).hexdigest()
+
+
+def _generation_configuration(
+    preferences: dict[str, Any],
+    *,
+    inventory_snapshot_hash: str = "UNCONFIGURED",
+    roller_station_evidence_hash: str = "UNCONFIGURED",
+) -> dict[str, Any]:
+    """Version persisted runs so stale geometry/evidence is never reused."""
+    include_evidence = bool(preferences.get("include_roller_evidence", True))
     return {
         "preferences": preferences,
         "visual_algorithm_version": VISUAL_ALGORITHM_VERSION,
         "strip_length_constraint_version": STRIP_LENGTH_CONSTRAINT_VERSION,
-        "flower_roller_evidence_version": "flower-roller-evidence-v1",
+        "flower_roller_evidence_version": FLOWER_ROLLER_EVIDENCE_VERSION,
+        "inventory_snapshot_hash": inventory_snapshot_hash if include_evidence else "DISABLED",
+        "roller_station_evidence_hash": roller_station_evidence_hash if include_evidence else "DISABLED",
     }
 
 
@@ -204,6 +248,9 @@ def generate_for_target(
 
     profile = validate_profile(revision.profile_json)
     dataset = historical_dataset()
+    inventory_assets, inventory_snapshot_hash = _inventory_snapshot(inventory_engine)
+    station_evidence_hash = _roller_station_evidence_hash(dataset)
+
     result = generate_visual_candidates(
         profile,
         dataset.get("flowers", []),
@@ -242,7 +289,11 @@ def generate_for_target(
             "warnings": [],
         }
 
-    configuration = _generation_configuration(preferences)
+    configuration = _generation_configuration(
+        preferences,
+        inventory_snapshot_hash=inventory_snapshot_hash,
+        roller_station_evidence_hash=station_evidence_hash,
+    )
     configuration_json = json.dumps(
         configuration,
         sort_keys=True,
@@ -257,19 +308,11 @@ def generate_for_target(
     configuration_hash = sha256(configuration_json.encode()).hexdigest()
 
     # Candidate IDs are persisted globally, while the geometry engine's IDs are
-    # intentionally stable only within a result.  Scope them to the run before
+    # intentionally stable only within a result. Scope them to the run before
     # persistence so regenerating the same profile under another target cannot
     # violate the database uniqueness constraint.
     _scope_candidate_ids(result.get("candidates", []), run_key)
-    inventory_assets: dict[str, list[dict[str, Any]]] = {}
-    inventory_snapshot_hash = "UNCONFIGURED"
-    if inventory_engine is not None:
-        from rollform_extractor.database import RollerAsset
-        with Session(inventory_engine) as inventory_session:
-            assets = inventory_session.scalars(select(RollerAsset).order_by(RollerAsset.design_id, RollerAsset.asset_id)).all()
-            for asset in assets:
-                inventory_assets.setdefault(str(asset.design_id), []).append({"asset_id": asset.asset_id, "condition": asset.condition, "location_id": asset.location_id, "verified": bool(asset.verified)})
-        inventory_snapshot_hash = sha256(json.dumps(inventory_assets, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
     if preferences.get("include_roller_evidence", True):
         for candidate in result.get("candidates", []):
             candidate["roller_evidence"] = build_candidate_roller_evidence(
@@ -278,6 +321,7 @@ def generate_for_target(
                 inventory_assets=inventory_assets,
                 inventory_snapshot_hash=inventory_snapshot_hash,
             )
+
     with Session(engine) as session:
         existing = session.scalar(
             select(VisualFlowerGenerationRunRow).where(
