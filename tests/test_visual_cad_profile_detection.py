@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 
 import ezdxf
+import pytest
 
 from rollform_extractor.visual_cad_profile_detection import detect_profiles
 from rollform_extractor.visual_profile_schema import validate_profile
