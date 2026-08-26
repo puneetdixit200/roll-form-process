@@ -9,6 +9,7 @@ from collections import defaultdict
 from hashlib import sha256
 import json
 from typing import Any, Iterable, Mapping
+from uuid import uuid4
 
 
 FLOWER_ROLLER_EVIDENCE_VERSION = "flower-roller-evidence-v1"
@@ -139,14 +140,36 @@ def build_candidate_roller_evidence(
 REVIEW_DECISIONS = {"ACCEPT_DESIGN_EVIDENCE", "REJECT_DESIGN_EVIDENCE", "NEEDS_REVIEW"}
 
 
-def create_roller_evidence_review(engine: Any, candidate_id: str, pass_id: str, role: str, decision: str, reviewer: str, notes: str = "") -> dict[str, Any]:
+def create_roller_evidence_review(
+    engine: Any,
+    candidate_id: str,
+    pass_id: str,
+    role: str,
+    decision: str,
+    reviewer: str,
+    notes: str = "",
+    *,
+    selected_design_id: str | None = None,
+    selected_revision_id: str | None = None,
+) -> dict[str, Any]:
+    """Append one validated review event for a station/role evidence snapshot.
+
+    ACCEPT/REJECT decisions must identify the design being reviewed.  For
+    backward compatibility a role with exactly one candidate can supply that
+    design implicitly; ambiguous roles are rejected rather than silently
+    recording the wrong design.  NEEDS_REVIEW may intentionally omit a design.
+    """
     if decision not in REVIEW_DECISIONS:
         raise ValueError("invalid roller evidence review decision")
-    if not reviewer.strip():
+    reviewer = reviewer.strip()
+    role = role.strip() or "UNKNOWN"
+    if not reviewer:
         raise ValueError("reviewer is required")
+
     from sqlalchemy import select
     from sqlalchemy.orm import Session
     from rollform_extractor.database import VisualFlowerCandidateRow, VisualFlowerRollerEvidenceReviewRow
+
     with Session(engine) as session, session.begin():
         candidate = session.scalar(select(VisualFlowerCandidateRow).where(VisualFlowerCandidateRow.candidate_id == candidate_id))
         if candidate is None:
@@ -155,7 +178,58 @@ def create_roller_evidence_review(engine: Any, candidate_id: str, pass_id: str, 
         station = next((item for item in evidence.get("stations", []) if item.get("pass_id") == pass_id), None)
         if station is None:
             raise LookupError("roller evidence pass not found")
-        review_id = "vfr-" + sha256(f"{candidate_id}|{pass_id}|{role}|{decision}|{reviewer}|{notes}".encode()).hexdigest()[:20]
-        row = VisualFlowerRollerEvidenceReviewRow(review_id=review_id, candidate_id=candidate_id, pass_id=pass_id, role=role, decision=decision, selected_design_id=None, selected_revision_id=None, reviewer=reviewer.strip(), notes=notes, evidence_bundle_hash=evidence.get("evidence_bundle_hash"))
+        role_evidence = next((item for item in station.get("roles", []) if str(item.get("role") or "UNKNOWN") == role), None)
+        if role_evidence is None:
+            raise LookupError("roller evidence role not found")
+
+        candidates = list(role_evidence.get("candidates") or [])
+        selected: Mapping[str, Any] | None = None
+        if selected_design_id:
+            matches = [
+                item for item in candidates
+                if str(item.get("design_id")) == str(selected_design_id)
+                and (selected_revision_id is None or str(item.get("geometry_revision_id") or "") == str(selected_revision_id))
+            ]
+            if not matches:
+                raise ValueError("selected roller design is not a candidate for this station role")
+            selected = matches[0]
+        elif decision != "NEEDS_REVIEW":
+            if len(candidates) != 1:
+                raise ValueError("ambiguous roller evidence review requires selected_design_id")
+            selected = candidates[0]
+
+        if selected is not None:
+            selected_design_id = str(selected.get("design_id"))
+            selected_revision_id = selected.get("geometry_revision_id")
+        elif selected_revision_id is not None:
+            raise ValueError("selected_revision_id requires selected_design_id")
+
+        # Reviews are append-only events.  A random event suffix prevents an
+        # identical second review from colliding with the unique review_id.
+        review_id = "vfr-" + uuid4().hex[:20]
+        row = VisualFlowerRollerEvidenceReviewRow(
+            review_id=review_id,
+            candidate_id=candidate_id,
+            pass_id=pass_id,
+            role=role,
+            decision=decision,
+            selected_design_id=selected_design_id,
+            selected_revision_id=selected_revision_id,
+            reviewer=reviewer,
+            notes=notes,
+            evidence_bundle_hash=evidence.get("evidence_bundle_hash"),
+        )
         session.add(row)
-        return {"review_id": review_id, "candidate_id": candidate_id, "pass_id": pass_id, "role": role, "decision": decision, "reviewer": reviewer.strip(), "manufacturing_approval": "NOT_APPROVED"}
+        session.flush()
+        return {
+            "review_id": review_id,
+            "candidate_id": candidate_id,
+            "pass_id": pass_id,
+            "role": role,
+            "decision": decision,
+            "reviewer": reviewer,
+            "selected_design_id": selected_design_id,
+            "selected_revision_id": selected_revision_id,
+            "evidence_bundle_hash": evidence.get("evidence_bundle_hash"),
+            "manufacturing_approval": "NOT_APPROVED",
+        }
