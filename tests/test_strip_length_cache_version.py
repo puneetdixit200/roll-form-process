@@ -23,13 +23,34 @@ def test_generation_configuration_changes_with_inventory_snapshot():
     assert first != second
 
 
+def test_generation_configuration_changes_when_direct_project_recognition_changes():
+    preferences = {"station_mode": "EXACT", "exact_station_count": 16, "include_roller_evidence": True}
+    first = _generation_configuration(preferences, direct_project_evidence_hash="project-a")
+    second = _generation_configuration(preferences, direct_project_evidence_hash="project-b")
+
+    assert first["direct_project_evidence_hash"] == "project-a"
+    assert second["direct_project_evidence_hash"] == "project-b"
+    assert first != second
+
+
 def test_generation_configuration_ignores_inventory_when_roller_evidence_disabled():
     preferences = {"station_mode": "EXACT", "exact_station_count": 16, "include_roller_evidence": False}
-    first = _generation_configuration(preferences, inventory_snapshot_hash="inventory-a", roller_station_evidence_hash="history-a")
-    second = _generation_configuration(preferences, inventory_snapshot_hash="inventory-b", roller_station_evidence_hash="history-b")
+    first = _generation_configuration(
+        preferences,
+        inventory_snapshot_hash="inventory-a",
+        roller_station_evidence_hash="history-a",
+        direct_project_evidence_hash="project-a",
+    )
+    second = _generation_configuration(
+        preferences,
+        inventory_snapshot_hash="inventory-b",
+        roller_station_evidence_hash="history-b",
+        direct_project_evidence_hash="project-b",
+    )
 
     assert first["inventory_snapshot_hash"] == "DISABLED"
     assert first["roller_station_evidence_hash"] == "DISABLED"
+    assert first["direct_project_evidence_hash"] == "DISABLED"
     assert first == second
 
 
