@@ -88,6 +88,15 @@ def test_backend_profile_validation_rejects_disconnected_profile(tmp_path):
         assert any(item["code"] == "DISCONNECTED_PROFILE" for item in response.json()["blocking_errors"])
 
 
+def test_preview_expands_lwpolyline_bulge_to_true_arc(tmp_path):
+    document = ezdxf.new("R2018")
+    document.modelspace().add_lwpolyline([(1.0, 0.0, 0.4142135624), (0.0, 1.0, 0.0)], format="xyb")
+    with TestClient(create_app(tmp_path, auto_run_jobs=False)) as client:
+        imported = client.post("/api/visual-flower/import", files={"file": ("bulge.dxf", _save_bytes(document), "application/dxf")}).json()
+        preview = client.get(f"/api/visual-flower/imports/{imported['import_id']}/drawing-preview").json()
+        assert any(item["type"] == "ARC" for item in preview["primitives"])
+
+
 def test_integrated_import_creates_linked_visual_and_project_workflow(tmp_path):
     with TestClient(create_app(tmp_path, auto_run_jobs=False)) as client:
         response = client.post("/api/rollform-workflows/import", files={"file": ("synthetic.dxf", _dxf_bytes(), "application/dxf")})

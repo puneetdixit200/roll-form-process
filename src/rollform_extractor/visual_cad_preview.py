@@ -8,7 +8,7 @@ from typing import Any
 
 import ezdxf
 
-from rollform_extractor.visual_cad_profile_detection import _entity_geometry
+from rollform_extractor.visual_cad_profile_detection import _bulge_arc, _entity_geometry, _polyline_segments
 
 
 DXF_DRAWING_PREVIEW_VERSION = "visual-dxf-preview-v1"
@@ -78,7 +78,12 @@ def build_drawing_preview(path: Path, import_id: str, source_sha256: str) -> dic
                 item.update({"center": [geometry["center"]["x"], geometry["center"]["y"]], "radius": geometry["radius"], "clockwise": geometry["clockwise"]})
             primitives.append(item)
         elif geometry and geometry["type"] == "POLYLINE":
-            primitives.append({"primitive_id": primitive_id, "source_handle": geometry["handle"], "layer": layer, "type": "POLYLINE", "points": [list(item) for item in geometry["points"]], "bulges": geometry.get("bulges", []), "closed": geometry.get("closed", False)})
+            for segment_index, (start, end, bulge) in enumerate(_polyline_segments(geometry, False), start=1):
+                if abs(bulge) > 1e-12:
+                    arc = _bulge_arc(start, end, bulge)
+                    primitives.append({"primitive_id": f"{primitive_id}-segment-{segment_index:04d}", "source_handle": geometry["handle"], "layer": layer, "type": "ARC", "start": list(start), "end": list(end), "center": [arc["center"]["x"], arc["center"]["y"]], "radius": arc["radius"], "clockwise": arc["clockwise"]})
+                else:
+                    primitives.append({"primitive_id": f"{primitive_id}-segment-{segment_index:04d}", "source_handle": geometry["handle"], "layer": layer, "type": "LINE", "start": list(start), "end": list(end)})
         elif kind == "CIRCLE":
             primitives.append({"primitive_id": primitive_id, "source_handle": str(getattr(entity.dxf, "handle", "")), "layer": layer, "type": "CIRCLE", "center": _point(entity.dxf.center), "radius": round(float(entity.dxf.radius), 8)})
         elif kind == "ELLIPSE":
