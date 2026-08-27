@@ -183,7 +183,7 @@ def _inventory_snapshot(inventory_engine) -> tuple[dict[str, list[dict[str, Any]
     return inventory_assets, sha256(payload.encode()).hexdigest()
 
 
-def _workflow_project_database(target_id: str) -> tuple[str, Path] | None:
+def _workflow_project_database(target_id: str) -> tuple[str, Path, str] | None:
     """Resolve an integrated visual target back to its general CAD project DB."""
     root = Path(os.environ.get("ROLLFORM_WEB_WORKSPACE", Path.cwd() / "web-workspace"))
     workflows = root / "rollform_workflows"
@@ -201,12 +201,12 @@ def _workflow_project_database(target_id: str) -> tuple[str, Path] | None:
         try:
             record = json.loads(record_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            return project_id, Path()
+            return project_id, Path(), str(workflow.get("source_sha256") or "")
         project_path_value = (record.get("summary") or {}).get("project_path")
         if not project_path_value:
-            return project_id, Path()
+            return project_id, Path(), str(workflow.get("source_sha256") or "")
         project_database = Path(str(project_path_value)) / "project.sqlite"
-        return project_id, project_database
+        return project_id, project_database, str(workflow.get("source_sha256") or "")
     return None
 
 
@@ -225,13 +225,20 @@ def _direct_project_roller_evidence(
     resolved = _workflow_project_database(target_id)
     if resolved is None:
         return [], "NOT_INTEGRATED_WORKFLOW"
-    external_project_id, database_path = resolved
+    external_project_id, database_path, source_sha256 = resolved
     if not database_path or not database_path.is_file():
         return [], "PROJECT_ANALYSIS_PENDING"
 
     project_engine = create_project_database(database_path)
     with Session(project_engine) as session:
-        project = session.scalar(select(Project).where(Project.drawing_id == external_project_id))
+        project = session.scalar(select(Project).where(Project.source_sha256 == source_sha256))
+        if project is None:
+            # Controlled compatibility fallback for old project databases. A
+            # project-local database normally contains exactly one Project row;
+            # never use the workspace directory name as its identity.
+            projects = session.scalars(select(Project)).all()
+            if len(projects) == 1:
+                project = projects[0]
         if project is None:
             return [], "PROJECT_ANALYSIS_PENDING"
         numeric_project_id = project.id

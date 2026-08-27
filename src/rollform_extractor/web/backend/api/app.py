@@ -246,13 +246,19 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         content = await read_upload(file)
         try:
             visual = create_visual_import(root, file.filename or "profile.dxf", content)
+            if visual.get("status") == "FAILED":
+                raise HTTPException(status_code=422, detail={"code": visual.get("error_code", "CAD_IMPORT_FAILED"), "message": visual.get("error", "CAD import failed")})
             project = store.create_upload(file.filename or "drawing.dxf", content)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail={"code": "INVALID_CAD_FILE", "message": str(exc)}) from exc
         if auto_run_jobs:
             background.add_task(service.run_job, project.project_id, project.job_id)
         workflow = create_workflow(root, source_sha256=str(visual["source_sha256"]), visual_import_id=str(visual["import_id"]), project_id=project.project_id, analysis_job_id=project.job_id, profile_count=int(visual["profile_count"]))
-        return workflow | {"status": "PROFILE_SELECTION_READY" if workflow["profile_count"] else "NO_PROFILE_FOUND"}
+        return workflow | {
+            "status": "PROFILE_SELECTION_READY" if workflow["profile_count"] else "NO_PROFILE_FOUND",
+            "import_id": workflow["visual_import_id"],
+            "source_sha256": visual["source_sha256"],
+        }
 
     @app.get("/api/rollform-workflows/{workflow_id}")
     def integrated_rollform_status(workflow_id: str) -> dict[str, Any]:
@@ -372,7 +378,10 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
 
     @app.post("/api/visual-flower/validate")
     def visual_validate_profile(payload: dict[str, Any]) -> dict[str, Any]:
-        return validate_visual_profile(payload.get("profile") or payload)
+        try:
+            return validate_visual_profile(payload.get("profile") or payload)
+        except (TypeError, ValueError, KeyError) as exc:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_PROFILE", "message": "profile validation input is malformed"}) from exc
 
     @app.get("/api/visual-flower/targets")
     def visual_list_targets() -> list[dict[str, Any]]:
@@ -464,7 +473,7 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     @app.post("/api/visual-flower/candidates/{candidate_id}/passes/{pass_id}/roller-evidence/review")
     def visual_pass_roller_evidence_review(candidate_id: str, pass_id: str, body: dict[str, Any]) -> dict[str, Any]:
         try:
-            return create_roller_evidence_review(visual_engine(), candidate_id, pass_id, str(body.get("role") or "UNKNOWN"), str(body.get("decision") or ""), str(body.get("reviewer") or ""), str(body.get("notes") or ""))
+            return create_roller_evidence_review(visual_engine(), candidate_id, pass_id, str(body.get("role") or "UNKNOWN"), str(body.get("decision") or ""), str(body.get("reviewer") or ""), str(body.get("notes") or ""), selected_design_id=body.get("selected_design_id"), selected_revision_id=body.get("selected_revision_id"))
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ValueError as exc:

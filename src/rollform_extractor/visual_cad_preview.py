@@ -35,6 +35,26 @@ def _arc_points(center: list[float], radius: float, start: list[float], end: lis
     return [[round(center[0] + radius * math.cos(angle), 8), round(center[1] + radius * math.sin(angle), 8)] for angle in values]
 
 
+def _ellipse_points(entity: Any) -> list[list[float]]:
+    center = _point(entity.dxf.center)
+    major = _point(entity.dxf.major_axis)
+    major_radius = math.hypot(major[0], major[1])
+    minor_radius = abs(major_radius * float(entity.dxf.ratio))
+    rotation = math.atan2(major[1], major[0])
+    start = float(getattr(entity.dxf, "start_param", 0.0))
+    end = float(getattr(entity.dxf, "end_param", 2 * math.pi))
+    if abs(end - start) <= 1e-12:
+        end = start + 2 * math.pi
+    count = max(32, min(512, int(abs(end - start) * 32 / math.pi) + 1))
+    points: list[list[float]] = []
+    for index in range(count):
+        parameter = start + (end - start) * index / (count - 1)
+        local_x = major_radius * math.cos(parameter)
+        local_y = minor_radius * math.sin(parameter)
+        points.append([round(center[0] + local_x * math.cos(rotation) - local_y * math.sin(rotation), 8), round(center[1] + local_x * math.sin(rotation) + local_y * math.cos(rotation), 8)])
+    return points
+
+
 def _bounds(primitives: list[dict[str, Any]]) -> dict[str, float]:
     points: list[list[float]] = []
     for item in primitives:
@@ -47,7 +67,7 @@ def _bounds(primitives: list[dict[str, Any]]) -> dict[str, float]:
             r = item["radius"]
             points.extend([[x - r, y - r], [x + r, y + r]])
         elif item["type"] == "ELLIPSE":
-            points.extend(item["bounds"])
+            points.extend(item["points"])
         elif item["type"] == "POLYLINE":
             points.extend(item["points"])
     if not points:
@@ -87,11 +107,9 @@ def build_drawing_preview(path: Path, import_id: str, source_sha256: str) -> dic
         elif kind == "CIRCLE":
             primitives.append({"primitive_id": primitive_id, "source_handle": str(getattr(entity.dxf, "handle", "")), "layer": layer, "type": "CIRCLE", "center": _point(entity.dxf.center), "radius": round(float(entity.dxf.radius), 8)})
         elif kind == "ELLIPSE":
-            center = _point(entity.dxf.center)
-            major = _point(entity.dxf.major_axis)
-            rx = math.hypot(major[0], major[1])
-            ry = abs(rx * float(entity.dxf.ratio))
-            primitives.append({"primitive_id": primitive_id, "source_handle": str(getattr(entity.dxf, "handle", "")), "layer": layer, "type": "ELLIPSE", "center": center, "radius_x": rx, "radius_y": ry, "bounds": [[center[0] - rx, center[1] - ry], [center[0] + rx, center[1] + ry]]})
+            points = _ellipse_points(entity)
+            closed = len(points) > 2 and math.dist(points[0], points[-1]) <= 1e-8
+            primitives.append({"primitive_id": primitive_id, "source_handle": str(getattr(entity.dxf, "handle", "")), "layer": layer, "type": "POLYLINE", "points": points, "closed": closed, "approximation": True, "source_entity_type": "ELLIPSE"})
         else:
             unsupported[kind] = unsupported.get(kind, 0) + 1
     primitives.sort(key=lambda item: item["primitive_id"])
