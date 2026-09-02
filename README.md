@@ -1,223 +1,198 @@
-# Rollform Extractor
+# RollForm Intelligence
 
-Offline DWG/DXF extraction for roll-forming drawings. The tool stages source
-CAD files without modifying them, converts DWG to DXF when a converter is
-available, inspects CAD structure, extracts stations/profiles/rollers, writes
-review artifacts, and validates the resulting project tree.
+A visual engineering prototype for **DWG/DXF roll-forming analysis, flower-sequence generation, historical similarity search, and roller-design evidence traceability**.
 
-## Install
+The project combines deterministic CAD extraction, a learned visual sequence model with an out-of-distribution fallback, historical pass matching, explainable roller-design recognition, and an engineer-facing React/FastAPI application.
 
-Use Python 3.11 or newer.
+> **Engineering boundary:** this system provides visual geometry and historical design evidence. It does **not** approve manufacturing feasibility, automatically select a physical production roller, or replace engineering review.
 
-```bash
-python -m pip install -e .
-python -m rollform_extractor --help
-rollform-extractor --help
-```
+## Why this project exists
 
-Dependencies are declared in `pyproject.toml` and mirrored in
-`requirements.txt` for simple environments.
+Roll-forming engineers often need to move between CAD drawings, historical flower sequences, roller records, and review notes before deciding which previous tooling evidence is relevant to a new profile. That process is slow when the evidence is scattered.
 
-## CAD Input
-
-DXF files run directly and are copied into the project staging folder before
-reading. DWG files require a converter:
-
-1. ODA File Converter: discovered as `ODAFileConverter`,
-   `ODAFileConverter.exe`, or `odafileconverter`.
-2. LibreDWG: discovered as `dwg2dxf`.
-
-ODA conversion is attempted as ASCII DXF `AC1027`, then `AC1021` after a
-recorded first failure. If no converter is found, export the source drawing as
-AutoCAD 2013 or AutoCAD 2007 ASCII DXF and run the extractor on that DXF file.
-
-The extractor never edits the source DWG/DXF. Validation compares the source
-hash in `manifest.json` against the current source file.
-
-## Configuration
-
-Defaults live in `config/default.yaml` and are also packaged under
-`rollform_extractor/config/default.yaml`. Load-time overrides reject unknown
-keys. Stage hashes are derived from only the configuration sections used by
-that stage, so unrelated tolerance edits do not invalidate every stage.
-The `features` section controls Phase 15 schema version, material sample count,
-curvature and symmetry tolerances, mirror canonicalization, and vector rounding.
-The `roller_recognition` section controls Phase 17 candidate-pool size,
-component weights, dimensional tolerances, evidence thresholds, and abstention
-margin. Recognition is explicit CLI/API work and does not run during normal
-extraction.
-
-## Commands
-
-```bash
-rollform-extractor inspect SOURCE
-rollform-extractor extract SOURCE OUTPUT_ROOT
-rollform-extractor review PROJECT_DIR
-rollform-extractor reprocess PROJECT_DIR
-rollform-extractor validate PROJECT_DIR
-rollform-extractor batch-extract SOURCE_ROOT OUTPUT_ROOT [--resume] [--skip-unchanged]
-rollform-extractor batch-validate OUTPUT_ROOT
-rollform-extractor batch-report OUTPUT_ROOT
-rollform-extractor import-metadata METADATA.csv [--master master.sqlite]
-rollform-extractor roller-inventory-template TEMPLATE.csv
-rollform-extractor roller-inventory-validate INVENTORY.csv [--database inventory.sqlite]
-rollform-extractor roller-inventory-import INVENTORY.csv [--database inventory.sqlite]
-rollform-extractor roller-inventory-export OUTPUT_DIR [--database inventory.sqlite]
-rollform-extractor roller-inventory-stats [--database inventory.sqlite]
-rollform-extractor roller-recognition-run PROJECT_DIR --inventory DATABASE --output OUTPUT_DIR
-rollform-extractor roller-recognition-show RUN_ID --database DATABASE
-rollform-extractor roller-recognition-review CANDIDATE_ID --decision DECISION --reviewer NAME --database DATABASE
-rollform-extractor roller-recognition-export RUN_ID OUTPUT_DIR --database DATABASE
-```
-
-`inspect` prints JSON-safe drawing metadata. `extract` writes a project under
-`OUTPUT_ROOT/SOURCE_STEM`. `review` prints the review queue path when one
-exists. `reprocess` reruns extraction from the original source recorded in
-`project.json`. `validate` checks manifests, hashes, exported DXFs, SQLite
-foreign keys, units, and station folders. Batch commands discover `*.dxf` and
-`*.dwg`, maintain `batch_ledger.json`, aggregate a master database, and write
-an HTML dashboard.
-
-## Output Tree
-
-An extracted project contains:
+This project puts those steps into one traceable workflow:
 
 ```text
-PROJECT/
-  manifest.json
-  project.json
-  project.sqlite
-  report.html
-  previews/classification.png
-  review/review_queue.json
-  review/manual_overrides.json
-  summaries/stations.csv
-  composite_flowers/flower/passes/pass_XX/pass_features.json
-  composite_flowers/flower/passes/pass_XX/pass_feature_vector.json
-  composite_flowers/flower/passes/pass_XX/segments.csv
-  composite_flowers/flower/passes/pass_XX/bend_features.csv
-  composite_flowers/flower/summaries/pass_features.csv
-  stations/station_XX/profile.dxf
-  stations/station_XX/rollers.csv
-  stations/station_XX/top.dxf
-  stations/station_XX/bottom.dxf
+Upload DWG/DXF
+      ↓
+Inspect drawing and select the final target profile
+      ↓
+Validate target geometry
+      ↓
+Generate candidate flower sequences
+      ↓
+Compare every generated station with the top historical matches
+      ↓
+Rank roller-design evidence by role and provenance
+      ↓
+Open the exact historical source flower/pass behind the evidence
+      ↓
+Engineer accepts, rejects, or flags the evidence for review
 ```
 
-Only files that exist for the detected content are written. The manifest stores
-file hashes and exported DXF paths.
+## Key capabilities
 
-## Databases
+### CAD ingestion and visual profile selection
 
-Each project has `project.sqlite`, the audit record for one drawing. It stores
-projects, extraction runs, CAD entities, stations, profiles, roller
-occurrences, warnings, stage results, and catalog-related tables.
+- Accepts DXF directly and supports DWG when an external converter is available.
+- Stages source files without modifying the original CAD.
+- Renders a safe vector drawing preview in the browser.
+- Detects connected profile candidates from CAD geometry.
+- Supports line, polyline, arc and LWPOLYLINE-oriented workflows, including arc-aware DXF handling.
+- Lets the engineer inspect, pan, zoom, fit, select, edit and validate the target profile before generation.
 
-Batch output has `master/master_rollform.sqlite`, built from successful project
-databases. The master separates drawing roller occurrences from physical
-catalog identity. Automatic physical roller matching should only be trusted
-after station and profile extraction pass the project validation gates.
+### Flower-sequence generation
 
-Phase 15 pass features are stored in `pass_feature_sets` and `pass_segments`,
-with versioned vectors, missing masks, quality flags, provenance, and SHA-256
-fingerprints. See `docs/pass-feature-schema-v1.md`. They are candidate
-engineering descriptors, not production-approved manufacturability results.
+- Generates configurable multi-stage visual flower candidates from a validated final profile.
+- Uses deterministic geometry as a safe fallback.
+- Supports the private CLRSG learned residual model when its readiness/OOD checks pass.
+- Enforces the existing constant-centerline-length constraint on generated open profiles.
+- Keeps model provenance separate from the active historical retrieval dataset.
 
-Phase 16 adds an additive physical roller inventory knowledge base to the same
-SQLite schema. It distinguishes roller designs, physical assets, geometry
-revisions, drawing occurrences, historical usage, and assembly/tooling sets.
-CSV/XLSX imports are hashed, staged, provenance-preserving, unit-safe, and
-reviewable. Unknown units cannot support verified dimensional claims. Phase 17
-recognition, similarity claims, tooling recommendations, and sequence generation
-remain disabled. See `docs/specs/phase-16-roller-inventory.md`.
+### Historical matching
 
-Phase 17 adds deterministic, explainable candidate design recognition. It
-prepares drawing occurrences, filters eligible inventory revisions, scores
-available evidence, abstains on weak or ambiguous evidence, persists rankings,
-and supports append-only engineer review. It never assigns a physical asset or
-recommends tooling. See `docs/specs/phase-17-roller-recognition.md`.
+- Compares every generated pass against the historical flower dataset.
+- Keeps the top historical matches with explainable score components and provenance.
+- Stores the exact source flower/pass used for each match.
+- Uses safe derived historical geometry rather than exposing original private CAD.
 
-## Review Overrides
+### Roller-design evidence
 
-`review/review_queue.json` records warnings and unresolved items. Manual edits
-belong in `review/manual_overrides.json` using the same schema:
+- Reuses the existing deterministic roller-recognition and historical-usage systems.
+- Ranks **roller designs**, not physical roller assets.
+- Preserves multiple supporting historical origins for the same design.
+- Reports support such as `2 of top 3 historical matches` without converting it into a fake probability.
+- Distinguishes direct uploaded-project evidence from historical-match evidence.
+- Shows inventory assets separately as informational enrichment only.
 
-```json
-{
-  "schema_version": 1,
-  "source_hash": "...",
-  "configuration_snapshot": {},
-  "stations": [],
-  "profile_handles": {},
-  "roller_handles": {}
-}
+### Historical source traceability
+
+The engineer can navigate from a generated station back to the exact historical evidence:
+
+```text
+Generated station
+  ├── Top match #1 → historical flower/pass
+  ├── Top match #2 → historical flower/pass
+  └── Top match #3 → historical flower/pass
+          ↓
+     Roller design evidence
+          ↓
+     Historical Source Flower Explorer
+          ↓
+     Exact source pass highlighted
 ```
 
-The CLI review workflow is JSON/CSV/PNG/HTML. A browser editor is intentionally
-deferred and must write the same override schema.
+The source explorer supports pass navigation and shows reviewed roller-role/design evidence for the selected historical pass.
 
-## Metadata Import
+### Review and auditability
 
-`import-metadata` accepts CSV or XLSX rows keyed by `drawing_id`. Each extra
-column is stored as project metadata in the master database. Missing drawing
-IDs are reported as unmatched; conflicting existing values are reported as
-conflicts.
+- Engineer review is append-only.
+- Decisions support accept, reject and needs-review states.
+- Review records preserve selected roller design/revision, evidence-bundle hash, and historical source provenance when available.
+- Historical datasets and generated evidence are version/hash aware for reproducibility.
 
-Example CSV:
+## Architecture
 
-```csv
-drawing_id,material_grade,customer
-D0064-D0065-FlowerSequence,CR4,Example Customer
+```text
+                           ┌─────────────────────────┐
+                           │      React / Vite       │
+                           │  Visual Engineering UI  │
+                           └────────────┬────────────┘
+                                        │ HTTP / JSON
+                           ┌────────────▼────────────┐
+                           │       FastAPI API       │
+                           │ auth · jobs · exports   │
+                           └───────┬────────┬────────┘
+                                   │        │
+                  ┌────────────────┘        └─────────────────┐
+                  │                                           │
+       ┌──────────▼──────────┐                    ┌───────────▼───────────┐
+       │ CAD / Flower Engine │                    │ Roller Evidence Engine │
+       │ ezdxf · geometry    │                    │ recognition · history  │
+       │ CLRSG · OOD fallback│                    │ provenance · review    │
+       └──────────┬──────────┘                    └───────────┬───────────┘
+                  │                                           │
+       ┌──────────▼──────────┐                    ┌───────────▼───────────┐
+       │ Historical Dataset  │                    │ SQLite / SQLAlchemy   │
+       │ versioned + hashed  │                    │ projects · inventory  │
+       └─────────────────────┘                    └───────────────────────┘
 ```
 
-## Resumability
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the detailed component and data-flow breakdown.
 
-`batch-extract --resume --skip-unchanged` skips a source only when the previous
-ledger entry succeeded, the source hash and configuration hash are unchanged,
-and `validate` still passes for that project. Removed successful sources are
-marked stale in the ledger.
+## Technology stack
 
-## Benchmarks
+| Area | Technologies |
+| --- | --- |
+| Backend | Python 3.11+, FastAPI, SQLAlchemy |
+| CAD / geometry | ezdxf, NumPy, SciPy, Shapely, NetworkX |
+| Frontend | React, TypeScript, Vite |
+| Data | SQLite, JSON, CSV, versioned evidence artifacts |
+| Learned generation | CLRSG prototype: PCA-style latent representation + ridge residual ensemble, guarded by readiness/OOD logic |
+| Deployment | Docker, Railway |
+| Quality | Pytest, frontend test runner, GitHub Actions, Docker/Railway smoke tests |
 
-Gold-standard benchmark fixtures are described in `benchmarks/README.md` and
-validated against `benchmarks/schema.json`. Use benchmark output as an accuracy
-report; provisional dimensional limits require roll-forming engineer approval
-before becoming release gates.
+## Repository structure
 
-## Offline Web Application
+```text
+src/rollform_extractor/
+  flower_generation.py              # deterministic flower generation
+  visual_flower_engine.py           # visual candidate construction and matching
+  flower_roller_evidence.py         # station-by-station roller-design evidence
+  historical_source_traceability.py # historical source navigation/provenance
+  roller_recognition.py             # explainable roller-design recognition
+  validated_usage.py                # confirmed historical design usage
+  flower_prototype_dataset.py       # historical flower dataset ingestion/schema
+  flower_dataset_validation.py      # shared dataset validation
+  web/backend/                      # FastAPI application services
 
-The local web app keeps the deterministic Python extraction engine as the source
-of truth. The React frontend calls the FastAPI backend; CAD and geometry
-algorithms are not reimplemented in JavaScript.
+frontend/src/features/visual-flower/
+  VisualFlowerWorkspace.tsx
+  CadDrawingCanvas.tsx
+  HistoricalSourceFlowerExplorer.tsx
 
-Install backend dependencies:
+backend/                             # API entry points
+scripts/                             # synthetic validation / release tooling
+tests/                               # Python regression suite
+frontend/                            # React application
+docs/                                # architecture, specs, reports and resume guide
+```
+
+## Installation
+
+Python 3.11+ is required.
 
 ```bash
-python -m pip install -e .
-python -m pip install fastapi uvicorn python-multipart
+python -m pip install -e ".[backend,test]"
 ```
 
-Install frontend dependencies:
+Frontend:
 
 ```bash
 cd frontend
-npm install
+npm ci
 ```
 
-Start backend:
+## Run locally
+
+Backend:
 
 ```bash
 PYTHONPATH=src uvicorn backend.api.main:app --host 127.0.0.1 --port 8000
 ```
 
-Start frontend:
+Frontend:
 
 ```bash
 cd frontend
 VITE_API_ROOT=http://127.0.0.1:8000 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`. Normal use has no internet dependency after
-dependencies are installed.
+Then open:
+
+```text
+http://127.0.0.1:5173
+```
 
 Docker Compose:
 
@@ -225,74 +200,112 @@ Docker Compose:
 docker compose up --build
 ```
 
-The web workflow accepts one `.dwg` or `.dxf`, copies the original to immutable
-project source storage, starts an asynchronous analysis job, streams job status
-with Server-Sent Events, writes SQLite/project artifacts, and displays the
-generated report data in the frontend.
+## Railway-style production image
 
-The web app exposes feature summaries in report data and a dedicated
-`/api/projects/{project_id}/flowers/{flower_id}/passes/{pass_id}/features` endpoint. The Pass Detail
-screen shows a compact Feature Summary and links to pass-level feature files.
-
-Required web screens are implemented as dashboard sections:
+The repository includes:
 
 ```text
-Dashboard
-New Project / Upload
-Processing Progress
-Project Summary
-Flower Viewer
-Pass Detail
-What Changed
-Bend-Zone Progression
-Warnings
-Engineer Review
-Exports
+Dockerfile.railway
+railway.toml
 ```
 
-Engineer review decisions are exported as versioned
-`manual_review_decisions.json` files and applied through the backend without
-marking unrelated candidate records as confirmed.
+The Railway image serves the built React frontend and FastAPI backend from one service and includes authenticated/runtime smoke coverage in CI.
 
-ZIP export is available from:
+## Useful CLI commands
 
-```text
-GET /api/projects/{project_id}/exports/package.zip
-```
-
-Phase 18 adds engineer-labelled validation and historical design evidence. Use
-the `recognition-dataset-*`, `recognition-label-submit`,
-`recognition-adjudicate`, `recognition-threshold-*`, `usage-promote`, and
-`usage-search` CLI commands against a project SQLite database. Dataset versions
-are locked before promotion; two independent assertions and explicit
-adjudication are required. Confirmed usage records identify reusable designs
-only. They never identify a physical asset or recommend tooling.
-
-The offline evidence report is generated with:
+The project includes a broader extraction/inventory toolchain in addition to the visual app.
 
 ```bash
-python scripts/run_phase18_synthetic.py --output /tmp/phase18-evidence.json
-python scripts/generate_phase18_release_report.py /tmp/phase18-evidence.json \
-  --json docs/reports/phase-18-release-readiness.json \
-  --html docs/reports/phase-18-release-readiness.html
+rollform-extractor inspect SOURCE
+rollform-extractor extract SOURCE OUTPUT_ROOT
+rollform-extractor validate PROJECT_DIR
+rollform-extractor batch-extract SOURCE_ROOT OUTPUT_ROOT --resume --skip-unchanged
+
+rollform-extractor roller-inventory-validate INVENTORY.csv --database inventory.sqlite
+rollform-extractor roller-inventory-import INVENTORY.csv --database inventory.sqlite
+rollform-extractor roller-recognition-run PROJECT_DIR --inventory DATABASE --output OUTPUT_DIR
+
+rollform-extractor flower-prototype-ingest SOURCE_ROOT OUTPUT_ROOT \
+  --manifest FLOWERS.json \
+  --database prototype.sqlite
 ```
 
-Read [the Phase 18 specification](docs/specs/phase-18-validated-usage-search.md)
-and [the release evidence report](docs/reports/phase-18-release-readiness.html)
-before using historical search. Historical association is evidence for review,
-not compatibility, availability, or a tooling recommendation.
+Use `rollform-extractor --help` for the complete command list.
 
-Pilot acceptance for `D0064-D0065-FlowerSequence` currently shows:
+## Historical data and privacy
+
+Private customer CAD, runtime databases, credentials, and private model artifacts are intentionally not committed to this repository.
+
+The hosted/customer-safe application exposes only derived/redacted geometry and evidence identifiers. Historical source navigation uses redacted flower/pass IDs rather than local file paths.
+
+The project also supports public/synthetic fixtures so CI can test the pipeline without private source material.
+
+## Engineering safety model
+
+The distinction below is deliberate:
 
 ```text
-Composite flowers:        1 candidate
-Candidate passes:        12
-Canonical bend zones:     4
-Profile step changes:    11
-Bend change events:      36
-Segment change events:   47
-Confirmed transitions:    0
-Units:                    unconfirmed
-Neutral length error:     0.0 percent for every pass
-Review item:              Pass 03 -> Pass 04 unresolved
+Roller design
+    ≠
+Physical roller asset
+    ≠
+Manufacturing approval
 ```
+
+The system may show:
+
+- best-supported roller-design candidates;
+- confirmed historical design usage;
+- recognition scores and evidence coverage;
+- known inventory assets for a design;
+- exact historical source flower/pass provenance.
+
+It does **not** automatically claim:
+
+- that a generated flower is physically manufacturable;
+- that a roller design is approved for production;
+- that a physical roller asset is compatible or available for use;
+- that springback, force, roll gap, shaft loading or FEA requirements are satisfied.
+
+## Validation and CI
+
+The GitHub Actions quality pipeline runs on `main`, `feature/**`, `fix/**` and `release/**` branches and covers:
+
+- Python compile and Pytest regression suites;
+- deterministic synthetic recognition/validation checks;
+- CLRSG public-fixture/model regressions;
+- React tests and production build;
+- Docker Compose build/smoke;
+- Railway image build/readiness smoke;
+- authenticated Railway-image API smoke.
+
+Run locally:
+
+```bash
+python -m compileall src backend scripts
+pytest -q
+
+cd frontend
+npm test -- --run
+npm run build
+```
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Historical Roller Traceability](docs/HISTORICAL_TRACEABILITY.md)
+- [Resume & Interview Guide](docs/RESUME_GUIDE.md)
+- [Pass Feature Schema](docs/pass-feature-schema-v1.md)
+- [Phase 16 Roller Inventory](docs/specs/phase-16-roller-inventory.md)
+- [Phase 17 Roller Recognition](docs/specs/phase-17-roller-recognition.md)
+- [Phase 18 Validated Usage Search](docs/specs/phase-18-validated-usage-search.md)
+
+## Resume-safe project summary
+
+> **RollForm Intelligence** — Built a full-stack CAD engineering prototype using Python/FastAPI, React/TypeScript, SQLite and ezdxf to import DWG/DXF profiles, generate multi-stage roll-form flower sequences, retrieve similar historical passes, and rank traceable roller-design evidence with engineer review and deterministic fallbacks.
+
+For stronger resume bullets and interview talking points, see [docs/RESUME_GUIDE.md](docs/RESUME_GUIDE.md).
+
+## Status
+
+This repository is an **engineering prototype**, with deterministic fallbacks, explicit evidence provenance and automated regression/deployment checks. Manufacturing approval remains outside the software boundary and requires qualified engineering review.
