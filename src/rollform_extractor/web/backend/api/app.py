@@ -29,7 +29,7 @@ from rollform_extractor.validated_usage import (
     lock_dataset_version, promote_confirmed_usage, search_historical_usage, submit_label_assertion,
     validate_dataset,
 )
-from rollform_extractor.visual_flower_service import create_candidate_review, create_target as create_visual_target, export_candidate as export_visual_candidate, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, historical_pass_preview, list_candidate_reviews, list_targets as list_visual_targets
+from rollform_extractor.visual_flower_service import create_candidate_review, create_target as create_visual_target, export_candidate as export_visual_candidate, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, historical_pass_preview, historical_flowers, historical_flower, historical_pass, list_candidate_reviews, list_targets as list_visual_targets
 from rollform_extractor.visual_profile_schema import VisualProfileError
 from rollform_extractor.clrsg_service import list_models, model_status
 from rollform_extractor.private_clrsg_readiness import doctor_private_model
@@ -37,6 +37,7 @@ from rollform_extractor.visual_flower_import import create_import as create_visu
 from rollform_extractor.visual_profile_validation import validate_visual_profile
 from rollform_extractor.integrated_rollform_workflow import create_workflow, get_workflow, select_profile as select_workflow_profile, select_target as select_workflow_target
 from rollform_extractor.flower_roller_evidence import create_roller_evidence_review
+from rollform_extractor.flower_dataset_validation import validate_flower_prototype_dataset
 from rollform_extractor.web.backend.demo_auth import COOKIE_NAME, enabled as demo_auth_enabled, hash_password, issue_session, login_allowed, record_failed_login, valid_session, verify_password
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -163,7 +164,10 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         if configured_dataset:
             try:
                 payload = json.loads(Path(configured_dataset).read_text(encoding="utf-8"))
-                dataset_ok = len(payload.get("flowers", [])) == 2 and sum(len(item.get("passes", [])) for item in payload.get("flowers", [])) == 31
+                report = validate_flower_prototype_dataset(payload)
+                minimum_flowers = int(os.environ.get("ROLLFORM_MIN_HISTORICAL_FLOWERS", "1"))
+                minimum_passes = int(os.environ.get("ROLLFORM_MIN_HISTORICAL_PASSES", "2"))
+                dataset_ok = report["valid"] and report["flower_count"] >= minimum_flowers and report["pass_count"] >= minimum_passes
             except (OSError, json.JSONDecodeError, TypeError):
                 dataset_ok = False
         checks["private_dataset"] = dataset_ok if require_dataset else True
@@ -202,7 +206,8 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         if not path.is_file() or path.name != "dataset.json":
             raise HTTPException(status_code=404, detail={"code": "DATASET_UNAVAILABLE", "message": "configured prototype dataset is unavailable"})
         payload = json.loads(path.read_text(encoding="utf-8"))
-        return {"available": True, "dataset_hash": payload.get("dataset_hash"), "flower_count": len(payload.get("flowers", [])), "pass_count": sum(len(item.get("passes", [])) for item in payload.get("flowers", [])), "source_classification": payload.get("source_classification"), "private_paths_redacted": True}
+        validation = validate_flower_prototype_dataset(payload)
+        return {"available": True, "dataset_id": payload.get("dataset_id"), "dataset_hash": payload.get("dataset_hash"), "schema_version": payload.get("schema_version"), "algorithm_version": payload.get("algorithm_version"), "flower_count": validation["flower_count"], "pass_count": validation["pass_count"], "roller_station_evidence_count": validation["roller_station_evidence_count"], "flowers": historical_flowers(), "quality_flags": payload.get("quality_flags", []), "validation": validation, "source_classification": payload.get("source_classification"), "private_paths_redacted": True}
 
     @app.get("/api/visual-flower/historical-preview/{source_flower_id}/{source_pass_id}.png")
     def visual_historical_preview(source_flower_id: str, source_pass_id: str) -> Response:
@@ -210,6 +215,25 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         if preview is None:
             raise HTTPException(status_code=404, detail="historical pass preview not found")
         return Response(content=preview, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+    @app.get("/api/visual-flower/historical/flowers")
+    def visual_historical_flowers() -> dict[str, Any]:
+        dataset = json.loads(Path(os.environ["ROLLFORM_FLOWER_PROTOTYPE_DATASET"]).expanduser().resolve().read_text(encoding="utf-8")) if os.environ.get("ROLLFORM_FLOWER_PROTOTYPE_DATASET") else {"dataset_hash": "UNCONFIGURED"}
+        return {"schema_version": 1, "dataset_hash": dataset.get("dataset_hash"), "flowers": historical_flowers(), "private_paths_redacted": True}
+
+    @app.get("/api/visual-flower/historical/flowers/{flower_id}")
+    def visual_historical_flower(flower_id: str) -> dict[str, Any]:
+        result = historical_flower(flower_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="historical flower not found")
+        return result
+
+    @app.get("/api/visual-flower/historical/flowers/{flower_id}/passes/{pass_id}")
+    def visual_historical_pass(flower_id: str, pass_id: str) -> dict[str, Any]:
+        result = historical_pass(flower_id, pass_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="historical pass not found")
+        return result
 
     @app.get("/api/visual-flower/model/status")
     def visual_model_status() -> dict[str, Any]:
@@ -473,7 +497,7 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     @app.post("/api/visual-flower/candidates/{candidate_id}/passes/{pass_id}/roller-evidence/review")
     def visual_pass_roller_evidence_review(candidate_id: str, pass_id: str, body: dict[str, Any]) -> dict[str, Any]:
         try:
-            return create_roller_evidence_review(visual_engine(), candidate_id, pass_id, str(body.get("role") or "UNKNOWN"), str(body.get("decision") or ""), str(body.get("reviewer") or ""), str(body.get("notes") or ""), selected_design_id=body.get("selected_design_id"), selected_revision_id=body.get("selected_revision_id"))
+            return create_roller_evidence_review(visual_engine(), candidate_id, pass_id, str(body.get("role") or "UNKNOWN"), str(body.get("decision") or ""), str(body.get("reviewer") or ""), str(body.get("notes") or ""), selected_design_id=body.get("selected_design_id"), selected_revision_id=body.get("selected_revision_id"), selected_source_reference_id=body.get("selected_source_reference_id"))
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ValueError as exc:

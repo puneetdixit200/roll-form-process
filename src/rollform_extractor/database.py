@@ -1098,6 +1098,21 @@ class HistoricalPassTransitionRow(Base):
     transition_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
+class HistoricalRollerStationEvidenceRow(Base):
+    """Optional station-level design evidence for the v2 flower dataset."""
+    __tablename__ = "historical_roller_station_evidence"
+    __table_args__ = (UniqueConstraint("dataset_id", "flower_id", "pass_id", "role", "design_id", "geometry_revision_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    flower_id: Mapped[str] = mapped_column(String)
+    pass_id: Mapped[str] = mapped_column(String)
+    role: Mapped[str] = mapped_column(String)
+    design_id: Mapped[str] = mapped_column(String)
+    geometry_revision_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    evidence_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
 class HistoricalBendProgressionRow(Base):
     __tablename__ = "historical_bend_progressions"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -1239,6 +1254,16 @@ def _upgrade_schema(engine: Engine) -> None:
             for name, sql_type in composite_pass_columns.items():
                 if name not in existing:
                     connection.exec_driver_sql(f"ALTER TABLE composite_flower_passes ADD COLUMN {name} {sql_type}")
+        if "visual_flower_roller_evidence_reviews" in table_names:
+            existing = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(visual_flower_roller_evidence_reviews)")}
+            for name, sql_type in {
+                "selected_source_reference_id": "VARCHAR",
+                "selected_source_flower_id": "VARCHAR",
+                "selected_source_pass_id": "VARCHAR",
+                "selected_source_match_rank": "INTEGER",
+            }.items():
+                if name not in existing:
+                    connection.exec_driver_sql(f"ALTER TABLE visual_flower_roller_evidence_reviews ADD COLUMN {name} {sql_type}")
     _migrate_legacy_roller_catalog(engine)
 
 
@@ -1923,6 +1948,10 @@ class VisualFlowerRollerEvidenceReviewRow(Base):
     reviewer: Mapped[str] = mapped_column(String)
     notes: Mapped[str] = mapped_column(String, default="")
     evidence_bundle_hash: Mapped[str | None] = mapped_column(String)
+    selected_source_reference_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    selected_source_flower_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    selected_source_pass_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    selected_source_match_rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 

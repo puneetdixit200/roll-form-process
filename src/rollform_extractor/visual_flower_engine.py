@@ -129,11 +129,11 @@ def generate_visual_candidates(
         "station_counts": counts,
         "candidate_count": len(candidates),
         "candidates": candidates,
-        "warnings": [
-            "VISUAL_ONLY_NOT_MANUFACTURING_VALIDATION",
-            "HISTORICAL_DATASET_CONTAINS_TWO_PRIVATE_FLOWERS",
-            "CENTERLINE_STRIP_LENGTH_CONSTRAINED",
-        ],
+        "historical_dataset": {
+            "flower_count": len(historical_flowers),
+            "pass_count": sum(len(item.get("passes", [])) for item in historical_flowers),
+        },
+        "warnings": ["VISUAL_ONLY_NOT_MANUFACTURING_VALIDATION", "CENTERLINE_STRIP_LENGTH_CONSTRAINED"],
     }
 
 

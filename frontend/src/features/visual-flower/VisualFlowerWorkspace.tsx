@@ -18,6 +18,7 @@ import {
 } from "./api";
 import { exampleProfile, ProfileSketcher } from "./ProfileSketcher";
 import { CadDrawingCanvas } from "./CadDrawingCanvas";
+import { HistoricalSourceFlowerExplorer } from "./HistoricalSourceFlowerExplorer";
 import type { CadDrawingPreview, VisualCandidate, VisualProfile, VisualRun } from "./types";
 
 type ImportedProfile = {
@@ -60,7 +61,8 @@ export default function VisualFlowerWorkspace() {
   // The bundled public example is known-valid, so the demo can be generated
   // immediately. Any edit, import, or JSON load resets this gate below.
   const [validated, setValidated] = useState(true);
-  const [validatedProfileHash, setValidatedProfileHash] = useState<string | null>(stableJson(exampleProfile()));
+  const [validatedProfileSnapshot, setValidatedProfileSnapshot] = useState<string | null>(stableJson(exampleProfile()));
+  const [backendValidationHash, setBackendValidationHash] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<{ valid: boolean; profile_hash: string; blocking_errors: Array<{ code: string; message: string }>; warnings: string[]; checks: Record<string, boolean> } | null>(null);
   const [targetSource, setTargetSource] = useState<"DEMO" | "MANUAL" | "JSON" | "CAD">("DEMO");
   const [guided, setGuided] = useState(false);
@@ -71,6 +73,7 @@ export default function VisualFlowerWorkspace() {
   const [drawingPreview, setDrawingPreview] = useState<CadDrawingPreview | null>(null);
   const [selectedImportedProfileId, setSelectedImportedProfileId] = useState<string | null>(null);
   const [editingImported, setEditingImported] = useState(false);
+  const [historicalSource, setHistoricalSource] = useState<{ flowerId: string; passId: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dataset, setDataset] = useState<
     {
@@ -159,12 +162,13 @@ export default function VisualFlowerWorkspace() {
       const valid = result.valid && validation.valid;
       setValidationResult(result);
       setValidated(valid);
-      setValidatedProfileHash(valid ? (result.profile_hash || hashAtRequest) : null);
+      setValidatedProfileSnapshot(valid ? hashAtRequest : null);
+      setBackendValidationHash(valid ? result.profile_hash : null);
       setMessage(valid ? "Profile validated by backend." : "Profile has blocking geometry issues; generation is disabled.");
-    }).catch(() => { if (profileHashRef.current === hashAtRequest) { setValidated(false); setValidatedProfileHash(null); setMessage("Profile validation failed; generation is disabled."); } });
+    }).catch(() => { if (profileHashRef.current === hashAtRequest) { setValidated(false); setValidatedProfileSnapshot(null); setBackendValidationHash(null); setMessage("Profile validation failed; generation is disabled."); } });
   }
   async function generate() {
-    if (!profile || !validated || validatedProfileHash !== stableJson(profile)) return;
+    if (!profile || !validated || validatedProfileSnapshot !== stableJson(profile)) return;
     try {
       setMessage("Canonicalizing and matching historical passes...");
       const target = workflowId
@@ -218,7 +222,7 @@ export default function VisualFlowerWorkspace() {
     }
     file.text().then((text) => {
       try {
-        setTargetSource("JSON"); setImportId(null); setWorkflowId(null); setDrawingPreview(null); setImportProfiles([]); setSelectedImportedProfileId(null); setEditingImported(false); setRun(null); setProfile(JSON.parse(text) as VisualProfile); setValidated(false); setValidatedProfileHash(null); setValidationResult(null);
+        setTargetSource("JSON"); setImportId(null); setWorkflowId(null); setDrawingPreview(null); setImportProfiles([]); setSelectedImportedProfileId(null); setEditingImported(false); setRun(null); setProfile(JSON.parse(text) as VisualProfile); setValidated(false); setValidatedProfileSnapshot(null); setBackendValidationHash(null); setValidationResult(null);
         setMessage("Target loaded. Validate before generation.");
       } catch {
         setMessage("Target JSON could not be read.");
@@ -229,7 +233,9 @@ export default function VisualFlowerWorkspace() {
     const file = event.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    setTargetSource("CAD"); setImportId(null); setWorkflowId(null); setRun(null); setCandidateIndex(0); setPassIndex(0); setValidated(false); setValidatedProfileHash(null); setValidationResult(null); setProfile(null); setImportProfiles([]); setDrawingPreview(null); setSelectedImportedProfileId(null); setEditingImported(false); setMessage("Uploading → converting → parsing → detecting profiles...");
+    const input = event.currentTarget;
+    input.value = "";
+    setTargetSource("CAD"); setImportId(null); setWorkflowId(null); setRun(null); setCandidateIndex(0); setPassIndex(0); setPlaying(false); setValidated(false); setValidatedProfileSnapshot(null); setBackendValidationHash(null); setValidationResult(null); setProfile(null); setImportProfiles([]); setDrawingPreview(null); setSelectedImportedProfileId(null); setEditingImported(false); setMessage("Uploading → converting → parsing → detecting profiles...");
     try {
       const result = await importVisualCad(file);
       const actualImportId = result.visual_import_id || result.import_id;
@@ -259,7 +265,7 @@ export default function VisualFlowerWorkspace() {
       setEditingImported(false);
       setRun(null); setCandidateIndex(0); setPassIndex(0);
       setValidated(false);
-      setValidatedProfileHash(null); setValidationResult(null);
+      setValidatedProfileSnapshot(null); setBackendValidationHash(null); setValidationResult(null);
       setMessage(
         "Imported profile loaded. Review and validate before generation.",
       );
@@ -297,7 +303,7 @@ export default function VisualFlowerWorkspace() {
   }
   function resetDemo() {
     setProfile(exampleProfile());
-    setTargetSource("DEMO"); setImportId(null); setWorkflowId(null); setDrawingPreview(null); setSelectedImportedProfileId(null); setEditingImported(false); setImportProfiles([]); setValidationResult(null); setValidatedProfileHash(stableJson(exampleProfile()));
+    setTargetSource("DEMO"); setImportId(null); setWorkflowId(null); setDrawingPreview(null); setSelectedImportedProfileId(null); setEditingImported(false); setImportProfiles([]); setValidationResult(null); setBackendValidationHash(null); setValidatedProfileSnapshot(stableJson(exampleProfile()));
     setRun(null);
     setCandidateIndex(0);
     setPassIndex(0);
@@ -368,14 +374,14 @@ export default function VisualFlowerWorkspace() {
       <details className="prototype-evidence">
         <summary>Prototype Evidence</summary>
         <div className="metrics">
-          <Metric label="Historical flowers" value="2" />
-          <Metric label="Historical passes" value="31" />
+          <Metric label="Historical flowers" value={dataset?.available ? String(dataset.flower_count) : "Unavailable"} />
+          <Metric label="Historical passes" value={dataset?.available ? String(dataset.pass_count) : "Unavailable"} />
           <Metric label="Held-out improvement" value="73.64%" />
           <Metric label="OOD detection" value="100%" />
           <Metric label="Fallback" value="6.25%" />
         </div>
-        <p>
-          Evidence is redacted and private-source safe. These are
+          <p>
+            Evidence is redacted and private-source safe. These are
           synthetic-derived prototype metrics, not manufacturing accuracy.
           Manufacturing approval remains NOT APPROVED and physical roller
           availability is NOT DETERMINED.
@@ -457,7 +463,7 @@ export default function VisualFlowerWorkspace() {
                 onChange={(next) => {
                   setProfile(next);
                   setValidated(false);
-                  setValidatedProfileHash(null);
+                  setValidatedProfileSnapshot(null); setBackendValidationHash(null);
                   setValidationResult(null);
                   setTargetSource("MANUAL");
                 }}
@@ -465,7 +471,7 @@ export default function VisualFlowerWorkspace() {
           <div className="visual-controls">
             <button disabled={!profile || Boolean(importId && !selectedImportedProfileId)} onClick={() => void validateProfile()}>Validate Profile</button>
             <button onClick={saveTarget}>Save target JSON</button>
-            <fieldset disabled={!validated || validatedProfileHash !== (profile ? stableJson(profile) : null)}><legend>Configure Flower</legend><label>
+            <fieldset disabled={!validated || validatedProfileSnapshot !== (profile ? stableJson(profile) : null)}><legend>Configure Flower</legend><label>
               Station mode{" "}
               <select
                 value={stationMode}
@@ -537,7 +543,7 @@ export default function VisualFlowerWorkspace() {
             </button>
             </fieldset>
           </div>
-          {validationResult && <section aria-label="Backend validation result"><strong>Validation: {validationResult.valid ? "PASS" : "FAILED"}</strong>{validationResult.blocking_errors.map((error) => <div key={error.code}>- {error.code}: {error.message}</div>)}{validationResult.warnings.map((warning) => <div key={warning}>Warning: {warning}</div>)}</section>}
+          {validationResult && <section aria-label="Backend validation result"><strong>Validation: {validationResult.valid ? "PASS" : "FAILED"}</strong>{backendValidationHash && <small> Backend validation hash recorded.</small>}{validationResult.blocking_errors.map((error) => <div key={error.code}>- {error.code}: {error.message}</div>)}{validationResult.warnings.map((warning) => <div key={warning}>Warning: {warning}</div>)}</section>}
           <p>
             {validated
               ? (validation.valid
@@ -780,18 +786,20 @@ export default function VisualFlowerWorkspace() {
                         blue dashed = historical match
                       </span>.
                     </p>
-                    <MatchDetails item={currentPass} />
+                    <MatchDetails item={currentPass} onOpenSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId })} />
+                    {historicalSource && <HistoricalSourceFlowerExplorer flowerId={historicalSource.flowerId} passId={historicalSource.passId} generatedStation={currentPass?.order ?? 0} onBack={() => setHistoricalSource(null)} />}
                     <RollerEvidenceDetails
                       candidateId={candidate.candidate_id}
                       station={candidate.roller_evidence?.stations.find((item) => item.pass_id === currentPass?.pass_id)}
                       reviewer={reviewer}
-                      onReview={async (role, decision, selectedDesignId, selectedRevisionId) => {
+                      onOpenHistoricalSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId })}
+                      onReview={async (role, decision, selectedDesignId, selectedRevisionId, selectedSourceReferenceId) => {
                         if (!currentPass || !reviewer.trim()) {
                           setMessage("Enter a reviewer name before reviewing roller evidence.");
                           return;
                         }
                         try {
-                          await reviewRollerEvidence(candidate.candidate_id, currentPass.pass_id, { role, decision, reviewer, selected_design_id: selectedDesignId, selected_revision_id: selectedRevisionId });
+                          await reviewRollerEvidence(candidate.candidate_id, currentPass.pass_id, { role, decision, reviewer, selected_design_id: selectedDesignId, selected_revision_id: selectedRevisionId, selected_source_reference_id: selectedSourceReferenceId });
                         } catch (error) {
                           setMessage(error instanceof Error ? error.message : "Roller evidence review failed.");
                           return;
@@ -811,7 +819,7 @@ export default function VisualFlowerWorkspace() {
   );
 }
 
-function MatchDetails({ item }: { item: any }) {
+function MatchDetails({ item, onOpenSource }: { item: any; onOpenSource: (flowerId: string, passId: string) => void }) {
   const matches = item?.historical_match?.top_matches ?? [];
   return (
     <details className="match-details">
@@ -852,6 +860,7 @@ function MatchDetails({ item }: { item: any }) {
               3,
             ) ?? "n/a"}
           </p>
+          <button type="button" onClick={() => onOpenSource(match.source_flower_id, match.source_pass_id)}>View historical source sequence</button>
             </div>
           </div>
         </div>
@@ -860,7 +869,14 @@ function MatchDetails({ item }: { item: any }) {
   );
 }
 
-function RollerEvidenceDetails({ candidateId, station, reviewer, onReview }: { candidateId: string; station: any; reviewer: string; onReview: (role: string, decision: string, designId?: string, revisionId?: string | null) => Promise<void> }) {
+function RollerEvidenceDetails({ candidateId, station, reviewer, onReview, onOpenHistoricalSource }: { candidateId: string; station: any; reviewer: string; onReview: (role: string, decision: string, designId?: string, revisionId?: string | null, sourceReferenceId?: string | null) => Promise<void>; onOpenHistoricalSource: (flowerId: string, passId: string) => void }) {
+  const [selectedOrigins, setSelectedOrigins] = useState<Record<string, string>>({});
+  useEffect(() => {
+    setSelectedOrigins((current) => {
+      const prefix = `${candidateId}|${station?.pass_id ?? ""}|`;
+      return Object.fromEntries(Object.entries(current).filter(([key]) => key.startsWith(prefix)));
+    });
+  }, [candidateId, station?.pass_id]);
   return (
     <section className="roller-evidence" aria-label={`Roller design evidence for ${candidateId}`}>
       <h3>Roller design evidence</h3>
@@ -875,8 +891,26 @@ function RollerEvidenceDetails({ candidateId, station, reviewer, onReview }: { c
               {item.rank === 1 ? "Best-supported design candidate" : `Alternative design candidate #${item.rank}`}: <strong>{item.design_id}</strong>
               {item.geometry_revision_id ? ` / ${item.geometry_revision_id}` : ""} · {item.evidence_tier}
               {item.recognition_score != null ? ` · recognition ${(item.recognition_score * 100).toFixed(1)}%` : ""}
+              {item.top3_support_count != null ? ` · ${item.top3_support_count} of top 3 historical matches` : ""}
               {item.known_asset_count != null ? ` · known assets ${item.known_asset_count} (informational)` : ""}
-              <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "ACCEPT_DESIGN_EVIDENCE", item.design_id, item.geometry_revision_id)}>Accept evidence</button>
+              {(() => {
+                const key = `${candidateId}|${station?.pass_id ?? ""}|${role.role}|${item.design_id}|${item.geometry_revision_id ?? ""}`;
+                const origins = item.supporting_origins ?? [];
+                const originIds = new Set(origins.map((origin: any) => origin.source_reference_id).filter(Boolean));
+                const stored = selectedOrigins[key];
+                const selected = stored && originIds.has(stored) ? stored : item.best_support_origin?.source_reference_id ?? "";
+                return <>
+                  <div className="evidence-origins">{origins.map((origin: any) => origin.origin_kind === "HISTORICAL_MATCH" && origin.source_flower_id && origin.source_pass_id ? <button key={origin.source_reference_id} type="button" onClick={() => onOpenHistoricalSource(origin.source_flower_id, origin.source_pass_id)}>View source flower ({origin.source_flower_id} · {origin.source_pass_id})</button> : <span key={`${origin.source_project_id}-${origin.source_station_id}`}>Direct uploaded-project evidence</span>)}</div>
+                  {origins.length > 0 && <label>Selected evidence source
+                    <select aria-label={`Selected evidence source for ${role.role} ${item.design_id}`} value={selected} onChange={(event) => setSelectedOrigins((current) => ({ ...current, [key]: event.target.value }))}>
+                      {origins.map((origin: any, originIndex: number) => <option key={`${origin.source_reference_id ?? "direct"}-${originIndex}`} value={origin.source_reference_id ?? ""}>{origin.origin_kind === "HISTORICAL_MATCH" ? `#${origin.match_rank ?? originIndex + 1} ${origin.source_flower_id} · ${origin.source_pass_id} · ${origin.confirmation_status ?? "UNCONFIRMED"}` : "Direct uploaded-project evidence"}</option>)}
+                    </select>
+                  </label>}
+                  <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "ACCEPT_DESIGN_EVIDENCE", item.design_id, item.geometry_revision_id, selected || null)}>Accept evidence</button>
+                  <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "REJECT_DESIGN_EVIDENCE", item.design_id, item.geometry_revision_id, selected || null)}>Reject evidence</button>
+                  <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "NEEDS_REVIEW", item.design_id, item.geometry_revision_id, selected || null)}>Needs review</button>
+                </>;
+              })()}
             </div>
           ))}
         </article>

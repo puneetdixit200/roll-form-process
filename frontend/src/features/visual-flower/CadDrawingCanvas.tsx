@@ -9,8 +9,25 @@ function arcPath(item: CadPreviewPrimitive, flip: (point: Point) => string) {
   const start = item.start as Point; const end = item.end as Point; const center = item.center as Point;
   const a0 = Math.atan2(start[1] - center[1], start[0] - center[0]);
   const a1 = Math.atan2(end[1] - center[1], end[0] - center[0]);
-  const delta = item.clockwise ? (a0 - a1) % (2 * Math.PI) : (a1 - a0) % (2 * Math.PI);
+  const tau = Math.PI * 2;
+  const rawDelta = item.clockwise ? a0 - a1 : a1 - a0;
+  const delta = ((rawDelta % tau) + tau) % tau;
   return `M ${flip(start)} A ${item.radius} ${item.radius} 0 ${delta > Math.PI ? 1 : 0} ${item.clockwise ? 0 : 1} ${flip(end)}`;
+}
+
+function arcBounds(item: CadPreviewPrimitive): Point[] {
+  if (item.type !== "ARC" || !item.center || item.radius === undefined || !item.start || !item.end) return [];
+  const center = item.center as Point; const start = item.start as Point; const end = item.end as Point;
+  const a0 = Math.atan2(start[1] - center[1], start[0] - center[0]);
+  const a1 = Math.atan2(end[1] - center[1], end[0] - center[0]);
+  const tau = Math.PI * 2; const raw = item.clockwise ? a0 - a1 : a1 - a0;
+  const delta = ((raw % tau) + tau) % tau; const direction = item.clockwise ? -1 : 1;
+  const points: Point[] = [start, end];
+  for (const angle of [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2]) {
+    const progress = ((direction * (angle - a0) % tau) + tau) % tau;
+    if (progress <= delta + 1e-9) points.push([center[0] + item.radius * Math.cos(angle), center[1] + item.radius * Math.sin(angle)]);
+  }
+  return points;
 }
 
 function primitivePath(item: CadPreviewPrimitive, flip: (point: Point) => string) {
@@ -27,6 +44,10 @@ function primitivePath(item: CadPreviewPrimitive, flip: (point: Point) => string
 function boundsFor(items: CadPreviewPrimitive[]) {
   const points = items.flatMap((item) => {
     if (item.points) return item.points as Point[];
+    if (item.type === "ARC") return arcBounds(item);
+    if (item.type === "CIRCLE" && item.center && item.radius !== undefined) {
+      const [x, y] = item.center; const r = item.radius; return [[x - r, y - r], [x + r, y + r]] as Point[];
+    }
     return item.start && item.end ? [item.start as Point, item.end as Point] : [];
   });
   if (!points.length) return null;
@@ -45,9 +66,9 @@ export function CadDrawingCanvas({ preview, candidates, selectedId, onSelect }: 
   const selectedHandles = useMemo(() => new Set(candidates.find((item) => item.profile_id === selectedId)?.source_handles ?? []), [candidates, selectedId]);
   const hoveredHandles = useMemo(() => new Set(candidates.find((item) => item.profile_id === hoveredId)?.source_handles ?? []), [candidates, hoveredId]);
   const flip = (point: Point) => `${point[0]} ${-point[1]}`;
-  const fit = (items: CadPreviewPrimitive[] = preview.primitives) => { const next = boundsFor(items); if (!next) return; setFocusBounds({ ...next, width: Math.max(next.max_x - next.min_x, 1e-9), height: Math.max(next.max_y - next.min_y, 1e-9) }); setPan([0, 0]); setZoom(1); };
+  const fit = (items?: CadPreviewPrimitive[]) => { const next = items ? boundsFor(items) : preview.bounds; if (!next) return; setFocusBounds({ ...next, width: Math.max(next.max_x - next.min_x, 1e-9), height: Math.max(next.max_y - next.min_y, 1e-9) }); setPan([0, 0]); setZoom(1); };
   function beginPan(event: React.PointerEvent<SVGSVGElement>) { if (event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); drag.current = { x: event.clientX, y: event.clientY, pan }; }
-  function movePan(event: React.PointerEvent<SVGSVGElement>) { if (!drag.current) return; const scale = Math.max(b.width, b.height, 1) / Math.max(event.currentTarget.clientWidth, 1); setPan([drag.current.pan[0] - (event.clientX - drag.current.x) * scale, drag.current.pan[1] + (event.clientY - drag.current.y) * scale]); }
+  function movePan(event: React.PointerEvent<SVGSVGElement>) { if (!drag.current) return; const visibleWidth = (b.width + 2 * margin) / zoom; const visibleHeight = (b.height + 2 * margin) / zoom; const scaleX = visibleWidth / Math.max(event.currentTarget.clientWidth, 1); const scaleY = visibleHeight / Math.max(event.currentTarget.clientHeight, 1); setPan([drag.current.pan[0] - (event.clientX - drag.current.x) * scaleX, drag.current.pan[1] + (event.clientY - drag.current.y) * scaleY]); }
   function endPan(event: React.PointerEvent<SVGSVGElement>) { if (drag.current) event.currentTarget.releasePointerCapture(event.pointerId); drag.current = null; }
   return <div className="cad-drawing-preview">
     <div className="visual-controls"><button type="button" onClick={() => setZoom((value) => Math.min(8, value * 1.25))}>Zoom +</button><button type="button" onClick={() => setZoom((value) => Math.max(.25, value / 1.25))}>Zoom −</button><button type="button" onClick={() => fit()}>Fit drawing</button><button type="button" disabled={!selectedId} onClick={() => fit(preview.primitives.filter((item) => selectedHandles.has(item.source_handle)))}>Fit selected</button><span>Pan: drag canvas</span></div>
