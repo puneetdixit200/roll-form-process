@@ -1,4 +1,4 @@
-import type { CadDrawingPreview, VisualProfile, VisualRun } from "./types";
+import type { CadDrawingPreview, HistoricalFlowerDetail, HistoricalPassDetail, VisualProfile, VisualRun } from "./types";
 
 const API_ROOT = import.meta.env.VITE_API_ROOT ?? "";
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -125,12 +125,12 @@ export const getHistoricalFlowers = () =>
   );
 
 export const getHistoricalFlower = (flowerId: string) =>
-  request<{ flower_id: string; station_count: number; passes: Array<Record<string, unknown>>; private_paths_redacted: boolean }>(
+  request<HistoricalFlowerDetail>(
     `/api/visual-flower/historical/flowers/${encodeURIComponent(flowerId)}`,
   );
 
 export const getHistoricalPass = (flowerId: string, passId: string) =>
-  request<Record<string, unknown>>(
+  request<HistoricalPassDetail>(
     `/api/visual-flower/historical/flowers/${encodeURIComponent(flowerId)}/passes/${encodeURIComponent(passId)}`,
   );
 export const validateVisualProfile = (profile: VisualProfile) =>

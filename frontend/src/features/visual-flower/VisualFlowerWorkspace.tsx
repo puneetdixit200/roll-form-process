@@ -792,6 +792,7 @@ export default function VisualFlowerWorkspace() {
                       candidateId={candidate.candidate_id}
                       station={candidate.roller_evidence?.stations.find((item) => item.pass_id === currentPass?.pass_id)}
                       reviewer={reviewer}
+                      onOpenHistoricalSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId })}
                       onReview={async (role, decision, selectedDesignId, selectedRevisionId, selectedSourceReferenceId) => {
                         if (!currentPass || !reviewer.trim()) {
                           setMessage("Enter a reviewer name before reviewing roller evidence.");
@@ -868,7 +869,8 @@ function MatchDetails({ item, onOpenSource }: { item: any; onOpenSource: (flower
   );
 }
 
-function RollerEvidenceDetails({ candidateId, station, reviewer, onReview }: { candidateId: string; station: any; reviewer: string; onReview: (role: string, decision: string, designId?: string, revisionId?: string | null, sourceReferenceId?: string | null) => Promise<void> }) {
+function RollerEvidenceDetails({ candidateId, station, reviewer, onReview, onOpenHistoricalSource }: { candidateId: string; station: any; reviewer: string; onReview: (role: string, decision: string, designId?: string, revisionId?: string | null, sourceReferenceId?: string | null) => Promise<void>; onOpenHistoricalSource: (flowerId: string, passId: string) => void }) {
+  const [selectedOrigins, setSelectedOrigins] = useState<Record<string, string>>({});
   return (
     <section className="roller-evidence" aria-label={`Roller design evidence for ${candidateId}`}>
       <h3>Roller design evidence</h3>
@@ -885,19 +887,22 @@ function RollerEvidenceDetails({ candidateId, station, reviewer, onReview }: { c
               {item.recognition_score != null ? ` · recognition ${(item.recognition_score * 100).toFixed(1)}%` : ""}
               {item.top3_support_count != null ? ` · ${item.top3_support_count} of top 3 historical matches` : ""}
               {item.known_asset_count != null ? ` · known assets ${item.known_asset_count} (informational)` : ""}
-              {(item.supporting_origins ?? []).map((origin: any) => (
-                <a key={origin.source_reference_id} href={`/api/visual-flower/historical/flowers/${encodeURIComponent(origin.source_flower_id ?? "")}/passes/${encodeURIComponent(origin.source_pass_id ?? "")}`} target="_blank" rel="noreferrer">
-                  Source {origin.source_reference_id}
-                </a>
-              ))}
-              <label>Source evidence
-                <select aria-label={`Source evidence for ${role.role} ${item.design_id}`} defaultValue={item.best_support_origin?.source_reference_id ?? ""} onChange={(event) => { event.currentTarget.dataset.selectedSource = event.target.value; }}>
-                  {(item.supporting_origins ?? []).map((origin: any) => <option key={origin.source_reference_id ?? `${origin.source_project_id}-${origin.source_station_id}`} value={origin.source_reference_id ?? ""}>{origin.source_reference_id ?? "Direct project evidence"}</option>)}
-                </select>
-              </label>
-              <button type="button" disabled={!reviewer.trim()} onClick={(event) => { const source = event.currentTarget.parentElement?.querySelector("select")?.value || item.best_support_origin?.source_reference_id || null; void onReview(role.role, "ACCEPT_DESIGN_EVIDENCE", item.design_id, item.geometry_revision_id, source); }}>Accept evidence</button>
-              <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "REJECT_DESIGN_EVIDENCE", item.design_id, item.geometry_revision_id, null)}>Reject evidence</button>
-              <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "NEEDS_REVIEW", item.design_id, item.geometry_revision_id, null)}>Needs review</button>
+              {(() => {
+                const key = `${role.role}|${item.design_id}|${item.geometry_revision_id ?? ""}`;
+                const origins = item.supporting_origins ?? [];
+                const selected = selectedOrigins[key] ?? item.best_support_origin?.source_reference_id ?? "";
+                return <>
+                  <div className="evidence-origins">{origins.map((origin: any) => origin.origin_kind === "HISTORICAL_MATCH" && origin.source_flower_id && origin.source_pass_id ? <button key={origin.source_reference_id} type="button" onClick={() => onOpenHistoricalSource(origin.source_flower_id, origin.source_pass_id)}>View source flower ({origin.source_flower_id} · {origin.source_pass_id})</button> : <span key={`${origin.source_project_id}-${origin.source_station_id}`}>Direct uploaded-project evidence</span>)}</div>
+                  {origins.length > 0 && <label>Selected evidence source
+                    <select aria-label={`Selected evidence source for ${role.role} ${item.design_id}`} value={selected} onChange={(event) => setSelectedOrigins((current) => ({ ...current, [key]: event.target.value }))}>
+                      {origins.map((origin: any, originIndex: number) => <option key={`${origin.source_reference_id ?? "direct"}-${originIndex}`} value={origin.source_reference_id ?? ""}>{origin.origin_kind === "HISTORICAL_MATCH" ? `#${origin.match_rank ?? originIndex + 1} ${origin.source_flower_id} · ${origin.source_pass_id} · ${origin.confirmation_status ?? "UNCONFIRMED"}` : "Direct uploaded-project evidence"}</option>)}
+                    </select>
+                  </label>}
+                  <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "ACCEPT_DESIGN_EVIDENCE", item.design_id, item.geometry_revision_id, selected || null)}>Accept evidence</button>
+                  <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "REJECT_DESIGN_EVIDENCE", item.design_id, item.geometry_revision_id, selected || null)}>Reject evidence</button>
+                  <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "NEEDS_REVIEW", item.design_id, item.geometry_revision_id, selected || null)}>Needs review</button>
+                </>;
+              })()}
             </div>
           ))}
         </article>

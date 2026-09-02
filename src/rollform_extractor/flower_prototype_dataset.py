@@ -75,6 +75,8 @@ class HistoricalFlower:
     topology: str
     quality_flags: tuple[str, ...]
     source_station_count: int | None = None
+    extractor_mode_requested: str = "LEGACY_POLYLINE"
+    extractor_mode_used: str = "LEGACY_POLYLINE"
 
     def to_dict(self, *, include_geometry: bool = False) -> dict[str, Any]:
         return {
@@ -86,6 +88,8 @@ class HistoricalFlower:
             "source_entity_count": self.source_entity_count,
             "raw_profile_count": self.raw_profile_count,
             "source_station_count": self.source_station_count,
+            "extractor_mode_requested": self.extractor_mode_requested,
+            "extractor_mode_used": self.extractor_mode_used,
             "topology": self.topology,
             "quality_flags": list(self.quality_flags),
             "passes": [item.to_dict(include_points=include_geometry) for item in self.passes],
@@ -142,6 +146,7 @@ def ingest_private_flower(
     flower_id: str,
     *,
     source_station_count: int | None = None,
+    extractor_mode: str = "AUTO",
 ) -> HistoricalFlower:
     """Convert a private DWG to a private staged DXF and derive pass records."""
     source = source.resolve()
@@ -149,15 +154,22 @@ def ingest_private_flower(
     staged = stage_input(source, private_root / "staged" / flower_id)
     document = ezdxf.readfile(staged.converted_file)
     entities = tuple(document.modelspace())
+    requested = extractor_mode.upper()
     polylines = tuple(entity for entity in entities if entity.dxftype() == "POLYLINE")
-    passes = tuple(
-        _pass_from_polyline(entity, flower_id, index, before)
-        for index, entity in enumerate(polylines)
-    )
+    lwpolylines = tuple(entity for entity in entities if entity.dxftype() == "LWPOLYLINE")
+    if requested in {"LEGACY_POLYLINE", "AUTO"} and polylines:
+        used = "LEGACY_POLYLINE"
+        passes = tuple(_pass_from_polyline(entity, flower_id, index, before) for index, entity in enumerate(polylines))
+    elif requested in {"LWPOLYLINE", "AUTO"} and lwpolylines:
+        used = "LWPOLYLINE"
+        passes = tuple(_pass_from_points(_lwpolyline_points(entity), str(entity.dxf.handle), flower_id, index, before) for index, entity in enumerate(lwpolylines))
+    else:
+        used = "REVIEW_REQUIRED"
+        passes = ()
     _assert_unchanged(source, before)
     quality: list[str] = []
     if not passes:
-        quality.append("NO_POLYLINE_PASSES")
+        quality.append("NO_SUPPORTED_SEQUENCE_PASSES")
     if source_station_count is not None and source_station_count != len(passes):
         quality.append("GENERIC_PIPELINE_STATION_COUNT_DIFFERS")
     return HistoricalFlower(
@@ -170,6 +182,8 @@ def ingest_private_flower(
         topology=_flower_topology(passes),
         quality_flags=tuple(quality),
         source_station_count=source_station_count,
+        extractor_mode_requested=requested,
+        extractor_mode_used=used,
     )
 
 
@@ -200,6 +214,9 @@ def build_dataset(
     roller_station_evidence: Iterable[Mapping[str, Any]] = (),
 ) -> FlowerPrototypeDataset:
     flowers = tuple(sorted(flowers, key=lambda item: item.flower_id))
+    source_hashes = [item.source_sha256 for item in flowers if item.source_sha256 not in {"", "source"}]
+    if len(source_hashes) != len(set(source_hashes)):
+        raise ValueError("DUPLICATE_HISTORICAL_SOURCE")
     rollers = tuple(sorted(roller_evidence, key=lambda item: item.evidence_id))
     station_evidence = tuple(sorted((dict(item) for item in roller_station_evidence), key=lambda item: (str(item.get("flower_id", "")), str(item.get("pass_id", "")), str(item.get("role", "")), str(item.get("design_id", "")), str(item.get("geometry_revision_id", "")))))
     payload = {
@@ -245,6 +262,7 @@ def _dataset_from_dict(value: dict[str, Any]) -> FlowerPrototypeDataset:
             flower_id=flower_value["flower_id"], source_classification=flower_value["source_classification"], source_sha256=flower_value["source_sha256"],
             source_entity_count=int(flower_value["source_entity_count"]), raw_profile_count=int(flower_value["raw_profile_count"]), passes=tuple(passes),
             topology=flower_value["topology"], quality_flags=tuple(flower_value.get("quality_flags", [])), source_station_count=flower_value.get("source_station_count"),
+            extractor_mode_requested=str(flower_value.get("extractor_mode_requested", "LEGACY_POLYLINE")), extractor_mode_used=str(flower_value.get("extractor_mode_used", "LEGACY_POLYLINE")),
         ))
     rollers = tuple(RollerSequenceEvidence(
         evidence_id=item["evidence_id"], source_file_id=item["source_file_id"], source_sha256=item["source_sha256"],
@@ -262,6 +280,10 @@ def write_redacted_dataset(dataset: FlowerPrototypeDataset, path: Path) -> Path:
 
 def persist_dataset(engine: Any, dataset: FlowerPrototypeDataset) -> str:
     """Persist the small prototype dataset using additive project tables."""
+    from rollform_extractor.flower_dataset_validation import validate_flower_prototype_dataset
+    validation = validate_flower_prototype_dataset(dataset.to_dict(include_geometry=True))
+    if not validation["valid"]:
+        raise ValueError("invalid flower prototype dataset: " + "; ".join(item["code"] for item in validation["issues"]))
     from sqlalchemy.orm import Session
     from rollform_extractor.database import (
         FlowerPrototypeDatasetRow,
@@ -345,6 +367,14 @@ def persist_dataset(engine: Any, dataset: FlowerPrototypeDataset) -> str:
 
 def _pass_from_polyline(entity: Any, flower_id: str, index: int, source_sha256: str) -> HistoricalPass:
     points = _polyline_points(entity)
+    return _pass_from_points(points, str(entity.dxf.handle), flower_id, index, source_sha256)
+
+
+def _lwpolyline_points(entity: Any) -> tuple[tuple[float, float, float], ...]:
+    return tuple((float(x), float(y), 0.0) for x, y, *_ in entity.get_points("xy"))
+
+
+def _pass_from_points(points: tuple[tuple[float, float, float], ...], source_handle: str, flower_id: str, index: int, source_sha256: str) -> HistoricalPass:
     if len(points) >= 2 and _distance(points[0], points[-1]) > 1e-6:
         points = points + (points[0],)
     min_x = min((point[0] for point in points), default=0.0)
@@ -365,7 +395,7 @@ def _pass_from_polyline(entity: Any, flower_id: str, index: int, source_sha256: 
     return HistoricalPass(
         pass_id=f"{flower_id}-pass-{index:03d}",
         source_flower_id=flower_id,
-        source_handle=str(entity.dxf.handle),
+        source_handle=source_handle,
         inferred_order=index,
         points=points,
         normalized_points=normalized,

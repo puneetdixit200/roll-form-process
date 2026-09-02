@@ -250,8 +250,14 @@ def build_candidate_roller_evidence(
                 item.pop("_rank_key", None)
                 item["rank"] = rank
                 origins = item.get("supporting_origins") or []
-                item["top3_support_count"] = sum(1 for origin in origins if origin.get("match_rank") in {1, 2, 3})
-                item["supporting_match_ranks"] = sorted({origin.get("match_rank") for origin in origins if origin.get("match_rank") is not None})
+                historical_match_ranks = {
+                    int(origin["match_rank"])
+                    for origin in origins
+                    if origin.get("origin_kind") == "HISTORICAL_MATCH"
+                    and origin.get("match_rank") in {1, 2, 3}
+                }
+                item["supporting_match_ranks"] = sorted(historical_match_ranks)
+                item["top3_support_count"] = len(historical_match_ranks)
                 item["best_support_origin"] = min(origins, key=_origin_rank) if origins else None
                 item["inventory_assets"] = _assets_for_design(inventory_assets or {}, item["design_id"])
                 item["known_asset_count"] = len(item["inventory_assets"])
