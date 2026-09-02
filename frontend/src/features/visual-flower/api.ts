@@ -151,7 +151,7 @@ export const useWorkflowImportProfile = (workflowId: string, profileId: string) 
     `/api/rollform-workflows/${encodeURIComponent(workflowId)}/profiles/${encodeURIComponent(profileId)}/select`,
     { method: "POST" },
   );
-export const reviewRollerEvidence = (candidateId: string, passId: string, body: { role: string; decision: string; reviewer: string; selected_design_id?: string; selected_revision_id?: string | null; notes?: string }) =>
+export const reviewRollerEvidence = (candidateId: string, passId: string, body: { role: string; decision: string; reviewer: string; selected_design_id?: string; selected_revision_id?: string | null; selected_source_reference_id?: string | null; notes?: string }) =>
   request(`/api/visual-flower/candidates/${encodeURIComponent(candidateId)}/passes/${encodeURIComponent(passId)}/roller-evidence/review`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });

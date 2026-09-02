@@ -18,6 +18,7 @@ import {
 } from "./api";
 import { exampleProfile, ProfileSketcher } from "./ProfileSketcher";
 import { CadDrawingCanvas } from "./CadDrawingCanvas";
+import { HistoricalSourceFlowerExplorer } from "./HistoricalSourceFlowerExplorer";
 import type { CadDrawingPreview, VisualCandidate, VisualProfile, VisualRun } from "./types";
 
 type ImportedProfile = {
@@ -72,6 +73,7 @@ export default function VisualFlowerWorkspace() {
   const [drawingPreview, setDrawingPreview] = useState<CadDrawingPreview | null>(null);
   const [selectedImportedProfileId, setSelectedImportedProfileId] = useState<string | null>(null);
   const [editingImported, setEditingImported] = useState(false);
+  const [historicalSource, setHistoricalSource] = useState<{ flowerId: string; passId: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dataset, setDataset] = useState<
     {
@@ -784,18 +786,19 @@ export default function VisualFlowerWorkspace() {
                         blue dashed = historical match
                       </span>.
                     </p>
-                    <MatchDetails item={currentPass} />
+                    <MatchDetails item={currentPass} onOpenSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId })} />
+                    {historicalSource && <HistoricalSourceFlowerExplorer flowerId={historicalSource.flowerId} passId={historicalSource.passId} generatedStation={currentPass?.order ?? 0} onBack={() => setHistoricalSource(null)} />}
                     <RollerEvidenceDetails
                       candidateId={candidate.candidate_id}
                       station={candidate.roller_evidence?.stations.find((item) => item.pass_id === currentPass?.pass_id)}
                       reviewer={reviewer}
-                      onReview={async (role, decision, selectedDesignId, selectedRevisionId) => {
+                      onReview={async (role, decision, selectedDesignId, selectedRevisionId, selectedSourceReferenceId) => {
                         if (!currentPass || !reviewer.trim()) {
                           setMessage("Enter a reviewer name before reviewing roller evidence.");
                           return;
                         }
                         try {
-                          await reviewRollerEvidence(candidate.candidate_id, currentPass.pass_id, { role, decision, reviewer, selected_design_id: selectedDesignId, selected_revision_id: selectedRevisionId });
+                          await reviewRollerEvidence(candidate.candidate_id, currentPass.pass_id, { role, decision, reviewer, selected_design_id: selectedDesignId, selected_revision_id: selectedRevisionId, selected_source_reference_id: selectedSourceReferenceId });
                         } catch (error) {
                           setMessage(error instanceof Error ? error.message : "Roller evidence review failed.");
                           return;
@@ -815,7 +818,7 @@ export default function VisualFlowerWorkspace() {
   );
 }
 
-function MatchDetails({ item }: { item: any }) {
+function MatchDetails({ item, onOpenSource }: { item: any; onOpenSource: (flowerId: string, passId: string) => void }) {
   const matches = item?.historical_match?.top_matches ?? [];
   return (
     <details className="match-details">
@@ -856,9 +859,7 @@ function MatchDetails({ item }: { item: any }) {
               3,
             ) ?? "n/a"}
           </p>
-          <a href={`/api/visual-flower/historical/flowers/${encodeURIComponent(match.source_flower_id)}`} target="_blank" rel="noreferrer">
-            Open redacted historical source record
-          </a>
+          <button type="button" onClick={() => onOpenSource(match.source_flower_id, match.source_pass_id)}>View historical source sequence</button>
             </div>
           </div>
         </div>
@@ -867,7 +868,7 @@ function MatchDetails({ item }: { item: any }) {
   );
 }
 
-function RollerEvidenceDetails({ candidateId, station, reviewer, onReview }: { candidateId: string; station: any; reviewer: string; onReview: (role: string, decision: string, designId?: string, revisionId?: string | null) => Promise<void> }) {
+function RollerEvidenceDetails({ candidateId, station, reviewer, onReview }: { candidateId: string; station: any; reviewer: string; onReview: (role: string, decision: string, designId?: string, revisionId?: string | null, sourceReferenceId?: string | null) => Promise<void> }) {
   return (
     <section className="roller-evidence" aria-label={`Roller design evidence for ${candidateId}`}>
       <h3>Roller design evidence</h3>
@@ -889,7 +890,14 @@ function RollerEvidenceDetails({ candidateId, station, reviewer, onReview }: { c
                   Source {origin.source_reference_id}
                 </a>
               ))}
-              <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "ACCEPT_DESIGN_EVIDENCE", item.design_id, item.geometry_revision_id)}>Accept evidence</button>
+              <label>Source evidence
+                <select aria-label={`Source evidence for ${role.role} ${item.design_id}`} defaultValue={item.best_support_origin?.source_reference_id ?? ""} onChange={(event) => { event.currentTarget.dataset.selectedSource = event.target.value; }}>
+                  {(item.supporting_origins ?? []).map((origin: any) => <option key={origin.source_reference_id ?? `${origin.source_project_id}-${origin.source_station_id}`} value={origin.source_reference_id ?? ""}>{origin.source_reference_id ?? "Direct project evidence"}</option>)}
+                </select>
+              </label>
+              <button type="button" disabled={!reviewer.trim()} onClick={(event) => { const source = event.currentTarget.parentElement?.querySelector("select")?.value || item.best_support_origin?.source_reference_id || null; void onReview(role.role, "ACCEPT_DESIGN_EVIDENCE", item.design_id, item.geometry_revision_id, source); }}>Accept evidence</button>
+              <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "REJECT_DESIGN_EVIDENCE", item.design_id, item.geometry_revision_id, null)}>Reject evidence</button>
+              <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "NEEDS_REVIEW", item.design_id, item.geometry_revision_id, null)}>Needs review</button>
             </div>
           ))}
         </article>

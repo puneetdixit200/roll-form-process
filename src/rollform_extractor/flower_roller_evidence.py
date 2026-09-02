@@ -111,18 +111,25 @@ def _candidate_item(
     source_pass_id = match.get("source_pass_id") if match else record.get("pass_id")
     source_role = str(record.get("role") or "UNKNOWN")
     origin = {
+        "origin_kind": "DIRECT_PROJECT" if direct else "HISTORICAL_MATCH",
         "source_reference_id": source_reference_id(
             dataset_hash, str(source_flower_id or "UNKNOWN"), str(source_pass_id or "UNKNOWN"),
             source_role, str(record["design_id"]), record.get("geometry_revision_id"),
         ),
-        "source_flower_id": source_flower_id,
-        "source_pass_id": source_pass_id,
+        "source_flower_id": None if direct else source_flower_id,
+        "source_pass_id": None if direct else source_pass_id,
         "source_project_id": record.get("source_project_id"),
         "source_occurrence_id": record.get("source_occurrence_id") or record.get("occurrence_id"),
         "source_station_id": record.get("station_id"),
         "match_rank": match.get("match_rank"),
         "evidence_tier": tier,
+        "confirmation_status": record.get("confirmation_status"),
+        "recognition_score": record.get("recognition_score"),
+        "evidence_coverage": record.get("evidence_coverage"),
+        "historical_similarity": match.get("overall_score") if match else None,
     }
+    if direct:
+        origin["source_reference_id"] = None
     warnings = sorted(set(record.get("quality_flags") or []))
     if status == "AMBIGUOUS" and "AMBIGUOUS_ROLLER_DESIGN" not in warnings:
         warnings.append("AMBIGUOUS_ROLLER_DESIGN")
@@ -222,8 +229,8 @@ def build_candidate_roller_evidence(
             else:
                 current["supporting_origins"].extend(item.get("supporting_origins", []))
                 current["supporting_origins"] = sorted(
-                    {json.dumps(origin, sort_keys=True): origin for origin in current["supporting_origins"]}.values(),
-                    key=lambda origin: (str(origin.get("source_reference_id")), str(origin.get("source_pass_id"))),
+                    {_origin_key(origin): origin for origin in current["supporting_origins"]}.values(),
+                    key=_origin_rank,
                 )
                 if rank_key < current["_rank_key"]:
                     item["supporting_origins"] = current["supporting_origins"]
@@ -245,7 +252,7 @@ def build_candidate_roller_evidence(
                 origins = item.get("supporting_origins") or []
                 item["top3_support_count"] = sum(1 for origin in origins if origin.get("match_rank") in {1, 2, 3})
                 item["supporting_match_ranks"] = sorted({origin.get("match_rank") for origin in origins if origin.get("match_rank") is not None})
-                item["best_support_origin"] = origins[0] if origins else None
+                item["best_support_origin"] = min(origins, key=_origin_rank) if origins else None
                 item["inventory_assets"] = _assets_for_design(inventory_assets or {}, item["design_id"])
                 item["known_asset_count"] = len(item["inventory_assets"])
                 item["inventory_verification_status"] = (
@@ -295,6 +302,33 @@ def build_candidate_roller_evidence(
     return payload | {"evidence_bundle_hash": _hash(payload)}
 
 
+def _origin_rank(origin: Mapping[str, Any]) -> tuple[Any, ...]:
+    confirmed = str(origin.get("confirmation_status") or "").upper() in {"CONFIRMED", "ENGINEER_CONFIRMED"}
+    try:
+        match_rank = int(origin.get("match_rank"))
+    except (TypeError, ValueError):
+        match_rank = 999999
+    return (
+        {"TIER_1_DIRECT_CONFIRMED_DRAWING_DESIGN": 1, "TIER_2_DIRECT_RECOGNIZED_DRAWING_DESIGN": 2, "TIER_3_CONFIRMED_HISTORICAL_USAGE_FROM_MATCHED_PASS": 3, "TIER_4_HISTORICAL_RECOGNITION_CANDIDATE": 4, "TIER_5_INVENTORY_GEOMETRY_SIMILARITY": 5}.get(str(origin.get("evidence_tier") or ""), 6),
+        0 if confirmed else 1,
+        match_rank,
+        -float(origin.get("recognition_score") or 0.0),
+        -float(origin.get("evidence_coverage") or 0.0),
+        -float(origin.get("historical_similarity") or 0.0),
+        str(origin.get("source_flower_id") or ""),
+        str(origin.get("source_pass_id") or ""),
+        str(origin.get("source_reference_id") or ""),
+    )
+
+
+def _origin_key(origin: Mapping[str, Any]) -> tuple[Any, ...]:
+    return (
+        origin.get("origin_kind"), origin.get("source_flower_id"), origin.get("source_pass_id"),
+        origin.get("source_project_id"), origin.get("source_occurrence_id"), origin.get("source_station_id"),
+        origin.get("evidence_tier"),
+    )
+
+
 REVIEW_DECISIONS = {"ACCEPT_DESIGN_EVIDENCE", "REJECT_DESIGN_EVIDENCE", "NEEDS_REVIEW"}
 
 
@@ -309,6 +343,7 @@ def create_roller_evidence_review(
     *,
     selected_design_id: str | None = None,
     selected_revision_id: str | None = None,
+    selected_source_reference_id: str | None = None,
 ) -> dict[str, Any]:
     """Append one validated review event for a station/role evidence snapshot."""
     if decision not in REVIEW_DECISIONS:
@@ -355,7 +390,13 @@ def create_roller_evidence_review(
             selected_revision_id = selected.get("geometry_revision_id")
         elif selected_revision_id is not None:
             raise ValueError("selected_revision_id requires selected_design_id")
-        selected_origin = (selected or {}).get("best_support_origin") if selected else None
+        if selected_source_reference_id:
+            origins = (selected or {}).get("supporting_origins", []) if selected else []
+            selected_origin = next((origin for origin in origins if origin.get("source_reference_id") == selected_source_reference_id), None)
+            if selected_origin is None:
+                raise ValueError("INVALID_SELECTED_HISTORICAL_SOURCE")
+        else:
+            selected_origin = (selected or {}).get("best_support_origin") if selected else None
 
         review_id = "vfr-" + uuid4().hex[:20]
         row = VisualFlowerRollerEvidenceReviewRow(

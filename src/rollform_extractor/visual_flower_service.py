@@ -91,7 +91,7 @@ def historical_pass_preview(source_flower_id: str, source_pass_id: str) -> bytes
 
 def historical_flowers(*, include_geometry: bool = False) -> list[dict[str, Any]]:
     dataset = historical_dataset()
-    return [safe_historical_flower(flower, include_geometry=include_geometry) for flower in sorted(dataset.get("flowers", []), key=lambda item: str(item.get("flower_id", "")))]
+    return [safe_historical_flower(flower, include_geometry=include_geometry, dataset_hash=str(dataset.get("dataset_hash") or "UNCONFIGURED")) for flower in sorted(dataset.get("flowers", []), key=lambda item: str(item.get("flower_id", "")))]
 
 
 def historical_flower(source_flower_id: str) -> dict[str, Any] | None:
