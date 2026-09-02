@@ -871,6 +871,12 @@ function MatchDetails({ item, onOpenSource }: { item: any; onOpenSource: (flower
 
 function RollerEvidenceDetails({ candidateId, station, reviewer, onReview, onOpenHistoricalSource }: { candidateId: string; station: any; reviewer: string; onReview: (role: string, decision: string, designId?: string, revisionId?: string | null, sourceReferenceId?: string | null) => Promise<void>; onOpenHistoricalSource: (flowerId: string, passId: string) => void }) {
   const [selectedOrigins, setSelectedOrigins] = useState<Record<string, string>>({});
+  useEffect(() => {
+    setSelectedOrigins((current) => {
+      const prefix = `${candidateId}|${station?.pass_id ?? ""}|`;
+      return Object.fromEntries(Object.entries(current).filter(([key]) => key.startsWith(prefix)));
+    });
+  }, [candidateId, station?.pass_id]);
   return (
     <section className="roller-evidence" aria-label={`Roller design evidence for ${candidateId}`}>
       <h3>Roller design evidence</h3>
@@ -888,9 +894,11 @@ function RollerEvidenceDetails({ candidateId, station, reviewer, onReview, onOpe
               {item.top3_support_count != null ? ` · ${item.top3_support_count} of top 3 historical matches` : ""}
               {item.known_asset_count != null ? ` · known assets ${item.known_asset_count} (informational)` : ""}
               {(() => {
-                const key = `${role.role}|${item.design_id}|${item.geometry_revision_id ?? ""}`;
+                const key = `${candidateId}|${station?.pass_id ?? ""}|${role.role}|${item.design_id}|${item.geometry_revision_id ?? ""}`;
                 const origins = item.supporting_origins ?? [];
-                const selected = selectedOrigins[key] ?? item.best_support_origin?.source_reference_id ?? "";
+                const originIds = new Set(origins.map((origin: any) => origin.source_reference_id).filter(Boolean));
+                const stored = selectedOrigins[key];
+                const selected = stored && originIds.has(stored) ? stored : item.best_support_origin?.source_reference_id ?? "";
                 return <>
                   <div className="evidence-origins">{origins.map((origin: any) => origin.origin_kind === "HISTORICAL_MATCH" && origin.source_flower_id && origin.source_pass_id ? <button key={origin.source_reference_id} type="button" onClick={() => onOpenHistoricalSource(origin.source_flower_id, origin.source_pass_id)}>View source flower ({origin.source_flower_id} · {origin.source_pass_id})</button> : <span key={`${origin.source_project_id}-${origin.source_station_id}`}>Direct uploaded-project evidence</span>)}</div>
                   {origins.length > 0 && <label>Selected evidence source
