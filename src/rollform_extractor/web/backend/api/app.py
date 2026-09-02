@@ -163,7 +163,21 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         if configured_dataset:
             try:
                 payload = json.loads(Path(configured_dataset).read_text(encoding="utf-8"))
-                dataset_ok = len(payload.get("flowers", [])) == 2 and sum(len(item.get("passes", [])) for item in payload.get("flowers", [])) == 31
+                flowers = payload.get("flowers", [])
+                flower_ids = [item.get("flower_id") for item in flowers]
+                pass_ids = [f"{item.get('flower_id')}::{p.get('pass_id')}" for item in flowers for p in item.get("passes", [])]
+                minimum_flowers = int(os.environ.get("ROLLFORM_MIN_HISTORICAL_FLOWERS", "1"))
+                minimum_passes = int(os.environ.get("ROLLFORM_MIN_HISTORICAL_PASSES", "2"))
+                station_refs = payload.get("roller_station_evidence", [])
+                valid_refs = all(any(f.get("flower_id") == ref.get("flower_id") and any(p.get("pass_id") == ref.get("pass_id") for p in f.get("passes", [])) for f in flowers) for ref in station_refs)
+                dataset_ok = (
+                    int(payload.get("schema_version", 0)) in {1, 2}
+                    and bool(payload.get("dataset_id")) and bool(payload.get("dataset_hash"))
+                    and len(flowers) >= minimum_flowers and sum(len(item.get("passes", [])) for item in flowers) >= minimum_passes
+                    and all(flower_ids) and len(set(flower_ids)) == len(flower_ids)
+                    and all(pass_ids) and len(set(pass_ids)) == len(pass_ids)
+                    and valid_refs
+                )
             except (OSError, json.JSONDecodeError, TypeError):
                 dataset_ok = False
         checks["private_dataset"] = dataset_ok if require_dataset else True

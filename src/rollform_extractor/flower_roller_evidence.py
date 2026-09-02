@@ -355,6 +355,7 @@ def create_roller_evidence_review(
             selected_revision_id = selected.get("geometry_revision_id")
         elif selected_revision_id is not None:
             raise ValueError("selected_revision_id requires selected_design_id")
+        selected_origin = (selected or {}).get("best_support_origin") if selected else None
 
         review_id = "vfr-" + uuid4().hex[:20]
         row = VisualFlowerRollerEvidenceReviewRow(
@@ -368,6 +369,10 @@ def create_roller_evidence_review(
             reviewer=reviewer,
             notes=notes,
             evidence_bundle_hash=evidence.get("evidence_bundle_hash"),
+            selected_source_reference_id=(selected_origin or {}).get("source_reference_id"),
+            selected_source_flower_id=(selected_origin or {}).get("source_flower_id"),
+            selected_source_pass_id=(selected_origin or {}).get("source_pass_id"),
+            selected_source_match_rank=(selected_origin or {}).get("match_rank"),
         )
         session.add(row)
         session.flush()
@@ -380,6 +385,7 @@ def create_roller_evidence_review(
             "reviewer": reviewer,
             "selected_design_id": selected_design_id,
             "selected_revision_id": selected_revision_id,
+            "selected_source_reference_id": (selected_origin or {}).get("source_reference_id"),
             "evidence_bundle_hash": evidence.get("evidence_bundle_hash"),
             "manufacturing_approval": "NOT_APPROVED",
         }

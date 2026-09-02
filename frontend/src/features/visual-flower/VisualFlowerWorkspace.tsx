@@ -60,7 +60,8 @@ export default function VisualFlowerWorkspace() {
   // The bundled public example is known-valid, so the demo can be generated
   // immediately. Any edit, import, or JSON load resets this gate below.
   const [validated, setValidated] = useState(true);
-  const [validatedProfileHash, setValidatedProfileHash] = useState<string | null>(stableJson(exampleProfile()));
+  const [validatedProfileSnapshot, setValidatedProfileSnapshot] = useState<string | null>(stableJson(exampleProfile()));
+  const [backendValidationHash, setBackendValidationHash] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<{ valid: boolean; profile_hash: string; blocking_errors: Array<{ code: string; message: string }>; warnings: string[]; checks: Record<string, boolean> } | null>(null);
   const [targetSource, setTargetSource] = useState<"DEMO" | "MANUAL" | "JSON" | "CAD">("DEMO");
   const [guided, setGuided] = useState(false);
@@ -159,12 +160,13 @@ export default function VisualFlowerWorkspace() {
       const valid = result.valid && validation.valid;
       setValidationResult(result);
       setValidated(valid);
-      setValidatedProfileHash(valid ? (result.profile_hash || hashAtRequest) : null);
+      setValidatedProfileSnapshot(valid ? hashAtRequest : null);
+      setBackendValidationHash(valid ? result.profile_hash : null);
       setMessage(valid ? "Profile validated by backend." : "Profile has blocking geometry issues; generation is disabled.");
-    }).catch(() => { if (profileHashRef.current === hashAtRequest) { setValidated(false); setValidatedProfileHash(null); setMessage("Profile validation failed; generation is disabled."); } });
+    }).catch(() => { if (profileHashRef.current === hashAtRequest) { setValidated(false); setValidatedProfileSnapshot(null); setBackendValidationHash(null); setMessage("Profile validation failed; generation is disabled."); } });
   }
   async function generate() {
-    if (!profile || !validated || validatedProfileHash !== stableJson(profile)) return;
+    if (!profile || !validated || validatedProfileSnapshot !== stableJson(profile)) return;
     try {
       setMessage("Canonicalizing and matching historical passes...");
       const target = workflowId
@@ -218,7 +220,7 @@ export default function VisualFlowerWorkspace() {
     }
     file.text().then((text) => {
       try {
-        setTargetSource("JSON"); setImportId(null); setWorkflowId(null); setDrawingPreview(null); setImportProfiles([]); setSelectedImportedProfileId(null); setEditingImported(false); setRun(null); setProfile(JSON.parse(text) as VisualProfile); setValidated(false); setValidatedProfileHash(null); setValidationResult(null);
+        setTargetSource("JSON"); setImportId(null); setWorkflowId(null); setDrawingPreview(null); setImportProfiles([]); setSelectedImportedProfileId(null); setEditingImported(false); setRun(null); setProfile(JSON.parse(text) as VisualProfile); setValidated(false); setValidatedProfileSnapshot(null); setBackendValidationHash(null); setValidationResult(null);
         setMessage("Target loaded. Validate before generation.");
       } catch {
         setMessage("Target JSON could not be read.");
@@ -229,7 +231,9 @@ export default function VisualFlowerWorkspace() {
     const file = event.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    setTargetSource("CAD"); setImportId(null); setWorkflowId(null); setRun(null); setCandidateIndex(0); setPassIndex(0); setValidated(false); setValidatedProfileHash(null); setValidationResult(null); setProfile(null); setImportProfiles([]); setDrawingPreview(null); setSelectedImportedProfileId(null); setEditingImported(false); setMessage("Uploading → converting → parsing → detecting profiles...");
+    const input = event.currentTarget;
+    input.value = "";
+    setTargetSource("CAD"); setImportId(null); setWorkflowId(null); setRun(null); setCandidateIndex(0); setPassIndex(0); setPlaying(false); setValidated(false); setValidatedProfileSnapshot(null); setBackendValidationHash(null); setValidationResult(null); setProfile(null); setImportProfiles([]); setDrawingPreview(null); setSelectedImportedProfileId(null); setEditingImported(false); setMessage("Uploading → converting → parsing → detecting profiles...");
     try {
       const result = await importVisualCad(file);
       const actualImportId = result.visual_import_id || result.import_id;
@@ -259,7 +263,7 @@ export default function VisualFlowerWorkspace() {
       setEditingImported(false);
       setRun(null); setCandidateIndex(0); setPassIndex(0);
       setValidated(false);
-      setValidatedProfileHash(null); setValidationResult(null);
+      setValidatedProfileSnapshot(null); setBackendValidationHash(null); setValidationResult(null);
       setMessage(
         "Imported profile loaded. Review and validate before generation.",
       );
@@ -297,7 +301,7 @@ export default function VisualFlowerWorkspace() {
   }
   function resetDemo() {
     setProfile(exampleProfile());
-    setTargetSource("DEMO"); setImportId(null); setWorkflowId(null); setDrawingPreview(null); setSelectedImportedProfileId(null); setEditingImported(false); setImportProfiles([]); setValidationResult(null); setValidatedProfileHash(stableJson(exampleProfile()));
+    setTargetSource("DEMO"); setImportId(null); setWorkflowId(null); setDrawingPreview(null); setSelectedImportedProfileId(null); setEditingImported(false); setImportProfiles([]); setValidationResult(null); setBackendValidationHash(null); setValidatedProfileSnapshot(stableJson(exampleProfile()));
     setRun(null);
     setCandidateIndex(0);
     setPassIndex(0);
@@ -457,7 +461,7 @@ export default function VisualFlowerWorkspace() {
                 onChange={(next) => {
                   setProfile(next);
                   setValidated(false);
-                  setValidatedProfileHash(null);
+                  setValidatedProfileSnapshot(null); setBackendValidationHash(null);
                   setValidationResult(null);
                   setTargetSource("MANUAL");
                 }}
@@ -465,7 +469,7 @@ export default function VisualFlowerWorkspace() {
           <div className="visual-controls">
             <button disabled={!profile || Boolean(importId && !selectedImportedProfileId)} onClick={() => void validateProfile()}>Validate Profile</button>
             <button onClick={saveTarget}>Save target JSON</button>
-            <fieldset disabled={!validated || validatedProfileHash !== (profile ? stableJson(profile) : null)}><legend>Configure Flower</legend><label>
+            <fieldset disabled={!validated || validatedProfileSnapshot !== (profile ? stableJson(profile) : null)}><legend>Configure Flower</legend><label>
               Station mode{" "}
               <select
                 value={stationMode}
@@ -537,7 +541,7 @@ export default function VisualFlowerWorkspace() {
             </button>
             </fieldset>
           </div>
-          {validationResult && <section aria-label="Backend validation result"><strong>Validation: {validationResult.valid ? "PASS" : "FAILED"}</strong>{validationResult.blocking_errors.map((error) => <div key={error.code}>- {error.code}: {error.message}</div>)}{validationResult.warnings.map((warning) => <div key={warning}>Warning: {warning}</div>)}</section>}
+          {validationResult && <section aria-label="Backend validation result"><strong>Validation: {validationResult.valid ? "PASS" : "FAILED"}</strong>{backendValidationHash && <small> Backend validation hash recorded.</small>}{validationResult.blocking_errors.map((error) => <div key={error.code}>- {error.code}: {error.message}</div>)}{validationResult.warnings.map((warning) => <div key={warning}>Warning: {warning}</div>)}</section>}
           <p>
             {validated
               ? (validation.valid

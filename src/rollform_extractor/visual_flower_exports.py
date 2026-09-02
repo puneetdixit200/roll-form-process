@@ -13,6 +13,7 @@ from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
 
 import ezdxf
 from PIL import Image, ImageDraw
+from rollform_extractor.flower_roller_evidence import FLOWER_ROLLER_EVIDENCE_VERSION
 
 
 def historical_profile_png(points: list[list[float]], *, label: str = "Historical pass") -> bytes:
@@ -193,7 +194,7 @@ def export_visual_run(result: dict, output: Path) -> dict[str, str]:
                 "safety_boundary": (
                     "Visual prototype only; not manufacturing approval."
                 ),
-                "roller_evidence": {"included": True, "algorithm_version": "flower-roller-evidence-v1", "manufacturing_approval": "NOT_APPROVED", "physical_asset_assignment": False},
+                "roller_evidence": {"included": True, "algorithm_version": FLOWER_ROLLER_EVIDENCE_VERSION, "manufacturing_approval": "NOT_APPROVED", "physical_asset_assignment": False},
             },
             indent=2,
             sort_keys=True,
