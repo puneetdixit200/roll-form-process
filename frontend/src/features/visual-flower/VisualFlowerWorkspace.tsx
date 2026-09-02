@@ -1,20 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createVisualTarget,
   generateVisualFlower,
+  generateRollformWorkflow,
   getVisualDatasetStatus,
   getVisualImportProfiles,
+  getVisualImportProfile,
+  getVisualImportDrawingPreview,
   getVisualModelDoctor,
   getVisualModelStatus,
   importVisualCad,
   reviewVisualCandidate,
   reviewRollerEvidence,
-  useVisualImportProfile,
-  useWorkflowImportProfile,
+  synchronizeWorkflowTarget,
+  validateVisualProfile,
   visualExportUrl,
 } from "./api";
 import { exampleProfile, ProfileSketcher } from "./ProfileSketcher";
-import type { VisualCandidate, VisualProfile, VisualRun } from "./types";
+import { CadDrawingCanvas } from "./CadDrawingCanvas";
+import type { CadDrawingPreview, VisualCandidate, VisualProfile, VisualRun } from "./types";
 
 type ImportedProfile = {
   profile_id: string;
@@ -25,13 +29,20 @@ type ImportedProfile = {
   height?: number;
   source_layers?: string[];
   source_units?: string | null;
+  source_handles?: string[];
   aspect_ratio: number | null;
   warnings: string[];
   thumbnail_svg: string;
 };
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.keys(value as Record<string, unknown>).sort().map((key) => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+
 export default function VisualFlowerWorkspace() {
-  const [profile, setProfile] = useState<VisualProfile>(exampleProfile());
+  const [profile, setProfile] = useState<VisualProfile | null>(exampleProfile());
   const [run, setRun] = useState<VisualRun | null>(null);
   const [candidateIndex, setCandidateIndex] = useState(0);
   const [passIndex, setPassIndex] = useState(0);
@@ -49,11 +60,17 @@ export default function VisualFlowerWorkspace() {
   // The bundled public example is known-valid, so the demo can be generated
   // immediately. Any edit, import, or JSON load resets this gate below.
   const [validated, setValidated] = useState(true);
+  const [validatedProfileHash, setValidatedProfileHash] = useState<string | null>(stableJson(exampleProfile()));
+  const [validationResult, setValidationResult] = useState<{ valid: boolean; profile_hash: string; blocking_errors: Array<{ code: string; message: string }>; warnings: string[]; checks: Record<string, boolean> } | null>(null);
+  const [targetSource, setTargetSource] = useState<"DEMO" | "MANUAL" | "JSON" | "CAD">("DEMO");
   const [guided, setGuided] = useState(false);
   const [reviewer, setReviewer] = useState("");
   const [importId, setImportId] = useState<string | null>(null);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [importProfiles, setImportProfiles] = useState<ImportedProfile[]>([]);
+  const [drawingPreview, setDrawingPreview] = useState<CadDrawingPreview | null>(null);
+  const [selectedImportedProfileId, setSelectedImportedProfileId] = useState<string | null>(null);
+  const [editingImported, setEditingImported] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dataset, setDataset] = useState<
     {
@@ -76,6 +93,8 @@ export default function VisualFlowerWorkspace() {
   const [modelDoctor, setModelDoctor] = useState<
     { status: string; model?: Record<string, unknown> } | null
   >(null);
+  const profileHashRef = useRef(profile ? stableJson(profile) : null);
+  useEffect(() => { profileHashRef.current = profile ? stableJson(profile) : null; }, [profile]);
   const candidate: VisualCandidate | undefined = run
     ?.candidates[candidateIndex];
   const currentPass = candidate?.passes[passIndex];
@@ -109,6 +128,7 @@ export default function VisualFlowerWorkspace() {
     return () => window.clearInterval(timer);
   }, [candidate, loop, playing, speed]);
   const validation = useMemo(() => {
+    if (!profile) return { valid: false, broken: [], zero: [], seam: false };
     const ids = new Set(profile.vertices.map((point) => point.vertex_id));
     const broken = profile.segments.filter((segment) =>
       !ids.has(segment.start_vertex_id) || !ids.has(segment.end_vertex_id)
@@ -131,18 +151,26 @@ export default function VisualFlowerWorkspace() {
     };
   }, [profile]);
   function validateProfile() {
-    setValidated(true);
-    setMessage(
-      validation.valid
-        ? "Profile valid with current geometry checks."
-        : "Profile has blocking geometry issues; generation is disabled.",
-    );
+    if (!profile) return;
+    const hashAtRequest = stableJson(profile);
+    setValidationResult(null);
+    validateVisualProfile(profile).then((result) => {
+      if (profileHashRef.current !== hashAtRequest) return;
+      const valid = result.valid && validation.valid;
+      setValidationResult(result);
+      setValidated(valid);
+      setValidatedProfileHash(valid ? (result.profile_hash || hashAtRequest) : null);
+      setMessage(valid ? "Profile validated by backend." : "Profile has blocking geometry issues; generation is disabled.");
+    }).catch(() => { if (profileHashRef.current === hashAtRequest) { setValidated(false); setValidatedProfileHash(null); setMessage("Profile validation failed; generation is disabled."); } });
   }
   async function generate() {
+    if (!profile || !validated || validatedProfileHash !== stableJson(profile)) return;
     try {
       setMessage("Canonicalizing and matching historical passes...");
-      const target = await createVisualTarget(profile);
-      const next = await generateVisualFlower(target.target_id, {
+      const target = workflowId
+        ? await synchronizeWorkflowTarget(workflowId, profile).then((item) => item.target)
+        : await createVisualTarget(profile);
+      const preferences = {
         generation_engine: generationEngine,
         station_mode: stationMode,
         exact_station_count: stationCount,
@@ -151,7 +179,10 @@ export default function VisualFlowerWorkspace() {
         candidate_limit: candidateLimit,
         allow_mirror_matching: true,
         allow_rotation_alignment: true,
-      });
+      };
+      const next = workflowId
+        ? await generateRollformWorkflow(workflowId, preferences)
+        : await generateVisualFlower(target.target_id, preferences);
       setRun(next);
       setCandidateIndex(0);
       setPassIndex(0);
@@ -174,7 +205,7 @@ export default function VisualFlowerWorkspace() {
     URL.revokeObjectURL(link.href);
   }
   function saveTarget() {
-    downloadJson(`${profile.profile_id}.json`, profile);
+    if (profile) downloadJson(`${profile.profile_id}.json`, profile);
   }
   function loadTarget(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -187,8 +218,7 @@ export default function VisualFlowerWorkspace() {
     }
     file.text().then((text) => {
       try {
-        setProfile(JSON.parse(text) as VisualProfile);
-        setValidated(false);
+        setTargetSource("JSON"); setImportId(null); setWorkflowId(null); setDrawingPreview(null); setImportProfiles([]); setSelectedImportedProfileId(null); setEditingImported(false); setRun(null); setProfile(JSON.parse(text) as VisualProfile); setValidated(false); setValidatedProfileHash(null); setValidationResult(null);
         setMessage("Target loaded. Validate before generation.");
       } catch {
         setMessage("Target JSON could not be read.");
@@ -199,13 +229,17 @@ export default function VisualFlowerWorkspace() {
     const file = event.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    setMessage("Uploading → converting → parsing → detecting profiles...");
+    setTargetSource("CAD"); setImportId(null); setWorkflowId(null); setRun(null); setCandidateIndex(0); setPassIndex(0); setValidated(false); setValidatedProfileHash(null); setValidationResult(null); setProfile(null); setImportProfiles([]); setDrawingPreview(null); setSelectedImportedProfileId(null); setEditingImported(false); setMessage("Uploading → converting → parsing → detecting profiles...");
     try {
       const result = await importVisualCad(file);
-      setImportId(result.import_id);
+      const actualImportId = result.visual_import_id || result.import_id;
+      setImportId(actualImportId);
       setWorkflowId(result.workflow_id ?? null);
-      const profiles = await getVisualImportProfiles(result.import_id);
+      const [profiles, preview] = await Promise.all([getVisualImportProfiles(actualImportId), getVisualImportDrawingPreview(actualImportId)]);
       setImportProfiles(profiles);
+      setDrawingPreview(preview);
+      setEditingImported(false);
+      if (profiles.length === 1) await selectImportedCandidate(actualImportId, profiles[0].profile_id);
       setMessage(
         `${result.profile_count} profile candidate(s) detected using ${
           result.converter ?? "offline extraction"
@@ -217,16 +251,17 @@ export default function VisualFlowerWorkspace() {
       setUploading(false);
     }
   }
-  async function useImported(profileId: string) {
-    if (!importId) return;
+  async function selectImportedCandidate(sourceImportId: string, profileId: string) {
     try {
-      const result = workflowId
-        ? await useWorkflowImportProfile(workflowId, profileId).then((item) => item.target)
-        : await useVisualImportProfile(importId, profileId);
-      if (result.profile) setProfile(result.profile);
+      const result = await getVisualImportProfile(sourceImportId, profileId);
+      setProfile(result.profile);
+      setSelectedImportedProfileId(profileId);
+      setEditingImported(false);
+      setRun(null); setCandidateIndex(0); setPassIndex(0);
       setValidated(false);
+      setValidatedProfileHash(null); setValidationResult(null);
       setMessage(
-        "Imported profile loaded into the sketch editor. Validate before generation.",
+        "Imported profile loaded. Review and validate before generation.",
       );
     } catch (error) {
       setMessage(
@@ -234,6 +269,7 @@ export default function VisualFlowerWorkspace() {
       );
     }
   }
+  async function useImported(profileId: string) { if (importId) { await selectImportedCandidate(importId, profileId); setEditingImported(true); } }
   async function review(decision: string) {
     if (!candidate || !reviewer.trim()) {
       setMessage("Enter a reviewer name before submitting feedback.");
@@ -261,6 +297,7 @@ export default function VisualFlowerWorkspace() {
   }
   function resetDemo() {
     setProfile(exampleProfile());
+    setTargetSource("DEMO"); setImportId(null); setWorkflowId(null); setDrawingPreview(null); setSelectedImportedProfileId(null); setEditingImported(false); setImportProfiles([]); setValidationResult(null); setValidatedProfileHash(stableJson(exampleProfile()));
     setRun(null);
     setCandidateIndex(0);
     setPassIndex(0);
@@ -366,14 +403,23 @@ export default function VisualFlowerWorkspace() {
               />
             </label>
           </div>
+          {drawingPreview && (
+            <>
+              <h4>Imported drawing inspection</h4>
+              <p>Drawing preview: READY · {drawingPreview.unit_status === "UNKNOWN" ? "Units unknown" : drawingPreview.units}</p>
+              <CadDrawingCanvas
+                preview={drawingPreview}
+                candidates={importProfiles}
+                selectedId={selectedImportedProfileId}
+                onSelect={(id) => void (importId && selectImportedCandidate(importId, id))}
+              />
+            </>
+          )}
           {importProfiles.length > 0 && (
             <div className="import-candidates">
               <h4>Detected profile candidates</h4>
               {importProfiles.map((item) => (
-                <article className="import-card" key={item.profile_id}>
-                  <div
-                    dangerouslySetInnerHTML={{ __html: item.thumbnail_svg }}
-                  />
+                <article className={`import-card ${selectedImportedProfileId === item.profile_id ? "selected" : ""}`} key={item.profile_id} onClick={() => void (importId && selectImportedCandidate(importId, item.profile_id))}>
                   <div>
                     <strong>{item.profile_id}</strong>
                     <p>
@@ -404,17 +450,22 @@ export default function VisualFlowerWorkspace() {
               ))}
             </div>
           )}
-          <ProfileSketcher
-            profile={profile}
-            onChange={(next) => {
-              setProfile(next);
-              setValidated(false);
-            }}
-          />
+          {importId && !editingImported
+            ? <p><button disabled={!selectedImportedProfileId} onClick={() => selectedImportedProfileId && void useImported(selectedImportedProfileId)}>Edit selected profile</button></p>
+            : profile ? <ProfileSketcher
+                profile={profile}
+                onChange={(next) => {
+                  setProfile(next);
+                  setValidated(false);
+                  setValidatedProfileHash(null);
+                  setValidationResult(null);
+                  setTargetSource("MANUAL");
+                }}
+              /> : <p>Select a detected profile to continue.</p>}
           <div className="visual-controls">
-            <button onClick={validateProfile}>Validate Profile</button>
+            <button disabled={!profile || Boolean(importId && !selectedImportedProfileId)} onClick={() => void validateProfile()}>Validate Profile</button>
             <button onClick={saveTarget}>Save target JSON</button>
-            <label>
+            <fieldset disabled={!validated || validatedProfileHash !== (profile ? stableJson(profile) : null)}><legend>Configure Flower</legend><label>
               Station mode{" "}
               <select
                 value={stationMode}
@@ -484,7 +535,9 @@ export default function VisualFlowerWorkspace() {
             >
               Generate Flower Sequence
             </button>
+            </fieldset>
           </div>
+          {validationResult && <section aria-label="Backend validation result"><strong>Validation: {validationResult.valid ? "PASS" : "FAILED"}</strong>{validationResult.blocking_errors.map((error) => <div key={error.code}>- {error.code}: {error.message}</div>)}{validationResult.warnings.map((warning) => <div key={warning}>Warning: {warning}</div>)}</section>}
           <p>
             {validated
               ? (validation.valid
@@ -732,12 +785,17 @@ export default function VisualFlowerWorkspace() {
                       candidateId={candidate.candidate_id}
                       station={candidate.roller_evidence?.stations.find((item) => item.pass_id === currentPass?.pass_id)}
                       reviewer={reviewer}
-                      onReview={async (role, decision) => {
+                      onReview={async (role, decision, selectedDesignId, selectedRevisionId) => {
                         if (!currentPass || !reviewer.trim()) {
                           setMessage("Enter a reviewer name before reviewing roller evidence.");
                           return;
                         }
-                        await reviewRollerEvidence(candidate.candidate_id, currentPass.pass_id, { role, decision, reviewer });
+                        try {
+                          await reviewRollerEvidence(candidate.candidate_id, currentPass.pass_id, { role, decision, reviewer, selected_design_id: selectedDesignId, selected_revision_id: selectedRevisionId });
+                        } catch (error) {
+                          setMessage(error instanceof Error ? error.message : "Roller evidence review failed.");
+                          return;
+                        }
                         setMessage("Roller design evidence review recorded.");
                       }}
                     />
@@ -802,7 +860,7 @@ function MatchDetails({ item }: { item: any }) {
   );
 }
 
-function RollerEvidenceDetails({ candidateId, station, reviewer, onReview }: { candidateId: string; station: any; reviewer: string; onReview: (role: string, decision: string) => Promise<void> }) {
+function RollerEvidenceDetails({ candidateId, station, reviewer, onReview }: { candidateId: string; station: any; reviewer: string; onReview: (role: string, decision: string, designId?: string, revisionId?: string | null) => Promise<void> }) {
   return (
     <section className="roller-evidence" aria-label={`Roller design evidence for ${candidateId}`}>
       <h3>Roller design evidence</h3>
@@ -814,11 +872,11 @@ function RollerEvidenceDetails({ candidateId, station, reviewer, onReview }: { c
           <strong>{role.role}</strong>
           {role.candidates.map((item: any) => (
             <div key={`${role.role}-${item.design_id}-${item.rank}`}>
-              Best-supported design candidate: <strong>{item.design_id}</strong>
+              {item.rank === 1 ? "Best-supported design candidate" : `Alternative design candidate #${item.rank}`}: <strong>{item.design_id}</strong>
               {item.geometry_revision_id ? ` / ${item.geometry_revision_id}` : ""} · {item.evidence_tier}
               {item.recognition_score != null ? ` · recognition ${(item.recognition_score * 100).toFixed(1)}%` : ""}
               {item.known_asset_count != null ? ` · known assets ${item.known_asset_count} (informational)` : ""}
-              <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "ACCEPT_DESIGN_EVIDENCE")}>Accept evidence</button>
+              <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "ACCEPT_DESIGN_EVIDENCE", item.design_id, item.geometry_revision_id)}>Accept evidence</button>
             </div>
           ))}
         </article>

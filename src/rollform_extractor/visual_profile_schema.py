@@ -62,6 +62,9 @@ def validate_profile(value: dict[str, Any]) -> VisualProfile:
         if not all(isinstance(vertex.get(key), (int, float)) and math.isfinite(float(vertex[key])) for key in ("x", "y")):
             raise VisualProfileError("INVALID_PROFILE", "vertex coordinates must be finite numbers")
     for segment in segments:
+        segment_id = segment.get("segment_id")
+        if not isinstance(segment_id, str) or not segment_id.strip():
+            raise VisualProfileError("INVALID_SEGMENT_ID", "segment_id must be a non-empty string")
         if segment.get("start_vertex_id") not in vertex_ids or segment.get("end_vertex_id") not in vertex_ids:
             raise VisualProfileError("INVALID_SEGMENT_REFERENCE", "segment references an unknown vertex")
         if segment.get("start_vertex_id") == segment.get("end_vertex_id"):
@@ -71,7 +74,7 @@ def validate_profile(value: dict[str, Any]) -> VisualProfile:
         if segment.get("type") == "ARC":
             center = segment.get("center")
             radius = segment.get("radius")
-            if not isinstance(center, dict) or not all(key in center for key in ("x", "y")) or not isinstance(radius, (int, float)) or float(radius) <= 0:
+            if (not isinstance(center, dict) or not all(isinstance(center.get(key), (int, float)) and math.isfinite(float(center[key])) for key in ("x", "y")) or not isinstance(radius, (int, float)) or not math.isfinite(float(radius)) or float(radius) <= 0):
                 raise VisualProfileError("DEGENERATE_ARC", "arc requires a positive radius and center")
     seam = value.get("computational_seam_vertex_id")
     if topology == "CLOSED_CONTOUR" and seam not in vertex_ids:

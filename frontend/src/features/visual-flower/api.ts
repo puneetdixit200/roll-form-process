@@ -1,4 +1,4 @@
-import type { VisualProfile, VisualRun } from "./types";
+import type { CadDrawingPreview, VisualProfile, VisualRun } from "./types";
 
 const API_ROOT = import.meta.env.VITE_API_ROOT ?? "";
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -78,6 +78,10 @@ export async function importVisualCad(
 ): Promise<
   {
     import_id: string;
+    visual_import_id: string;
+    project_id?: string;
+    analysis_job_id?: string;
+    source_sha256?: string;
     workflow_id?: string;
     status: string;
     profile_count: number;
@@ -108,6 +112,18 @@ export const getVisualImportProfiles = (importId: string) =>
       }
     >
   >(`/api/visual-flower/imports/${encodeURIComponent(importId)}/profiles`);
+export const getVisualImportProfile = (importId: string, profileId: string) =>
+  request<{ profile_id: string; profile: VisualProfile; warnings: string[] }>(
+    `/api/visual-flower/imports/${encodeURIComponent(importId)}/profiles/${encodeURIComponent(profileId)}`,
+  );
+export const getVisualImportDrawingPreview = (importId: string) =>
+  request<CadDrawingPreview>(`/api/visual-flower/imports/${encodeURIComponent(importId)}/drawing-preview`);
+export const validateVisualProfile = (profile: VisualProfile) =>
+  request<{ valid: boolean; profile_hash: string; blocking_errors: Array<{ code: string; message: string }>; warnings: string[]; checks: Record<string, boolean>; normalized_profile?: VisualProfile }>("/api/visual-flower/validate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profile }) });
+export const generateRollformWorkflow = (workflowId: string, preferences: Record<string, unknown>) =>
+  request<VisualRun>(`/api/rollform-workflows/${encodeURIComponent(workflowId)}/generate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(preferences) });
+export const synchronizeWorkflowTarget = (workflowId: string, profile: VisualProfile) =>
+  request<{ workflow: Record<string, unknown>; target: { target_id: string; profile: VisualProfile } }>(`/api/rollform-workflows/${encodeURIComponent(workflowId)}/target`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profile }) });
 export const useVisualImportProfile = (importId: string, profileId: string) =>
   request<{ target_id: string; profile: VisualProfile }>(
     `/api/visual-flower/imports/${encodeURIComponent(importId)}/profiles/${
@@ -120,7 +136,7 @@ export const useWorkflowImportProfile = (workflowId: string, profileId: string) 
     `/api/rollform-workflows/${encodeURIComponent(workflowId)}/profiles/${encodeURIComponent(profileId)}/select`,
     { method: "POST" },
   );
-export const reviewRollerEvidence = (candidateId: string, passId: string, body: { role: string; decision: string; reviewer: string; notes?: string }) =>
+export const reviewRollerEvidence = (candidateId: string, passId: string, body: { role: string; decision: string; reviewer: string; selected_design_id?: string; selected_revision_id?: string | null; notes?: string }) =>
   request(`/api/visual-flower/candidates/${encodeURIComponent(candidateId)}/passes/${encodeURIComponent(passId)}/roller-evidence/review`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });

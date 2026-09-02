@@ -33,8 +33,9 @@ from rollform_extractor.visual_flower_service import create_candidate_review, cr
 from rollform_extractor.visual_profile_schema import VisualProfileError
 from rollform_extractor.clrsg_service import list_models, model_status
 from rollform_extractor.private_clrsg_readiness import doctor_private_model
-from rollform_extractor.visual_flower_import import create_import as create_visual_import, get_import as get_visual_import, list_profiles as list_visual_import_profiles, selected_profile as selected_visual_import_profile
-from rollform_extractor.integrated_rollform_workflow import create_workflow, get_workflow, select_profile as select_workflow_profile
+from rollform_extractor.visual_flower_import import create_import as create_visual_import, get_import as get_visual_import, get_preview as get_visual_import_preview, list_profiles as list_visual_import_profiles, selected_profile as selected_visual_import_profile
+from rollform_extractor.visual_profile_validation import validate_visual_profile
+from rollform_extractor.integrated_rollform_workflow import create_workflow, get_workflow, select_profile as select_workflow_profile, select_target as select_workflow_target
 from rollform_extractor.flower_roller_evidence import create_roller_evidence_review
 from rollform_extractor.web.backend.demo_auth import COOKIE_NAME, enabled as demo_auth_enabled, hash_password, issue_session, login_allowed, record_failed_login, valid_session, verify_password
 from sqlalchemy import select
@@ -245,13 +246,19 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         content = await read_upload(file)
         try:
             visual = create_visual_import(root, file.filename or "profile.dxf", content)
+            if visual.get("status") == "FAILED":
+                raise HTTPException(status_code=422, detail={"code": visual.get("error_code", "CAD_IMPORT_FAILED"), "message": visual.get("error", "CAD import failed")})
             project = store.create_upload(file.filename or "drawing.dxf", content)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail={"code": "INVALID_CAD_FILE", "message": str(exc)}) from exc
         if auto_run_jobs:
             background.add_task(service.run_job, project.project_id, project.job_id)
         workflow = create_workflow(root, source_sha256=str(visual["source_sha256"]), visual_import_id=str(visual["import_id"]), project_id=project.project_id, analysis_job_id=project.job_id, profile_count=int(visual["profile_count"]))
-        return workflow | {"status": "PROFILE_SELECTION_READY" if workflow["profile_count"] else "NO_PROFILE_FOUND"}
+        return workflow | {
+            "status": "PROFILE_SELECTION_READY" if workflow["profile_count"] else "NO_PROFILE_FOUND",
+            "import_id": workflow["visual_import_id"],
+            "source_sha256": visual["source_sha256"],
+        }
 
     @app.get("/api/rollform-workflows/{workflow_id}")
     def integrated_rollform_status(workflow_id: str) -> dict[str, Any]:
@@ -290,6 +297,18 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         except (ValueError, VisualProfileError) as exc:
             raise HTTPException(status_code=422, detail={"code": getattr(exc, "code", "GENERATION_FAILED"), "message": str(exc)}) from exc
 
+    @app.post("/api/rollform-workflows/{workflow_id}/target")
+    def integrated_rollform_target(workflow_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        workflow = get_workflow(root, workflow_id)
+        if workflow is None:
+            raise HTTPException(status_code=404, detail="rollform workflow not found")
+        try:
+            target = create_visual_target(visual_engine(), {"profile": payload.get("profile") or payload})
+        except (ValueError, VisualProfileError) as exc:
+            raise HTTPException(status_code=422, detail={"code": getattr(exc, "code", "INVALID_PROFILE"), "message": str(exc)}) from exc
+        state = select_workflow_target(root, workflow_id, str(target["target_id"]))
+        return {"workflow": state, "target": target}
+
     @app.get("/api/visual-flower/imports/{import_id}")
     def visual_import_status(import_id: str) -> dict[str, Any]:
         result = get_visual_import(root, import_id)
@@ -303,6 +322,25 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         if result is None:
             raise HTTPException(status_code=404, detail="visual import not found")
         return result
+
+    @app.get("/api/visual-flower/imports/{import_id}/drawing-preview")
+    def visual_import_drawing_preview(import_id: str) -> dict[str, Any]:
+        if get_visual_import(root, import_id) is None:
+            raise HTTPException(status_code=404, detail="visual import not found")
+        result = get_visual_import_preview(root, import_id)
+        if result is None:
+            raise HTTPException(status_code=409, detail="drawing preview is not ready")
+        return result
+
+    @app.get("/api/visual-flower/imports/{import_id}/profiles/{profile_id}")
+    def visual_import_profile(import_id: str, profile_id: str) -> dict[str, Any]:
+        state = get_visual_import(root, import_id)
+        if state is None:
+            raise HTTPException(status_code=404, detail="visual import not found")
+        for item in state.get("profiles", []):
+            if item.get("profile_id") == profile_id:
+                return {key: value for key, value in item.items() if key != "thumbnail_svg"}
+        raise HTTPException(status_code=404, detail="visual import profile not found")
 
     @app.post("/api/visual-flower/imports/{import_id}/profiles/{profile_id}/use")
     def visual_use_import_profile(import_id: str, profile_id: str) -> dict[str, Any]:
@@ -337,6 +375,13 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
             raise HTTPException(status_code=422, detail={"code": exc.code, "message": exc.message}) from exc
         except ValueError as exc:
             raise HTTPException(status_code=422, detail={"code": "INVALID_PROFILE", "message": str(exc)}) from exc
+
+    @app.post("/api/visual-flower/validate")
+    def visual_validate_profile(payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return validate_visual_profile(payload.get("profile") or payload)
+        except (TypeError, ValueError, KeyError) as exc:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_PROFILE", "message": "profile validation input is malformed"}) from exc
 
     @app.get("/api/visual-flower/targets")
     def visual_list_targets() -> list[dict[str, Any]]:
@@ -428,7 +473,7 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     @app.post("/api/visual-flower/candidates/{candidate_id}/passes/{pass_id}/roller-evidence/review")
     def visual_pass_roller_evidence_review(candidate_id: str, pass_id: str, body: dict[str, Any]) -> dict[str, Any]:
         try:
-            return create_roller_evidence_review(visual_engine(), candidate_id, pass_id, str(body.get("role") or "UNKNOWN"), str(body.get("decision") or ""), str(body.get("reviewer") or ""), str(body.get("notes") or ""))
+            return create_roller_evidence_review(visual_engine(), candidate_id, pass_id, str(body.get("role") or "UNKNOWN"), str(body.get("decision") or ""), str(body.get("reviewer") or ""), str(body.get("notes") or ""), selected_design_id=body.get("selected_design_id"), selected_revision_id=body.get("selected_revision_id"))
         except LookupError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ValueError as exc:

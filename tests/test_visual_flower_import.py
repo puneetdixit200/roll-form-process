@@ -1,3 +1,5 @@
+import json
+
 import ezdxf
 from fastapi.testclient import TestClient
 
@@ -56,6 +58,43 @@ def test_connected_line_arc_chain_imports_as_one_editable_target(tmp_path):
         target = client.post(f"/api/visual-flower/imports/{response.json()['import_id']}/profiles/{profiles[0]['profile_id']}/use")
         assert target.status_code == 200
         assert target.json()["profile"]["segments"][1]["type"] == "ARC"
+
+
+def test_import_returns_safe_full_drawing_preview_with_bounds_and_arc(tmp_path):
+    document = ezdxf.new("R2018")
+    document.header["$INSUNITS"] = 4
+    modelspace = document.modelspace()
+    modelspace.add_line((0, 0), (10, 0))
+    modelspace.add_arc((10, 5), 5, 270, 360)
+    with TestClient(create_app(tmp_path, auto_run_jobs=False)) as client:
+        imported = client.post("/api/visual-flower/import", files={"file": ("preview.dxf", _save_bytes(document), "application/dxf")}).json()
+        preview = client.get(f"/api/visual-flower/imports/{imported['import_id']}/drawing-preview")
+        assert preview.status_code == 200
+        payload = preview.json()
+        assert payload["preview_version"] == "visual-dxf-preview-v1"
+        assert payload["bounds"]["width"] >= 10
+        assert payload["supported_primitive_count"] == 2
+        assert {item["type"] for item in payload["primitives"]} == {"LINE", "ARC"}
+        assert "/home/" not in json.dumps(payload)
+        assert "converted_file" not in json.dumps(payload)
+
+
+def test_backend_profile_validation_rejects_disconnected_profile(tmp_path):
+    profile = {"schema_version": 1, "profile_id": "bad", "name": "bad", "topology": "OPEN_PATH", "closed": False, "computational_seam_vertex_id": None, "vertices": [{"vertex_id": "a", "x": 0, "y": 0}, {"vertex_id": "b", "x": 1, "y": 0}, {"vertex_id": "c", "x": 10, "y": 0}, {"vertex_id": "d", "x": 11, "y": 0}], "segments": [{"segment_id": "one", "type": "LINE", "start_vertex_id": "a", "end_vertex_id": "b"}, {"segment_id": "two", "type": "LINE", "start_vertex_id": "c", "end_vertex_id": "d"}]}
+    with TestClient(create_app(tmp_path, auto_run_jobs=False)) as client:
+        response = client.post("/api/visual-flower/validate", json={"profile": profile})
+        assert response.status_code == 200
+        assert response.json()["valid"] is False
+        assert any(item["code"] == "DISCONNECTED_PROFILE" for item in response.json()["blocking_errors"])
+
+
+def test_preview_expands_lwpolyline_bulge_to_true_arc(tmp_path):
+    document = ezdxf.new("R2018")
+    document.modelspace().add_lwpolyline([(1.0, 0.0, 0.4142135624), (0.0, 1.0, 0.0)], format="xyb")
+    with TestClient(create_app(tmp_path, auto_run_jobs=False)) as client:
+        imported = client.post("/api/visual-flower/import", files={"file": ("bulge.dxf", _save_bytes(document), "application/dxf")}).json()
+        preview = client.get(f"/api/visual-flower/imports/{imported['import_id']}/drawing-preview").json()
+        assert any(item["type"] == "ARC" for item in preview["primitives"])
 
 
 def test_integrated_import_creates_linked_visual_and_project_workflow(tmp_path):
