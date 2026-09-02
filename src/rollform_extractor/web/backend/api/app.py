@@ -29,7 +29,7 @@ from rollform_extractor.validated_usage import (
     lock_dataset_version, promote_confirmed_usage, search_historical_usage, submit_label_assertion,
     validate_dataset,
 )
-from rollform_extractor.visual_flower_service import create_candidate_review, create_target as create_visual_target, export_candidate as export_visual_candidate, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, historical_pass_preview, list_candidate_reviews, list_targets as list_visual_targets
+from rollform_extractor.visual_flower_service import create_candidate_review, create_target as create_visual_target, export_candidate as export_visual_candidate, get_candidate as get_visual_candidate, get_run as get_visual_run, get_target as get_visual_target, generate_for_target as generate_visual_for_target, historical_pass_preview, historical_flowers, historical_flower, historical_pass, list_candidate_reviews, list_targets as list_visual_targets
 from rollform_extractor.visual_profile_schema import VisualProfileError
 from rollform_extractor.clrsg_service import list_models, model_status
 from rollform_extractor.private_clrsg_readiness import doctor_private_model
@@ -210,6 +210,25 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
         if preview is None:
             raise HTTPException(status_code=404, detail="historical pass preview not found")
         return Response(content=preview, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+    @app.get("/api/visual-flower/historical/flowers")
+    def visual_historical_flowers() -> dict[str, Any]:
+        dataset = json.loads(Path(os.environ["ROLLFORM_FLOWER_PROTOTYPE_DATASET"]).expanduser().resolve().read_text(encoding="utf-8")) if os.environ.get("ROLLFORM_FLOWER_PROTOTYPE_DATASET") else {"dataset_hash": "UNCONFIGURED"}
+        return {"schema_version": 1, "dataset_hash": dataset.get("dataset_hash"), "flowers": historical_flowers(), "private_paths_redacted": True}
+
+    @app.get("/api/visual-flower/historical/flowers/{flower_id}")
+    def visual_historical_flower(flower_id: str) -> dict[str, Any]:
+        result = historical_flower(flower_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="historical flower not found")
+        return result
+
+    @app.get("/api/visual-flower/historical/flowers/{flower_id}/passes/{pass_id}")
+    def visual_historical_pass(flower_id: str, pass_id: str) -> dict[str, Any]:
+        result = historical_pass(flower_id, pass_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="historical pass not found")
+        return result
 
     @app.get("/api/visual-flower/model/status")
     def visual_model_status() -> dict[str, Any]:

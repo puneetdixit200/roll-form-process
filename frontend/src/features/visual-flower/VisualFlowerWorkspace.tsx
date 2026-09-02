@@ -368,14 +368,14 @@ export default function VisualFlowerWorkspace() {
       <details className="prototype-evidence">
         <summary>Prototype Evidence</summary>
         <div className="metrics">
-          <Metric label="Historical flowers" value="2" />
-          <Metric label="Historical passes" value="31" />
+          <Metric label="Historical flowers" value={dataset?.available ? String(dataset.flower_count) : "Unavailable"} />
+          <Metric label="Historical passes" value={dataset?.available ? String(dataset.pass_count) : "Unavailable"} />
           <Metric label="Held-out improvement" value="73.64%" />
           <Metric label="OOD detection" value="100%" />
           <Metric label="Fallback" value="6.25%" />
         </div>
-        <p>
-          Evidence is redacted and private-source safe. These are
+          <p>
+            Evidence is redacted and private-source safe. These are
           synthetic-derived prototype metrics, not manufacturing accuracy.
           Manufacturing approval remains NOT APPROVED and physical roller
           availability is NOT DETERMINED.
@@ -852,6 +852,9 @@ function MatchDetails({ item }: { item: any }) {
               3,
             ) ?? "n/a"}
           </p>
+          <a href={`/api/visual-flower/historical/flowers/${encodeURIComponent(match.source_flower_id)}`} target="_blank" rel="noreferrer">
+            Open redacted historical source record
+          </a>
             </div>
           </div>
         </div>
@@ -875,7 +878,13 @@ function RollerEvidenceDetails({ candidateId, station, reviewer, onReview }: { c
               {item.rank === 1 ? "Best-supported design candidate" : `Alternative design candidate #${item.rank}`}: <strong>{item.design_id}</strong>
               {item.geometry_revision_id ? ` / ${item.geometry_revision_id}` : ""} · {item.evidence_tier}
               {item.recognition_score != null ? ` · recognition ${(item.recognition_score * 100).toFixed(1)}%` : ""}
+              {item.top3_support_count != null ? ` · ${item.top3_support_count} of top 3 historical matches` : ""}
               {item.known_asset_count != null ? ` · known assets ${item.known_asset_count} (informational)` : ""}
+              {(item.supporting_origins ?? []).map((origin: any) => (
+                <a key={origin.source_reference_id} href={`/api/visual-flower/historical/flowers/${encodeURIComponent(origin.source_flower_id ?? "")}/passes/${encodeURIComponent(origin.source_pass_id ?? "")}`} target="_blank" rel="noreferrer">
+                  Source {origin.source_reference_id}
+                </a>
+              ))}
               <button type="button" disabled={!reviewer.trim()} onClick={() => void onReview(role.role, "ACCEPT_DESIGN_EVIDENCE", item.design_id, item.geometry_revision_id)}>Accept evidence</button>
             </div>
           ))}

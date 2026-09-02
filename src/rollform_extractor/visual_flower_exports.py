@@ -117,6 +117,33 @@ def export_visual_run(result: dict, output: Path) -> dict[str, str]:
         writer.writeheader(); writer.writerows(evidence_rows)
     files["roller_evidence.csv"] = _hash(output / "roller_evidence.csv")
 
+    origin_rows = []
+    for row in evidence_rows:
+        candidate = next((item for item in result.get("candidates", []) if item.get("candidate_id") == row["candidate_id"]), None)
+        station = next((item for item in (candidate or {}).get("roller_evidence", {}).get("stations", []) if item.get("pass_id") == row["pass_id"]), None)
+        for role in (station or {}).get("roles", []):
+            for item in role.get("candidates", []):
+                if item.get("design_id") != row["design_id"] or role.get("role") != row["role"]:
+                    continue
+                for origin in item.get("supporting_origins", []):
+                    origin_rows.append({
+                        "candidate_id": row["candidate_id"], "pass_id": row["pass_id"],
+                        "role": row["role"], "design_id": row["design_id"],
+                        "geometry_revision_id": row["geometry_revision_id"],
+                        "source_reference_id": origin.get("source_reference_id"),
+                        "source_flower_id": origin.get("source_flower_id"),
+                        "source_pass_id": origin.get("source_pass_id"),
+                        "source_project_id": origin.get("source_project_id"),
+                        "source_station_id": origin.get("source_station_id"),
+                        "match_rank": origin.get("match_rank"),
+                    })
+    origin_fields = ["candidate_id", "pass_id", "role", "design_id", "geometry_revision_id", "source_reference_id", "source_flower_id", "source_pass_id", "source_project_id", "source_station_id", "match_rank"]
+    with (output / "roller_evidence_origins.csv").open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=origin_fields)
+        writer.writeheader()
+        writer.writerows(sorted(origin_rows, key=lambda item: tuple(str(item.get(field) or "") for field in origin_fields)))
+    files["roller_evidence_origins.csv"] = _hash(output / "roller_evidence_origins.csv")
+
     for candidate in result.get("candidates", []):
         directory = output / candidate["candidate_id"]
         directory.mkdir(exist_ok=True)

@@ -1098,6 +1098,21 @@ class HistoricalPassTransitionRow(Base):
     transition_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
+class HistoricalRollerStationEvidenceRow(Base):
+    """Optional station-level design evidence for the v2 flower dataset."""
+    __tablename__ = "historical_roller_station_evidence"
+    __table_args__ = (UniqueConstraint("dataset_id", "flower_id", "pass_id", "role", "design_id", "geometry_revision_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(String)
+    flower_id: Mapped[str] = mapped_column(String)
+    pass_id: Mapped[str] = mapped_column(String)
+    role: Mapped[str] = mapped_column(String)
+    design_id: Mapped[str] = mapped_column(String)
+    geometry_revision_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    evidence_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+
 class HistoricalBendProgressionRow(Base):
     __tablename__ = "historical_bend_progressions"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

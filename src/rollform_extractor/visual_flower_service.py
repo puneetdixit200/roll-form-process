@@ -30,6 +30,7 @@ from rollform_extractor.flower_roller_evidence import (
     FLOWER_ROLLER_EVIDENCE_VERSION,
     build_candidate_roller_evidence,
 )
+from rollform_extractor.historical_source_traceability import historical_flower_detail, historical_pass_detail, safe_historical_flower
 from rollform_extractor.roller_recognition import recognize_project
 from rollform_extractor.strip_length_constraint import STRIP_LENGTH_CONSTRAINT_VERSION
 from rollform_extractor.visual_flower_engine import generate_visual_candidates
@@ -86,6 +87,19 @@ def historical_pass_preview(source_flower_id: str, source_pass_id: str) -> bytes
                 if points:
                     return historical_profile_png(points, label=f"{source_flower_id} / {source_pass_id}")
     return None
+
+
+def historical_flowers(*, include_geometry: bool = False) -> list[dict[str, Any]]:
+    dataset = historical_dataset()
+    return [safe_historical_flower(flower, include_geometry=include_geometry) for flower in sorted(dataset.get("flowers", []), key=lambda item: str(item.get("flower_id", "")))]
+
+
+def historical_flower(source_flower_id: str) -> dict[str, Any] | None:
+    return historical_flower_detail(historical_dataset(), source_flower_id)
+
+
+def historical_pass(source_flower_id: str, source_pass_id: str) -> dict[str, Any] | None:
+    return historical_pass_detail(historical_dataset(), source_flower_id, source_pass_id)
 
 
 def create_target(engine, payload: dict[str, Any]) -> dict[str, Any]:

@@ -118,6 +118,21 @@ export const getVisualImportProfile = (importId: string, profileId: string) =>
   );
 export const getVisualImportDrawingPreview = (importId: string) =>
   request<CadDrawingPreview>(`/api/visual-flower/imports/${encodeURIComponent(importId)}/drawing-preview`);
+
+export const getHistoricalFlowers = () =>
+  request<{ schema_version: number; dataset_hash?: string; flowers: Array<{ flower_id: string; station_count: number; topology?: string; quality_flags: string[] }>; private_paths_redacted: boolean }>(
+    "/api/visual-flower/historical/flowers",
+  );
+
+export const getHistoricalFlower = (flowerId: string) =>
+  request<{ flower_id: string; station_count: number; passes: Array<Record<string, unknown>>; private_paths_redacted: boolean }>(
+    `/api/visual-flower/historical/flowers/${encodeURIComponent(flowerId)}`,
+  );
+
+export const getHistoricalPass = (flowerId: string, passId: string) =>
+  request<Record<string, unknown>>(
+    `/api/visual-flower/historical/flowers/${encodeURIComponent(flowerId)}/passes/${encodeURIComponent(passId)}`,
+  );
 export const validateVisualProfile = (profile: VisualProfile) =>
   request<{ valid: boolean; profile_hash: string; blocking_errors: Array<{ code: string; message: string }>; warnings: string[]; checks: Record<string, boolean>; normalized_profile?: VisualProfile }>("/api/visual-flower/validate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profile }) });
 export const generateRollformWorkflow = (workflowId: string, preferences: Record<string, unknown>) =>

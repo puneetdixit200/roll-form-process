@@ -11,8 +11,10 @@ import json
 from typing import Any, Iterable, Mapping
 from uuid import uuid4
 
+from rollform_extractor.historical_source_traceability import source_reference_id
 
-FLOWER_ROLLER_EVIDENCE_VERSION = "flower-roller-evidence-v2"
+
+FLOWER_ROLLER_EVIDENCE_VERSION = "flower-roller-evidence-v3"
 SAFETY_LIMITATION = "Design evidence only; not tooling approval or automatic physical-asset selection."
 
 
@@ -42,7 +44,13 @@ def _matches_for_pass(pass_payload: Mapping[str, Any]) -> list[Mapping[str, Any]
     matches = list(history.get("top_matches") or [])
     if history.get("best_match") and history["best_match"] not in matches:
         matches.insert(0, history["best_match"])
-    return [item for item in matches if item.get("source_flower_id") and item.get("source_pass_id")]
+    valid = [item for item in matches if item.get("source_flower_id") and item.get("source_pass_id")]
+    result = []
+    for rank, item in enumerate(valid, 1):
+        enriched = dict(item)
+        enriched.setdefault("match_rank", rank)
+        result.append(enriched)
+    return result
 
 
 def _assets_for_design(inventory_assets: Mapping[str, Any], design_id: str) -> list[dict[str, Any]]:
@@ -90,6 +98,7 @@ def _candidate_item(
     *,
     historical_match: Mapping[str, Any] | None = None,
     direct: bool = False,
+    dataset_hash: str = "UNCONFIGURED",
 ) -> dict[str, Any] | None:
     if not record.get("design_id"):
         return None
@@ -97,6 +106,23 @@ def _candidate_item(
     recognition_status = str(record.get("recognition_status") or record.get("candidate_status") or "").upper()
     status = "AMBIGUOUS" if recognition_status == "AMBIGUOUS" else "SUPPORTED" if tier_order < 6 else "INSUFFICIENT_ROLLER_EVIDENCE"
     match = dict(historical_match or {})
+    dataset_hash = str(match.get("dataset_hash") or record.get("dataset_hash") or dataset_hash)
+    source_flower_id = match.get("source_flower_id") if match else record.get("flower_id")
+    source_pass_id = match.get("source_pass_id") if match else record.get("pass_id")
+    source_role = str(record.get("role") or "UNKNOWN")
+    origin = {
+        "source_reference_id": source_reference_id(
+            dataset_hash, str(source_flower_id or "UNKNOWN"), str(source_pass_id or "UNKNOWN"),
+            source_role, str(record["design_id"]), record.get("geometry_revision_id"),
+        ),
+        "source_flower_id": source_flower_id,
+        "source_pass_id": source_pass_id,
+        "source_project_id": record.get("source_project_id"),
+        "source_occurrence_id": record.get("source_occurrence_id") or record.get("occurrence_id"),
+        "source_station_id": record.get("station_id"),
+        "match_rank": match.get("match_rank"),
+        "evidence_tier": tier,
+    }
     warnings = sorted(set(record.get("quality_flags") or []))
     if status == "AMBIGUOUS" and "AMBIGUOUS_ROLLER_DESIGN" not in warnings:
         warnings.append("AMBIGUOUS_ROLLER_DESIGN")
@@ -118,12 +144,14 @@ def _candidate_item(
         "historical_pass_similarity": match.get("overall_score") if match else None,
         "confirmed_usage_count": int(record.get("confirmed_usage_count") or (1 if tier_order in {1, 3} else 0)),
         "distinct_historical_projects": int(record.get("distinct_project_count") or 0),
-        "source_flower_id": match.get("source_flower_id") if match else record.get("flower_id"),
-        "source_pass_id": match.get("source_pass_id") if match else record.get("pass_id"),
+        "source_flower_id": source_flower_id,
+        "source_pass_id": source_pass_id,
         "source_project_id": record.get("source_project_id"),
         "source_occurrence_id": record.get("source_occurrence_id") or record.get("occurrence_id"),
         "source_station_id": record.get("station_id"),
         "warnings": warnings,
+        "supporting_origins": [origin],
+        "best_support_origin": origin,
         "explanation": (
             {"direct_project_evidence": dict(record)}
             if direct
@@ -172,7 +200,7 @@ def build_candidate_roller_evidence(
                 raw.append(item)
         for match in historical:
             for record in index[(str(match["source_flower_id"]), str(match["source_pass_id"]))]:
-                item = _candidate_item(record, historical_match=match)
+                item = _candidate_item(record, historical_match=match, dataset_hash=str(dataset.get("dataset_hash") or "UNCONFIGURED"))
                 if item:
                     raw.append(item)
 
@@ -188,9 +216,19 @@ def build_candidate_roller_evidence(
                 item["design_id"],
                 item["geometry_revision_id"] or "",
             )
-            if current is None or rank_key < current["_rank_key"]:
+            if current is None:
                 item["_rank_key"] = rank_key
                 grouped[key] = item
+            else:
+                current["supporting_origins"].extend(item.get("supporting_origins", []))
+                current["supporting_origins"] = sorted(
+                    {json.dumps(origin, sort_keys=True): origin for origin in current["supporting_origins"]}.values(),
+                    key=lambda origin: (str(origin.get("source_reference_id")), str(origin.get("source_pass_id"))),
+                )
+                if rank_key < current["_rank_key"]:
+                    item["supporting_origins"] = current["supporting_origins"]
+                    item["_rank_key"] = rank_key
+                    grouped[key] = item
 
         roles: list[dict[str, Any]] = []
         by_role: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -204,6 +242,10 @@ def build_candidate_roller_evidence(
                 item.pop("_tier_order", None)
                 item.pop("_rank_key", None)
                 item["rank"] = rank
+                origins = item.get("supporting_origins") or []
+                item["top3_support_count"] = sum(1 for origin in origins if origin.get("match_rank") in {1, 2, 3})
+                item["supporting_match_ranks"] = sorted({origin.get("match_rank") for origin in origins if origin.get("match_rank") is not None})
+                item["best_support_origin"] = origins[0] if origins else None
                 item["inventory_assets"] = _assets_for_design(inventory_assets or {}, item["design_id"])
                 item["known_asset_count"] = len(item["inventory_assets"])
                 item["inventory_verification_status"] = (
