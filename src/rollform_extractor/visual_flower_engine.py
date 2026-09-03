@@ -14,6 +14,7 @@ from rollform_extractor.strip_length_constraint import (
 from rollform_extractor.visual_profile_canonicalization import canonicalize_profile
 from rollform_extractor.visual_profile_metrics import compare_profiles
 from rollform_extractor.visual_profile_schema import VISUAL_ALGORITHM_VERSION, VisualProfile
+from rollform_extractor.historical_subsequence import best_contiguous_subsequence
 
 
 def generate_visual_candidates(
@@ -233,6 +234,15 @@ def _candidate(
             }
         )
 
+    grouped_histories = [
+        {"flower_id": flower_id, "passes": [item for item in histories if str(item["source_flower_id"]) == flower_id]}
+        for flower_id in sorted({str(item["source_flower_id"]) for item in histories})
+    ]
+    generated_for_sequence = [
+        {"pass_id": item["pass_id"], "shape_vector": tuple(value for point in item["profile"]["points"] for value in point)}
+        for item in generated
+    ]
+    historical_subsequence = best_contiguous_subsequence(generated_for_sequence, grouped_histories)
     values = [item["visual_confidence"]["score"] for item in generated]
     smoothness = _smoothness(generated)
     overall = round(
@@ -275,6 +285,7 @@ def _candidate(
             "non_calibrated": True,
         },
         "passes": generated,
+        "best_historical_subsequence": historical_subsequence,
         "warnings": [
             "VISUAL_ONLY_NOT_MANUFACTURING_VALIDATION",
             "CENTERLINE_STRIP_LENGTH_CONSTRAINED",
@@ -365,6 +376,8 @@ def _historical_passes(flowers):
                     {
                         "source_flower_id": flower.get("flower_id"),
                         "source_pass_id": item.get("pass_id"),
+                        "inferred_order": index,
+                        "shape_vector": tuple(float(value) for value in vector),
                         "progress": index / max(len(passes) - 1, 1),
                         "profile": {
                             "points": points,
