@@ -19,6 +19,7 @@ import {
 import { exampleProfile, ProfileSketcher } from "./ProfileSketcher";
 import { CadDrawingCanvas } from "./CadDrawingCanvas";
 import { HistoricalSourceFlowerExplorer } from "./HistoricalSourceFlowerExplorer";
+import { HistoricalSubsequenceMatchCard } from "./HistoricalSubsequenceMatchCard";
 import type { CadDrawingPreview, VisualCandidate, VisualProfile, VisualRun } from "./types";
 
 type ImportedProfile = {
@@ -73,7 +74,7 @@ export default function VisualFlowerWorkspace() {
   const [drawingPreview, setDrawingPreview] = useState<CadDrawingPreview | null>(null);
   const [selectedImportedProfileId, setSelectedImportedProfileId] = useState<string | null>(null);
   const [editingImported, setEditingImported] = useState(false);
-  const [historicalSource, setHistoricalSource] = useState<{ flowerId: string; passId: string } | null>(null);
+  const [historicalSource, setHistoricalSource] = useState<{ flowerId: string; passId: string; startOrder?: number; endOrder?: number } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dataset, setDataset] = useState<
     {
@@ -787,7 +788,8 @@ export default function VisualFlowerWorkspace() {
                       </span>.
                     </p>
                     <MatchDetails item={currentPass} onOpenSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId })} />
-                    {historicalSource && <HistoricalSourceFlowerExplorer flowerId={historicalSource.flowerId} passId={historicalSource.passId} generatedStation={currentPass?.order ?? 0} onBack={() => setHistoricalSource(null)} />}
+                    {candidate.best_historical_subsequence && <HistoricalSubsequenceMatchCard match={candidate.best_historical_subsequence} onOpenSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId, startOrder: candidate.best_historical_subsequence?.source_start_order, endOrder: candidate.best_historical_subsequence?.source_end_order })} />}
+                    {historicalSource && <HistoricalSourceFlowerExplorer flowerId={historicalSource.flowerId} passId={historicalSource.passId} sourceStartOrder={historicalSource.startOrder} sourceEndOrder={historicalSource.endOrder} generatedStation={currentPass?.order ?? 0} onBack={() => setHistoricalSource(null)} />}
                     <RollerEvidenceDetails
                       candidateId={candidate.candidate_id}
                       station={candidate.roller_evidence?.stations.find((item) => item.pass_id === currentPass?.pass_id)}
