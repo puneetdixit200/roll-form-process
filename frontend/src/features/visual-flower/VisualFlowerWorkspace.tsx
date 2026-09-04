@@ -59,6 +59,7 @@ export default function VisualFlowerWorkspace() {
   const [candidateLimit, setCandidateLimit] = useState(3);
   const [generationEngine, setGenerationEngine] = useState("AUTO");
   const [message, setMessage] = useState("");
+  const [generating, setGenerating] = useState(false);
   // The bundled public example is known-valid, so the demo can be generated
   // immediately. Any edit, import, or JSON load resets this gate below.
   const [validated, setValidated] = useState(true);
@@ -169,7 +170,8 @@ export default function VisualFlowerWorkspace() {
     }).catch(() => { if (profileHashRef.current === hashAtRequest) { setValidated(false); setValidatedProfileSnapshot(null); setBackendValidationHash(null); setMessage("Profile validation failed; generation is disabled."); } });
   }
   async function generate() {
-    if (!profile || !validated || validatedProfileSnapshot !== stableJson(profile)) return;
+    if (generating || !profile || !validated || validatedProfileSnapshot !== stableJson(profile)) return;
+    setGenerating(true);
     try {
       setMessage("Canonicalizing and matching historical passes...");
       const target = workflowId
@@ -198,6 +200,8 @@ export default function VisualFlowerWorkspace() {
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Generation failed");
+    } finally {
+      setGenerating(false);
     }
   }
   function downloadJson(name: string, value: unknown) {
@@ -536,11 +540,11 @@ export default function VisualFlowerWorkspace() {
             </label>
             <button
               disabled={
-                !validation.valid || !validated || dataset?.available === false
+                generating || !validation.valid || !validated || dataset?.available === false
               }
-              onClick={generate}
+              onClick={() => void generate()}
             >
-              Generate Flower Sequence
+              {generating ? "Generating Flower Sequence…" : "Generate Flower Sequence"}
             </button>
             </fieldset>
           </div>
@@ -814,7 +818,7 @@ export default function VisualFlowerWorkspace() {
               </>
             )
             : <p>Validate a profile, then generate a sequence.</p>}
-          <p>{message}</p>
+          <p role="status" aria-live="polite">{message}</p>
         </div>
       </div>
     </section>

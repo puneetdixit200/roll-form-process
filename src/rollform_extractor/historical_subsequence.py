@@ -17,6 +17,30 @@ def _ordered_passes(flower: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     )
 
 
+def _comparison_matrix(
+    generated: list[Mapping[str, Any]],
+    source: list[Mapping[str, Any]],
+    *,
+    allow_mirror: bool,
+    allow_rotation: bool,
+) -> list[list[dict[str, Any]]]:
+    """Compare each pass pair once; overlapping windows reuse these results."""
+    return [
+        [
+            compare_generated_to_historical(
+                generated_item["profile"],
+                source_item,
+                generated_progress=float(generated_item.get("progress", 0.0)),
+                historical_progress=float(source_item.get("progress", 0.0)),
+                allow_mirror=allow_mirror,
+                allow_rotation=allow_rotation,
+            )
+            for source_item in source
+        ]
+        for generated_item in generated
+    ]
+
+
 def best_contiguous_subsequence(
     generated_passes: Iterable[Mapping[str, Any]],
     historical_flowers: Iterable[Mapping[str, Any]],
@@ -39,6 +63,12 @@ def best_contiguous_subsequence(
     candidates: list[dict[str, Any]] = []
     for flower in sorted(historical_flowers, key=lambda item: str(item.get("flower_id", ""))):
         source = _ordered_passes(flower)
+        comparisons = _comparison_matrix(
+            generated,
+            source,
+            allow_mirror=allow_mirror,
+            allow_rotation=allow_rotation,
+        )
         for length in range(min(len(generated), len(source)), minimum_length - 1, -1):
             for start_g in range(len(generated) - length + 1):
                 for start_s in range(len(source) - length + 1):
@@ -46,12 +76,7 @@ def best_contiguous_subsequence(
                     for offset in range(length):
                         generated_item = generated[start_g + offset]
                         source_item = source[start_s + offset]
-                        match = compare_generated_to_historical(
-                            generated_item["profile"], source_item,
-                            generated_progress=float(generated_item.get("progress", 0.0)),
-                            historical_progress=float(source_item.get("progress", 0.0)),
-                            allow_mirror=allow_mirror, allow_rotation=allow_rotation,
-                        )
+                        match = comparisons[start_g + offset][start_s + offset]
                         mapping.append({
                             "generated_pass_id": generated_item.get("pass_id"),
                             "generated_order": int(generated_item.get("order", start_g + offset + 1)),

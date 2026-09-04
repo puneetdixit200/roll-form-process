@@ -44,3 +44,37 @@ test("loads historical match previews from the same-origin API", async () => {
   expect(image).toHaveAttribute("src", "/api/visual-flower/historical-preview/PRIVATE-FLOWER-001/p-1.png");
   expect(image.getAttribute("src")).not.toContain("127.0.0.1");
 });
+
+test("shows generation progress and prevents duplicate generation requests", async () => {
+  const mockedFetch = vi.mocked(fetch);
+  const original = mockedFetch.getMockImplementation();
+  let release: (() => void) | undefined;
+  mockedFetch.mockImplementation((url: string | URL | Request, init?: RequestInit) => {
+    if (String(url).includes("/generate")) {
+      return new Promise<Response>((resolve, reject) => {
+        const pending = original
+          ? original(String(url), init)
+          : Promise.resolve(new Response("{}", { status: 500 }));
+        pending.then((response) => {
+          release = () => resolve(response);
+        }, reject);
+      });
+    }
+    return original
+      ? original(String(url), init)
+      : Promise.resolve(new Response("{}", { status: 500 }));
+  });
+
+  render(<VisualFlowerWorkspace />);
+  const generate = screen.getByRole("button", { name: "Generate Flower Sequence" });
+  fireEvent.click(generate);
+
+  const busy = await screen.findByRole("button", { name: "Generating Flower Sequence…" });
+  expect(busy).toBeDisabled();
+  fireEvent.click(busy);
+  expect(mockedFetch.mock.calls.filter(([url]) => String(url).includes("/generate"))).toHaveLength(1);
+
+  release?.();
+  expect(await screen.findByText("Candidate sequences ready for engineer review.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Generate Flower Sequence" })).toBeEnabled();
+});

@@ -175,17 +175,18 @@ npm ci
 
 ## Run locally
 
-Backend:
+Use the supported launcher. It restores the saved historical dataset/model
+configuration, starts both services, and prevents the generation button from
+being disabled by an accidentally unconfigured backend:
 
 ```bash
-PYTHONPATH=src uvicorn backend.api.main:app --host 127.0.0.1 --port 8000
+.venv/bin/python scripts/run_visual_flower_demo.py start
 ```
 
-Frontend:
+Verify the complete generation and export path:
 
 ```bash
-cd frontend
-VITE_API_ROOT=http://127.0.0.1:8000 npm run dev
+.venv/bin/python scripts/run_visual_flower_demo.py verify
 ```
 
 Then open:
