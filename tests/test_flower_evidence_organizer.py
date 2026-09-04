@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+import ezdxf
+
 from rollform_extractor.flower_evidence_organizer import build_flower_evidence_library
 
 
@@ -64,6 +66,11 @@ def test_builds_four_labelled_folders_and_direct_indexes(tmp_path):
     assert review_location["source_id"] == "SOURCE-2"
     assert review_location["flower_id"] is None
     assert (tmp_path / "library/FILE_LOCATIONS.csv").is_file()
+    flower_record = json.loads((tmp_path / "library/01_FLOWER_SEQUENCES/F1/FLOWER.json").read_text())
+    assert "source_region_id" in flower_record
+    split_dxf = tmp_path / "library/01_FLOWER_SEQUENCES/F1/F1-EXTRACTED-SEQUENCE.dxf"
+    assert split_dxf.is_file()
+    assert len(ezdxf.readfile(split_dxf).modelspace().query("LWPOLYLINE")) == 5
     assert (tmp_path / "library/INDEX.html").is_file()
 
 

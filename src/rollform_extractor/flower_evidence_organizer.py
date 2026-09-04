@@ -6,11 +6,14 @@ from hashlib import sha256
 import csv
 import html
 import json
+import math
 import os
 from pathlib import Path
 import shutil
 from typing import Any, Mapping
 from uuid import uuid4
+
+import ezdxf
 
 
 LIBRARY_SCHEMA_VERSION = 1
@@ -68,6 +71,40 @@ def _copy_labelled(source: Path, destination: Path, label: str) -> dict[str, Any
     }
 
 
+def _write_extracted_sequence_dxf(path: Path, flower_id: str, passes: list[Mapping[str, Any]]) -> None:
+    """Write only the selected flower passes into a deterministic derived DXF."""
+    document = ezdxf.new("R2018")
+    document.layers.add("EXTRACTED_SEQUENCE", color=5)
+    document.layers.add("STATION_LABELS", color=7)
+    modelspace = document.modelspace()
+    widths = []
+    for item in passes:
+        points = item.get("points") or item.get("normalized_points") or []
+        xs = [float(point[0]) for point in points]
+        widths.append(max(xs) - min(xs) if xs else 1.0)
+    spacing = max(max(widths, default=1.0) * 1.25, 10.0)
+    for index, item in enumerate(passes):
+        raw_points = item.get("points") or item.get("normalized_points") or []
+        points = [(float(point[0]), float(point[1])) for point in raw_points]
+        if not points:
+            continue
+        min_x = min(point[0] for point in points)
+        min_y = min(point[1] for point in points)
+        positioned = [(x - min_x + index * spacing, y - min_y) for x, y in points]
+        closed = len(positioned) > 2 and math.dist(positioned[0], positioned[-1]) <= 1e-9
+        if closed:
+            positioned = positioned[:-1]
+        modelspace.add_lwpolyline(positioned, close=closed, dxfattribs={"layer": "EXTRACTED_SEQUENCE"})
+        label = modelspace.add_text(
+            f"{flower_id} STATION-{index + 1:03d}",
+            height=max(spacing * 0.025, 1.0),
+            dxfattribs={"layer": "STATION_LABELS"},
+        )
+        label.set_placement((index * spacing, -max(spacing * 0.08, 3.0)))
+    document.header["$INSUNITS"] = 0
+    document.saveas(path)
+
+
 def _dataset_flowers(dataset: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
     return {str(item["flower_id"]): item for item in dataset.get("flowers", [])}
 
@@ -104,16 +141,28 @@ def _build_verified_flower(
     )
     sequence_dir = root / "01_FLOWER_SEQUENCES" / flower_id
     source = Path(str(entry["source_path"]))
-    source_record = _copy_labelled(source, sequence_dir / f"{flower_id}-SOURCE{source.suffix.lower()}", "verified flower sequence source")
+    source_record = _copy_labelled(source, sequence_dir / f"{flower_id}-SOURCE{source.suffix.lower()}", "extracted flower sequence source")
+    quality_flags = list(flower.get("quality_flags", []))
+    order_review_required = any("ORDER_INFERRED_REVIEW_REQUIRED" in str(flag) for flag in quality_flags)
+    evidence_status = "EXTRACTED_DATASET_SEQUENCE_REVIEW_REQUIRED" if order_review_required else "VERIFIED_DATASET_SEQUENCE"
+    extracted_sequence_name = f"{flower_id}-EXTRACTED-SEQUENCE.dxf"
+    _write_extracted_sequence_dxf(sequence_dir / extracted_sequence_name, flower_id, passes)
     _write_json(sequence_dir / "FLOWER.json", {
         "schema_version": LIBRARY_SCHEMA_VERSION,
         "flower_id": flower_id,
         "display_label": entry.get("display_label", flower_id),
-        "evidence_status": "VERIFIED_DATASET_SEQUENCE",
+        "evidence_status": evidence_status,
+        "pass_order_status": "ENGINEER_REVIEW_REQUIRED" if order_review_required else "DATASET_VERIFIED",
         "station_count": len(passes),
         "source": source_record,
+        "extracted_sequence_dxf": extracted_sequence_name,
+        "extracted_sequence_sha256": _digest_file(sequence_dir / extracted_sequence_name),
+        "extracted_sequence_contains_source_cad": False,
         "dataset_source_sha256": flower.get("source_sha256"),
-        "quality_flags": flower.get("quality_flags", []),
+        "source_region_id": flower.get("source_region_id"),
+        "extractor_mode_requested": flower.get("extractor_mode_requested"),
+        "extractor_mode_used": flower.get("extractor_mode_used"),
+        "quality_flags": quality_flags,
     })
 
     station_links: list[str] = []
@@ -171,7 +220,7 @@ def _build_verified_flower(
     })
     return {
         "flower_id": flower_id,
-        "status": "VERIFIED_DATASET_SEQUENCE",
+        "status": evidence_status,
         "station_count": len(passes),
         "subsequence_count": len(subsequence_links),
         "roller_evidence_count": len(roller_records),
@@ -212,7 +261,7 @@ def _index_html(index: Mapping[str, Any]) -> str:
         f"<li><a href='{html.escape(item['source_link'])}'>{html.escape(item['source_id'])}</a> — review required</li>"
         for item in index["review_required_sources"]
     )
-    return f"""<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Flower Evidence Library</title><style>body{{font:16px system-ui;max-width:1100px;margin:auto;padding:1rem}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #bbb;padding:.5rem;text-align:left}}.notice{{border-left:5px solid #b56d00;padding:.8rem;background:#fff5dd}}code{{background:#eee;padding:.1rem .3rem}}</style></head><body><h1>Flower Evidence Library</h1><p class='notice'><strong>Engineering evidence index.</strong> Roller evidence does not identify a physical asset and does not approve manufacturing.</p><p>Four folders: <code>01_FLOWER_SEQUENCES</code>, <code>02_STATIONS</code>, <code>03_SUBSEQUENCES</code>, <code>04_ROLLERS</code>.</p><p><a href='FILE_LOCATIONS.json'>Exact file locations (JSON)</a> · <a href='FILE_LOCATIONS.csv'>Exact file locations (CSV)</a></p><h2>Verified flowers</h2><table><thead><tr><th>Flower</th><th>Stations</th><th>3-pass subsequences</th><th>Roller files</th><th>Open</th></tr></thead><tbody>{verified}</tbody></table><h2>Source drawings requiring extraction/review</h2><ul>{review}</ul></body></html>"""
+    return f"""<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Flower Evidence Library</title><style>body{{font:16px system-ui;max-width:1100px;margin:auto;padding:1rem}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #bbb;padding:.5rem;text-align:left}}.notice{{border-left:5px solid #b56d00;padding:.8rem;background:#fff5dd}}code{{background:#eee;padding:.1rem .3rem}}</style></head><body><h1>Flower Evidence Library</h1><p class='notice'><strong>Engineering evidence index.</strong> Roller evidence does not identify a physical asset and does not approve manufacturing. Sequence order remains review-required where stated in each FLOWER.json.</p><p>Four folders: <code>01_FLOWER_SEQUENCES</code>, <code>02_STATIONS</code>, <code>03_SUBSEQUENCES</code>, <code>04_ROLLERS</code>.</p><p><a href='FILE_LOCATIONS.json'>Exact file locations (JSON)</a> · <a href='FILE_LOCATIONS.csv'>Exact file locations (CSV)</a></p><h2>Extracted flower sequences</h2><table><thead><tr><th>Flower</th><th>Stations</th><th>3-pass subsequences</th><th>Roller files</th><th>Open</th></tr></thead><tbody>{verified}</tbody></table><h2>Source drawings requiring extraction/review</h2><ul>{review}</ul></body></html>"""
 
 
 def _location_metadata(output_root: Path, staging: Path) -> list[dict[str, Any]]:

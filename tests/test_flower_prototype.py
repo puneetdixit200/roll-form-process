@@ -74,3 +74,61 @@ def test_composite_flower_ingestion_uses_only_detected_ordered_passes(monkeypatc
     assert len(flower.passes) == 3
     assert [item.inferred_order for item in flower.passes] == [0, 1, 2]
     assert "COMPOSITE_PASS_ORDER_INFERRED_REVIEW_REQUIRED" in flower.quality_flags
+
+
+def test_station_sequence_ingestion_records_distinct_source_region(monkeypatch, tmp_path):
+    source = tmp_path / "two-sequences.dxf"
+    document = ezdxf.new("R2013")
+    modelspace = document.modelspace()
+    first = tuple(modelspace.add_polyline3d([(0, 0, 0), (2, index, 0), (4, 0, 0)]) for index in range(2))
+    second = tuple(modelspace.add_polyline3d([(0, 5, 0), (2, 5 + index, 0), (4, 5, 0)]) for index in range(3))
+    document.saveas(source)
+
+    def select(_document, _path, selector):
+        return (first, "sequence_01") if selector == "1" else (second, "sequence_02")
+
+    monkeypatch.setattr(
+        "rollform_extractor.flower_prototype_dataset._detected_station_sequence_pass_entities",
+        select,
+    )
+    flower_1 = ingest_private_flower(source, tmp_path / "private-1", "F1", extractor_mode="STATION_SEQUENCE:1")
+    flower_2 = ingest_private_flower(source, tmp_path / "private-2", "F2", extractor_mode="STATION_SEQUENCE:2")
+
+    assert len(flower_1.passes) == 2
+    assert len(flower_2.passes) == 3
+    assert flower_1.source_region_id == "sequence_01"
+    assert flower_2.source_region_id == "sequence_02"
+    assert "STATION_SEQUENCE_ORDER_INFERRED_REVIEW_REQUIRED" in flower_1.quality_flags
+    assert flower_1.source_sha256 == flower_2.source_sha256
+    assert len(build_dataset((flower_1, flower_2), ()).flowers) == 2
+
+
+def test_dataset_rejects_duplicate_source_region():
+    first = make_flower("F1", 8)
+    second = HistoricalFlower(
+        "F2",
+        first.source_classification,
+        "same-sha",
+        first.source_entity_count,
+        first.raw_profile_count,
+        first.passes,
+        first.topology,
+        first.quality_flags,
+        source_region_id="sequence_01",
+    )
+    duplicate = HistoricalFlower(
+        "F3",
+        second.source_classification,
+        second.source_sha256,
+        second.source_entity_count,
+        second.raw_profile_count,
+        second.passes,
+        second.topology,
+        second.quality_flags,
+        source_region_id="sequence_01",
+    )
+
+    import pytest
+
+    with pytest.raises(ValueError, match="DUPLICATE_HISTORICAL_SOURCE_REGION"):
+        build_dataset((second, duplicate), ())
