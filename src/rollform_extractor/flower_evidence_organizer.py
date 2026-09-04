@@ -14,6 +14,10 @@ from typing import Any, Mapping
 from uuid import uuid4
 
 import ezdxf
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 
 LIBRARY_SCHEMA_VERSION = 1
@@ -105,6 +109,53 @@ def _write_extracted_sequence_dxf(path: Path, flower_id: str, passes: list[Mappi
     document.saveas(path)
 
 
+def _positioned_passes(passes: list[Mapping[str, Any]]) -> tuple[list[list[tuple[float, float]]], float]:
+    raw = []
+    widths = []
+    for item in passes:
+        source_points = item.get("points") or item.get("normalized_points") or []
+        points = [(float(point[0]), float(point[1])) for point in source_points]
+        raw.append(points)
+        widths.append(max((point[0] for point in points), default=1.0) - min((point[0] for point in points), default=0.0))
+    spacing = max(max(widths, default=1.0) * 1.25, 10.0)
+    positioned = []
+    for index, points in enumerate(raw):
+        min_x = min((point[0] for point in points), default=0.0)
+        min_y = min((point[1] for point in points), default=0.0)
+        positioned.append([(x - min_x + index * spacing, y - min_y) for x, y in points])
+    return positioned, spacing
+
+
+def _write_sequence_png(path: Path, flower_id: str, passes: list[Mapping[str, Any]], title: str) -> None:
+    positioned, _spacing = _positioned_passes(passes)
+    figure, axis = plt.subplots(figsize=(max(7.0, len(passes) * 1.2), 4.5))
+    for index, points in enumerate(positioned):
+        if not points:
+            continue
+        x, y = zip(*points)
+        axis.plot(x, y, linewidth=1.4, label=f"Station {index + 1:03d}")
+        axis.text(sum(x) / len(x), min(y), str(index + 1), fontsize=7, ha="center", va="top")
+    axis.set_title(f"{flower_id} — {title}")
+    axis.set_aspect("equal", adjustable="datalim")
+    axis.axis("off")
+    figure.savefig(path, dpi=160, bbox_inches="tight", facecolor="white")
+    plt.close(figure)
+
+
+def _write_profile_png(path: Path, flower_id: str, station_label: str, item: Mapping[str, Any]) -> None:
+    points = item.get("points") or item.get("normalized_points") or []
+    figure, axis = plt.subplots(figsize=(5.0, 3.5))
+    if points:
+        x = [float(point[0]) for point in points]
+        y = [float(point[1]) for point in points]
+        axis.plot(x, y, color="#155783", linewidth=2.0)
+    axis.set_title(f"{flower_id} — {station_label}")
+    axis.set_aspect("equal", adjustable="datalim")
+    axis.axis("off")
+    figure.savefig(path, dpi=160, bbox_inches="tight", facecolor="white")
+    plt.close(figure)
+
+
 def _dataset_flowers(dataset: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
     return {str(item["flower_id"]): item for item in dataset.get("flowers", [])}
 
@@ -147,6 +198,8 @@ def _build_verified_flower(
     evidence_status = "EXTRACTED_DATASET_SEQUENCE_REVIEW_REQUIRED" if order_review_required else "VERIFIED_DATASET_SEQUENCE"
     extracted_sequence_name = f"{flower_id}-EXTRACTED-SEQUENCE.dxf"
     _write_extracted_sequence_dxf(sequence_dir / extracted_sequence_name, flower_id, passes)
+    sequence_png_name = f"{flower_id}-FULL-SEQUENCE.png"
+    _write_sequence_png(sequence_dir / sequence_png_name, flower_id, passes, "Full flower sequence")
     _write_json(sequence_dir / "FLOWER.json", {
         "schema_version": LIBRARY_SCHEMA_VERSION,
         "flower_id": flower_id,
@@ -158,6 +211,7 @@ def _build_verified_flower(
         "extracted_sequence_dxf": extracted_sequence_name,
         "extracted_sequence_sha256": _digest_file(sequence_dir / extracted_sequence_name),
         "extracted_sequence_contains_source_cad": False,
+        "full_sequence_png": sequence_png_name,
         "dataset_source_sha256": flower.get("source_sha256"),
         "source_region_id": flower.get("source_region_id"),
         "extractor_mode_requested": flower.get("extractor_mode_requested"),
@@ -174,6 +228,7 @@ def _build_verified_flower(
         _write_json(station_dir / "STATION.json", _station_metadata(flower_id, item))
         points = item.get("points") or item.get("normalized_points") or []
         (station_dir / "PROFILE.svg").write_text(_svg(points, f"{flower_id} {station_label}"), encoding="utf-8")
+        _write_profile_png(station_dir / "PROFILE.png", flower_id, station_label, item)
         station_links.append(f"02_STATIONS/{flower_id}/{station_label}/STATION.json")
 
     subsequence_links: list[str] = []
@@ -196,6 +251,8 @@ def _build_verified_flower(
             "roller_station_association_status": "UNRESOLVED_UNLESS_STATION_EVIDENCE_EXISTS",
         }
         _write_json(subsequence_dir / "SUBSEQUENCE.json", record)
+        _write_extracted_sequence_dxf(subsequence_dir / "ROLL-FORM-SUBSEQUENCE.dxf", f"{flower_id} {label}", window)
+        _write_sequence_png(subsequence_dir / "ROLL-FORM-SUBSEQUENCE.png", flower_id, window, label)
         subsequence_links.append(f"03_SUBSEQUENCES/{flower_id}/{label}/SUBSEQUENCE.json")
 
     roller_dir = root / "04_ROLLERS" / flower_id

@@ -71,6 +71,11 @@ def test_builds_four_labelled_folders_and_direct_indexes(tmp_path):
     split_dxf = tmp_path / "library/01_FLOWER_SEQUENCES/F1/F1-EXTRACTED-SEQUENCE.dxf"
     assert split_dxf.is_file()
     assert len(ezdxf.readfile(split_dxf).modelspace().query("LWPOLYLINE")) == 5
+    assert (tmp_path / "library/01_FLOWER_SEQUENCES/F1/F1-FULL-SEQUENCE.png").read_bytes().startswith(b"\x89PNG")
+    assert (tmp_path / "library/02_STATIONS/F1/STATION-003/PROFILE.png").read_bytes().startswith(b"\x89PNG")
+    subsequence = tmp_path / "library/03_SUBSEQUENCES/F1/SUBSEQUENCE-002-TO-004"
+    assert len(ezdxf.readfile(subsequence / "ROLL-FORM-SUBSEQUENCE.dxf").modelspace().query("LWPOLYLINE")) == 3
+    assert (subsequence / "ROLL-FORM-SUBSEQUENCE.png").read_bytes().startswith(b"\x89PNG")
     assert (tmp_path / "library/INDEX.html").is_file()
 
 
