@@ -53,6 +53,17 @@ def test_builds_four_labelled_folders_and_direct_indexes(tmp_path):
     assert (tmp_path / "library/03_SUBSEQUENCES/F1/SUBSEQUENCE-002-TO-004/SUBSEQUENCE.json").is_file()
     evidence = json.loads((tmp_path / "library/04_ROLLERS/F1/ROLLER_EVIDENCE.json").read_text())
     assert evidence["records"][0]["association_status"] == "UNRESOLVED_STATION_ASSOCIATION"
+    station = json.loads((tmp_path / "library/02_STATIONS/F1/STATION-003/STATION.json").read_text())
+    assert station["roller_evidence_link"] == "../../../04_ROLLERS/F1/ROLLER_EVIDENCE.json"
+    locations = json.loads((tmp_path / "library/FILE_LOCATIONS.json").read_text())
+    station_location = next(item for item in locations["files"] if item["relative_path"] == "02_STATIONS/F1/STATION-003/STATION.json")
+    assert station_location["absolute_path"] == str(tmp_path / "library/02_STATIONS/F1/STATION-003/STATION.json")
+    assert station_location["station_label"] == "STATION-003"
+    assert station_location["visibility"] == "PRIVATE_LOCAL_ONLY"
+    review_location = next(item for item in locations["files"] if item["filename"] == "SOURCE_STATUS.json")
+    assert review_location["source_id"] == "SOURCE-2"
+    assert review_location["flower_id"] is None
+    assert (tmp_path / "library/FILE_LOCATIONS.csv").is_file()
     assert (tmp_path / "library/INDEX.html").is_file()
 
 

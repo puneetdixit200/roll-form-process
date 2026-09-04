@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
+import csv
 import html
 import json
 import os
@@ -85,6 +86,7 @@ def _station_metadata(flower_id: str, item: Mapping[str, Any]) -> dict[str, Any]
         "topology": item.get("topology"),
         "quality_flags": item.get("quality_flags", []),
         "roller_association_status": "UNRESOLVED_UNLESS_STATION_EVIDENCE_EXISTS",
+        "roller_evidence_link": f"../../../04_ROLLERS/{flower_id}/ROLLER_EVIDENCE.json",
         "manufacturing_approval": "NOT_APPROVED",
         "physical_asset_assignment": False,
     }
@@ -141,6 +143,8 @@ def _build_verified_flower(
             "pass_ids": [item.get("pass_id") for item in window],
             "source_handles": [item.get("source_handle") for item in window],
             "station_links": [f"../../../02_STATIONS/{flower_id}/STATION-{order:03d}/STATION.json" for order in range(start_order, end_order + 1)],
+            "roller_evidence_link": f"../../../04_ROLLERS/{flower_id}/ROLLER_EVIDENCE.json",
+            "roller_station_association_status": "UNRESOLVED_UNLESS_STATION_EVIDENCE_EXISTS",
         }
         _write_json(subsequence_dir / "SUBSEQUENCE.json", record)
         subsequence_links.append(f"03_SUBSEQUENCES/{flower_id}/{label}/SUBSEQUENCE.json")
@@ -208,7 +212,54 @@ def _index_html(index: Mapping[str, Any]) -> str:
         f"<li><a href='{html.escape(item['source_link'])}'>{html.escape(item['source_id'])}</a> — review required</li>"
         for item in index["review_required_sources"]
     )
-    return f"""<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Flower Evidence Library</title><style>body{{font:16px system-ui;max-width:1100px;margin:auto;padding:1rem}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #bbb;padding:.5rem;text-align:left}}.notice{{border-left:5px solid #b56d00;padding:.8rem;background:#fff5dd}}code{{background:#eee;padding:.1rem .3rem}}</style></head><body><h1>Flower Evidence Library</h1><p class='notice'><strong>Engineering evidence index.</strong> Roller evidence does not identify a physical asset and does not approve manufacturing.</p><p>Four folders: <code>01_FLOWER_SEQUENCES</code>, <code>02_STATIONS</code>, <code>03_SUBSEQUENCES</code>, <code>04_ROLLERS</code>.</p><h2>Verified flowers</h2><table><thead><tr><th>Flower</th><th>Stations</th><th>3-pass subsequences</th><th>Roller files</th><th>Open</th></tr></thead><tbody>{verified}</tbody></table><h2>Source drawings requiring extraction/review</h2><ul>{review}</ul></body></html>"""
+    return f"""<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Flower Evidence Library</title><style>body{{font:16px system-ui;max-width:1100px;margin:auto;padding:1rem}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #bbb;padding:.5rem;text-align:left}}.notice{{border-left:5px solid #b56d00;padding:.8rem;background:#fff5dd}}code{{background:#eee;padding:.1rem .3rem}}</style></head><body><h1>Flower Evidence Library</h1><p class='notice'><strong>Engineering evidence index.</strong> Roller evidence does not identify a physical asset and does not approve manufacturing.</p><p>Four folders: <code>01_FLOWER_SEQUENCES</code>, <code>02_STATIONS</code>, <code>03_SUBSEQUENCES</code>, <code>04_ROLLERS</code>.</p><p><a href='FILE_LOCATIONS.json'>Exact file locations (JSON)</a> · <a href='FILE_LOCATIONS.csv'>Exact file locations (CSV)</a></p><h2>Verified flowers</h2><table><thead><tr><th>Flower</th><th>Stations</th><th>3-pass subsequences</th><th>Roller files</th><th>Open</th></tr></thead><tbody>{verified}</tbody></table><h2>Source drawings requiring extraction/review</h2><ul>{review}</ul></body></html>"""
+
+
+def _location_metadata(output_root: Path, staging: Path) -> list[dict[str, Any]]:
+    category_names = {
+        "01_FLOWER_SEQUENCES": "FLOWER_SEQUENCE",
+        "02_STATIONS": "STATION",
+        "03_SUBSEQUENCES": "SUBSEQUENCE",
+        "04_ROLLERS": "ROLLER_EVIDENCE",
+    }
+    locations = []
+    for path in sorted(item for item in staging.rglob("*") if item.is_file()):
+        relative = path.relative_to(staging)
+        if relative.name in {"INDEX.json", "INDEX.html", "FILE_LOCATIONS.json", "FILE_LOCATIONS.csv"}:
+            continue
+        parts = relative.parts
+        flower_id = parts[1] if len(parts) > 1 and parts[1] != "REVIEW_REQUIRED" else None
+        source_id = parts[2] if len(parts) > 2 and parts[1] == "REVIEW_REQUIRED" else None
+        station_label = next((part for part in parts if part.startswith("STATION-")), None)
+        subsequence_label = next((part for part in parts if part.startswith("SUBSEQUENCE-")), None)
+        locations.append({
+            "category": category_names.get(parts[0], "OTHER"),
+            "flower_id": flower_id,
+            "source_id": source_id,
+            "station_label": station_label,
+            "subsequence_label": subsequence_label,
+            "filename": path.name,
+            "relative_path": relative.as_posix(),
+            "absolute_path": str(output_root / relative),
+            "sha256": _digest_file(path),
+            "size_bytes": path.stat().st_size,
+            "visibility": "PRIVATE_LOCAL_ONLY",
+        })
+    return locations
+
+
+def _write_location_indexes(staging: Path, locations: list[dict[str, Any]]) -> None:
+    _write_json(staging / "FILE_LOCATIONS.json", {
+        "schema_version": LIBRARY_SCHEMA_VERSION,
+        "visibility": "PRIVATE_LOCAL_ONLY",
+        "file_count": len(locations),
+        "files": locations,
+    })
+    fields = ["category", "flower_id", "source_id", "station_label", "subsequence_label", "filename", "relative_path", "absolute_path", "sha256", "size_bytes", "visibility"]
+    with (staging / "FILE_LOCATIONS.csv").open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(locations)
 
 
 def build_flower_evidence_library(manifest_path: Path, output_root: Path) -> dict[str, Any]:
@@ -243,7 +294,12 @@ def build_flower_evidence_library(manifest_path: Path, output_root: Path) -> dic
             "folder_contract": ["01_FLOWER_SEQUENCES", "02_STATIONS", "03_SUBSEQUENCES", "04_ROLLERS"],
             "manufacturing_approval": "NOT_APPROVED",
             "physical_asset_assignment": False,
+            "exact_file_locations_json": str(output_root / "FILE_LOCATIONS.json"),
+            "exact_file_locations_csv": str(output_root / "FILE_LOCATIONS.csv"),
         }
+        locations = _location_metadata(output_root, staging)
+        _write_location_indexes(staging, locations)
+        index["indexed_file_count"] = len(locations)
         _write_json(staging / "INDEX.json", index)
         (staging / "INDEX.html").write_text(_index_html(index), encoding="utf-8")
         if output_root.exists():
