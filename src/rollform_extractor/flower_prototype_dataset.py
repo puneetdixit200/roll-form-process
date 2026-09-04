@@ -157,7 +157,17 @@ def ingest_private_flower(
     requested = extractor_mode.upper()
     polylines = tuple(entity for entity in entities if entity.dxftype() == "POLYLINE")
     lwpolylines = tuple(entity for entity in entities if entity.dxftype() == "LWPOLYLINE")
-    if requested in {"LEGACY_POLYLINE", "AUTO"} and polylines:
+    composite_requires_review = False
+    if requested == "COMPOSITE_FLOWER":
+        selected, composite_requires_review = _detected_composite_pass_entities(document, staged.converted_file)
+        used = "COMPOSITE_FLOWER"
+        passes = tuple(
+            _pass_from_polyline(entity, flower_id, index, before)
+            if entity.dxftype() == "POLYLINE"
+            else _pass_from_points(_lwpolyline_points(entity), str(entity.dxf.handle), flower_id, index, before)
+            for index, entity in enumerate(selected)
+        )
+    elif requested in {"LEGACY_POLYLINE", "AUTO"} and polylines:
         used = "LEGACY_POLYLINE"
         passes = tuple(_pass_from_polyline(entity, flower_id, index, before) for index, entity in enumerate(polylines))
     elif requested in {"LWPOLYLINE", "AUTO"} and lwpolylines:
@@ -172,6 +182,8 @@ def ingest_private_flower(
         quality.append("NO_SUPPORTED_SEQUENCE_PASSES")
     if source_station_count is not None and source_station_count != len(passes):
         quality.append("GENERIC_PIPELINE_STATION_COUNT_DIFFERS")
+    if composite_requires_review:
+        quality.append("COMPOSITE_PASS_ORDER_INFERRED_REVIEW_REQUIRED")
     return HistoricalFlower(
         flower_id=flower_id,
         source_classification="PRIVATE_PROTOTYPE",
@@ -185,6 +197,42 @@ def ingest_private_flower(
         extractor_mode_requested=requested,
         extractor_mode_used=used,
     )
+
+
+def _detected_composite_pass_entities(document: Any, converted_file: Path) -> tuple[tuple[Any, ...], bool]:
+    """Return one canonical composite sequence using the main extraction detectors."""
+    from rollform_extractor.composite_flower import build_composite_flowers
+    from rollform_extractor.config import ExtractionConfig
+    from rollform_extractor.dxf_reader import inspect_drawing
+    from rollform_extractor.entity_parser import parse_entities
+    from rollform_extractor.profile_detector import detect_profiles
+    from rollform_extractor.roller_detector import detect_rollers
+    from rollform_extractor.stage_classifier import assign_stage_types
+    from rollform_extractor.station_detector import detect_stations
+    from rollform_extractor.support_classifier import classify_support
+
+    config = ExtractionConfig.load(None)
+    inspection = inspect_drawing(converted_file)
+    parsed = parse_entities(document, config)
+    classified = classify_support(parsed.entities + parsed.expanded_entities, inspection, config)
+    stations = detect_stations(classified.entities, inspection, config, None)
+    profiles = detect_profiles(tuple(item.record for item in stations.stations), classified.entities, config, None)
+    typed_for_rollers = assign_stage_types((item.record for item in stations.stations), profiles.profiles)
+    rollers = detect_rollers(typed_for_rollers, profiles.profiles, classified.entities, config, None)
+    typed_stations = assign_stage_types(typed_for_rollers, profiles.profiles, rollers.rollers)
+    composites = tuple(item for item in build_composite_flowers(typed_stations, profiles.profiles, classified.entities) if item.pass_count >= 3)
+    if len(composites) != 1:
+        raise ValueError(f"COMPOSITE_FLOWER_SELECTION_REQUIRES_REVIEW: detected {len(composites)} eligible regions")
+
+    by_handle = {str(entity.dxf.handle): entity for entity in document.modelspace() if getattr(entity.dxf, "handle", None)}
+    selected = []
+    composite = composites[0]
+    for item in sorted(composite.passes, key=lambda value: (value.inferred_order, value.pass_id)):
+        matches = [by_handle[handle] for handle in item.source_handles if handle in by_handle and by_handle[handle].dxftype() in {"POLYLINE", "LWPOLYLINE"}]
+        if len(matches) != 1:
+            raise ValueError(f"COMPOSITE_PASS_SOURCE_REQUIRES_REVIEW: {item.pass_id}")
+        selected.append(matches[0])
+    return tuple(selected), not composite.confirmed
 
 
 def ingest_private_roller_evidence(source: Path, private_root: Path, evidence_id: str) -> RollerSequenceEvidence:
