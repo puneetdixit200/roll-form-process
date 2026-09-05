@@ -20,6 +20,7 @@ import { exampleProfile, ProfileSketcher } from "./ProfileSketcher";
 import { CadDrawingCanvas } from "./CadDrawingCanvas";
 import { HistoricalSourceFlowerExplorer } from "./HistoricalSourceFlowerExplorer";
 import { HistoricalSubsequenceMatchCard } from "./HistoricalSubsequenceMatchCard";
+import { HistoricalMatchRollers } from "./HistoricalMatchRollers";
 import type { CadDrawingPreview, VisualCandidate, VisualProfile, VisualRun } from "./types";
 
 type ImportedProfile = {
@@ -794,7 +795,7 @@ export default function VisualFlowerWorkspace() {
                     <MatchDetails item={currentPass} onOpenSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId })} />
                     {(candidate.top_historical_subsequences?.length ? candidate.top_historical_subsequences : candidate.best_historical_subsequence ? [candidate.best_historical_subsequence] : []).slice(0, 3).map((match, index) => <div key={`${match.source_flower_id}-${match.source_start_order}-${index}`}>
                       <h3>Historical subsequence match #{index + 1}</h3>
-                      <HistoricalSubsequenceMatchCard match={match} onOpenSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId, startOrder: match.source_start_order, endOrder: match.source_end_order })} />
+                      <HistoricalSubsequenceMatchCard match={match} activeGeneratedPassId={currentPass?.pass_id} onOpenSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId, startOrder: match.source_start_order, endOrder: match.source_end_order })} />
                     </div>)}
                     {historicalSource && <HistoricalSourceFlowerExplorer flowerId={historicalSource.flowerId} passId={historicalSource.passId} sourceStartOrder={historicalSource.startOrder} sourceEndOrder={historicalSource.endOrder} generatedStation={currentPass?.order ?? 0} onBack={() => setHistoricalSource(null)} />}
                     <RollerEvidenceDetails
@@ -833,7 +834,7 @@ function MatchDetails({ item, onOpenSource }: { item: any; onOpenSource: (flower
   return (
     <details className="match-details">
       <summary>Top three historical matches and score components</summary>
-      {matches.map((match: any, index: number) => (
+      {matches.slice(0, 3).map((match: any, index: number) => (
         <div key={`${match.source_flower_id}-${match.source_pass_id}-${index}`}>
           <div className="historical-match-preview">
             <img
@@ -870,6 +871,7 @@ function MatchDetails({ item, onOpenSource }: { item: any; onOpenSource: (flower
             ) ?? "n/a"}
           </p>
           <button type="button" onClick={() => onOpenSource(match.source_flower_id, match.source_pass_id)}>View historical source sequence</button>
+          <HistoricalMatchRollers rollers={match.roller_occurrences} status={match.roller_link_status} />
             </div>
           </div>
         </div>

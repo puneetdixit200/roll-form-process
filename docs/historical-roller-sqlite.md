@@ -16,9 +16,12 @@ occurrence names in different flowers cannot collide. Each occurrence stores its
 derived PNG and DXF as bytes, candidate role, source handles and completeness.
 The original CAD drawing is not included. Existing inventory tables are unchanged.
 
-The top three historical subsequences display source rollers for each matched
-stage. Expand **Source rollers for each matched stage** to see the PNGs and
-download individual DXFs. These are exact stored source occurrences, not a claim
+The selected stage's **Top three historical matches and score components** shows
+only the rollers for each match's exact flower ID and pass ID. The broader
+subsequence cards also restrict their roller gallery to the selected generated
+stage; a stage outside that interval shows no rollers. Change the station slider
+to inspect another stage. Missing evidence never falls back to adjacent stages.
+The PNGs and DXF downloads represent exact stored source occurrences, not a claim
 that their use is correct for the generated target. Association confirmation is
 preserved from extraction. Partial geometry remains explicitly labelled.
 

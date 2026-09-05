@@ -445,6 +445,7 @@ def generate_for_target(
     )
     roller_library = configured_library()
     configuration["historical_roller_library_hash"] = library_hash(roller_library, str(dataset.get("dataset_hash")))
+    configuration["historical_roller_link_version"] = "selected-pass-v2"
     configuration_json = json.dumps(configuration, sort_keys=True, separators=(",", ":"))
     run_key = "vrun-" + sha256(
         f"{target_id}|{revision.input_hash}|{configuration_json}|{dataset.get('dataset_hash')}".encode()

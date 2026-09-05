@@ -91,22 +91,34 @@ def attach_subsequence_rollers(candidates: list[dict], path: Path | None, datase
     status = library_hash(path, dataset_hash)
     for candidate in candidates:
         candidate["historical_roller_library_hash"] = status
-        for match in candidate.get("top_historical_subsequences", []):
-            for mapping in match.get("mapping", []):
-                mapping["roller_occurrences"] = []
-                mapping["roller_link_status"] = status if status in {"UNCONFIGURED", "STALE_DATASET"} else "NO_SOURCE_STAGE"
-                if path is None or status in {"UNCONFIGURED", "STALE_DATASET"}:
+        lookups = [
+            (match["source_flower_id"], mapping)
+            for match in candidate.get("top_historical_subsequences", [])
+            for mapping in match.get("mapping", [])
+        ]
+        # Individual pass matches have their own source identities. Never borrow
+        # rollers from the best interval, another match rank, or an adjacent pass.
+        for generated_pass in candidate.get("passes", []):
+            history = generated_pass.get("historical_match") or {}
+            matches = list(history.get("top_matches") or [])[:3]
+            if history.get("best_match"):
+                matches.append(history["best_match"])
+            lookups.extend((match["source_flower_id"], match) for match in matches)
+        for flower_id, mapping in lookups:
+            mapping["roller_occurrences"] = []
+            mapping["roller_link_status"] = status if status in {"UNCONFIGURED", "STALE_DATASET"} else "NO_SOURCE_STAGE"
+            if path is None or status in {"UNCONFIGURED", "STALE_DATASET"}:
+                continue
+            with closing(_connect(path)) as db:
+                stage = db.execute("SELECT id,metadata FROM stages WHERE flower_id=? AND pass_id=?", (flower_id, mapping["source_pass_id"])).fetchone()
+                if stage is None:
                     continue
-                with closing(_connect(path)) as db:
-                    stage = db.execute("SELECT id,metadata FROM stages WHERE flower_id=? AND pass_id=?", (match["source_flower_id"], mapping["source_pass_id"])).fetchone()
-                    if stage is None:
-                        continue
-                    mapping["roller_source_link"] = json.loads(stage["metadata"])
-                    rows = db.execute("SELECT id,metadata FROM rollers WHERE stage_id=? ORDER BY id", (stage["id"],)).fetchall()
-                    mapping["roller_link_status"] = "HISTORICAL_OCCURRENCE_EVIDENCE" if rows else "NO_ROLLER_DETECTED"
-                    mapping["roller_occurrences"] = [json.loads(row["metadata"]) | {
-                        "roller_id": row["id"], "manufacturing_approval": "NOT_APPROVED", "physical_asset_assignment": False,
-                    } for row in rows]
+                mapping["roller_source_link"] = json.loads(stage["metadata"])
+                rows = db.execute("SELECT id,metadata FROM rollers WHERE stage_id=? ORDER BY id", (stage["id"],)).fetchall()
+                mapping["roller_link_status"] = "HISTORICAL_OCCURRENCE_EVIDENCE" if rows else "NO_ROLLER_DETECTED"
+                mapping["roller_occurrences"] = [json.loads(row["metadata"]) | {
+                    "roller_id": row["id"], "manufacturing_approval": "NOT_APPROVED", "physical_asset_assignment": False,
+                } for row in rows]
         if candidate.get("top_historical_subsequences"):
             candidate["best_historical_subsequence"] = candidate["top_historical_subsequences"][0]
 

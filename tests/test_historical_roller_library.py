@@ -64,6 +64,22 @@ def test_stale_dataset_and_invalid_asset_kind_abstain(tmp_path):
     assert roller_asset(db, "different", "x", "png") is None
 
 
+def test_individual_top_three_do_not_inherit_interval_or_other_pass_rollers(tmp_path):
+    _, db = fixture_library(tmp_path)
+    candidate = matches()[0]
+    candidate["passes"] = [{"pass_id": "G1", "historical_match": {"top_matches": [
+        {"source_flower_id": "B", "source_pass_id": "P1"},
+        {"source_flower_id": "A", "source_pass_id": "P2"},
+        {"source_flower_id": "C", "source_pass_id": "P1"},
+    ]}}]
+    attach_subsequence_rollers([candidate], db, "test-dataset")
+    first, empty, third = candidate["passes"][0]["historical_match"]["top_matches"]
+    assert roller_asset(db, "test-dataset", first["roller_occurrences"][0]["roller_id"], "dxf") == b"B"
+    assert empty["roller_occurrences"] == []
+    assert empty["roller_link_status"] == "NO_ROLLER_DETECTED"
+    assert roller_asset(db, "test-dataset", third["roller_occurrences"][0]["roller_id"], "dxf") == b"C"
+
+
 def test_failed_rebuild_preserves_previous_database(tmp_path):
     root, db = fixture_library(tmp_path)
     original = db.read_bytes()
