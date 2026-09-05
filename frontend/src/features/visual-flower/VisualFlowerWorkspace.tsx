@@ -792,7 +792,10 @@ export default function VisualFlowerWorkspace() {
                       </span>.
                     </p>
                     <MatchDetails item={currentPass} onOpenSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId })} />
-                    {candidate.best_historical_subsequence && <HistoricalSubsequenceMatchCard match={candidate.best_historical_subsequence} onOpenSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId, startOrder: candidate.best_historical_subsequence?.source_start_order, endOrder: candidate.best_historical_subsequence?.source_end_order })} />}
+                    {(candidate.top_historical_subsequences?.length ? candidate.top_historical_subsequences : candidate.best_historical_subsequence ? [candidate.best_historical_subsequence] : []).slice(0, 3).map((match, index) => <div key={`${match.source_flower_id}-${match.source_start_order}-${index}`}>
+                      <h3>Historical subsequence match #{index + 1}</h3>
+                      <HistoricalSubsequenceMatchCard match={match} onOpenSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId, startOrder: match.source_start_order, endOrder: match.source_end_order })} />
+                    </div>)}
                     {historicalSource && <HistoricalSourceFlowerExplorer flowerId={historicalSource.flowerId} passId={historicalSource.passId} sourceStartOrder={historicalSource.startOrder} sourceEndOrder={historicalSource.endOrder} generatedStation={currentPass?.order ?? 0} onBack={() => setHistoricalSource(null)} />}
                     <RollerEvidenceDetails
                       candidateId={candidate.candidate_id}

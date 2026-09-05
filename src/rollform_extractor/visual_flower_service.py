@@ -36,6 +36,7 @@ from rollform_extractor.strip_length_constraint import STRIP_LENGTH_CONSTRAINT_V
 from rollform_extractor.visual_flower_engine import generate_visual_candidates
 from rollform_extractor.visual_flower_exports import export_visual_run, historical_profile_png
 from rollform_extractor.visual_profile_schema import VISUAL_ALGORITHM_VERSION, validate_profile
+from rollform_extractor.historical_roller_library import attach_subsequence_rollers, configured_library, library_hash
 
 
 DIRECT_ROLLER_EVIDENCE_CONFIGURATION = "flower-direct-project-roller-evidence-v1"
@@ -442,6 +443,8 @@ def generate_for_target(
         roller_station_evidence_hash=station_evidence_hash,
         direct_project_evidence_hash=direct_evidence_hash,
     )
+    roller_library = configured_library()
+    configuration["historical_roller_library_hash"] = library_hash(roller_library, str(dataset.get("dataset_hash")))
     configuration_json = json.dumps(configuration, sort_keys=True, separators=(",", ":"))
     run_key = "vrun-" + sha256(
         f"{target_id}|{revision.input_hash}|{configuration_json}|{dataset.get('dataset_hash')}".encode()
@@ -449,6 +452,7 @@ def generate_for_target(
     configuration_hash = sha256(configuration_json.encode()).hexdigest()
 
     _scope_candidate_ids(result.get("candidates", []), run_key)
+    attach_subsequence_rollers(result.get("candidates", []), roller_library, str(dataset.get("dataset_hash")))
     if preferences.get("include_roller_evidence", True):
         for candidate in result.get("candidates", []):
             candidate["roller_evidence"] = build_candidate_roller_evidence(
