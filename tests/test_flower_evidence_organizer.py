@@ -70,11 +70,11 @@ def test_builds_four_labelled_folders_and_direct_indexes(tmp_path):
     assert "source_region_id" in flower_record
     split_dxf = tmp_path / "library/01_FLOWER_SEQUENCES/F1/F1-EXTRACTED-SEQUENCE.dxf"
     assert split_dxf.is_file()
-    assert len(ezdxf.readfile(split_dxf).modelspace().query("LWPOLYLINE")) == 5
+    assert len(ezdxf.readfile(split_dxf).modelspace().query("POLYLINE")) == 5
     assert (tmp_path / "library/01_FLOWER_SEQUENCES/F1/F1-FULL-SEQUENCE.png").read_bytes().startswith(b"\x89PNG")
     assert (tmp_path / "library/02_STATIONS/F1/STATION-003/PROFILE.png").read_bytes().startswith(b"\x89PNG")
     subsequence = tmp_path / "library/03_SUBSEQUENCES/F1/SUBSEQUENCE-002-TO-004"
-    assert len(ezdxf.readfile(subsequence / "ROLL-FORM-SUBSEQUENCE.dxf").modelspace().query("LWPOLYLINE")) == 3
+    assert len(ezdxf.readfile(subsequence / "ROLL-FORM-SUBSEQUENCE.dxf").modelspace().query("POLYLINE")) == 3
     assert (subsequence / "ROLL-FORM-SUBSEQUENCE.png").read_bytes().startswith(b"\x89PNG")
     assert (tmp_path / "library/INDEX.html").is_file()
 
@@ -95,3 +95,59 @@ def test_regeneration_replaces_only_the_named_library(tmp_path):
     assert json.loads((library / "INDEX.json").read_text()) == second
     assert not list(tmp_path.glob(".library.tmp-*"))
     assert not list(tmp_path.glob(".library.backup-*"))
+
+
+def test_exports_station_roller_png_and_dxf_including_partial_geometry(tmp_path):
+    source = tmp_path / "source.dxf"
+    source.write_text("flower", encoding="utf-8")
+    extraction = tmp_path / "extraction"
+    (extraction / "source").mkdir(parents=True)
+    drawing = ezdxf.new("R2018")
+    profile_entities = [drawing.modelspace().add_polyline3d([(0, index), (2, index + 1), (4, index)]) for index in range(3)]
+    roller = drawing.modelspace().add_polyline3d([(0, 0), (1, 1), (2, 0)])
+    drawing.saveas(extraction / "source" / "drawing.dxf")
+    (extraction / "project.json").write_text(json.dumps({
+        "profiles": [
+            {"profile_id": f"P{index}", "station_id": f"S{index}", "source_handles": [entity.dxf.handle]}
+            for index, entity in enumerate(profile_entities)
+        ],
+        "rollers": [{
+            "occurrence_id": "S1-R1",
+            "station_id": "S1",
+            "role": None,
+            "source_handles": [roller.dxf.handle],
+            "confidence": 0.6,
+            "evidence": {"candidate_role": "upper_left"},
+        }],
+    }), encoding="utf-8")
+    dataset = tmp_path / "dataset.json"
+    passes = [_pass(index) for index in range(3)]
+    for index, item in enumerate(passes):
+        item["source_handle"] = profile_entities[index].dxf.handle
+    dataset.write_text(json.dumps({"dataset_id": "D1", "dataset_hash": "abc", "flowers": [{"flower_id": "F1", "passes": passes}]}), encoding="utf-8")
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({
+        "dataset_path": str(dataset),
+        "flowers": [{"flower_id": "F1", "source_path": str(source), "extraction_project_path": str(extraction)}],
+    }), encoding="utf-8")
+
+    library = tmp_path / "library"
+    build_flower_evidence_library(manifest, library)
+
+    roller_root = library / "04_ROLLERS/F1/STATION-002/S1-R1"
+    assert (roller_root / "ROLLER.png").read_bytes().startswith(b"\x89PNG")
+    assert len(ezdxf.readfile(roller_root / "ROLLER.dxf").modelspace().query("POLYLINE")) == 1
+    first_dxf = (roller_root / "ROLLER.dxf").read_bytes()
+    record = json.loads((roller_root / "ROLLER.json").read_text())
+    assert record["candidate_role"] == "UPPER_LEFT"
+    assert record["geometry_completeness"] == "PARTIAL_GEOMETRY"
+    roller_manifest = json.loads((roller_root.parent / "STATION_ROLLERS.json").read_text())
+    assert roller_manifest["roller_occurrence_count"] == 1
+    assert roller_manifest["roller_occurrences"][0]["png"] == "S1-R1/ROLLER.png"
+    station = json.loads((tmp_path / "library/02_STATIONS/F1/STATION-002/STATION.json").read_text())
+    assert station["roller_occurrence_count"] == 1
+    subsequence = json.loads((tmp_path / "library/03_SUBSEQUENCES/F1/SUBSEQUENCE-001-TO-003/SUBSEQUENCE.json").read_text())
+    assert subsequence["roller_occurrence_count"] == 1
+
+    build_flower_evidence_library(manifest, library)
+    assert (roller_root / "ROLLER.dxf").read_bytes() == first_dxf

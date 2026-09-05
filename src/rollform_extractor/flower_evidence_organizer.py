@@ -9,6 +9,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import shutil
 from typing import Any, Mapping
 from uuid import uuid4
@@ -75,9 +76,28 @@ def _copy_labelled(source: Path, destination: Path, label: str) -> dict[str, Any
     }
 
 
+def _save_dxf_deterministically(document: Any, path: Path) -> None:
+    document.saveas(path)
+    text = path.read_text(encoding="utf-8")
+    # ezdxf writes the current Julian timestamp into these header variables.
+    # They do not describe source geometry and would otherwise make identical
+    # evidence exports differ byte-for-byte between runs.
+    text = re.sub(
+        r"(\$TD(?:U)?(?:CREATE|UPDATE)\r?\n\s*40\r?\n)[^\r\n]+",
+        r"\g<1>2451544.5",
+        text,
+    )
+    text = re.sub(
+        r"(\d+\.\d+\.\d+ @ )\d{4}-\d{2}-\d{2}T[^\r\n]+",
+        r"\g<1>2000-01-01T00:00:00+00:00",
+        text,
+    )
+    path.write_text(text, encoding="utf-8", newline="")
+
+
 def _write_extracted_sequence_dxf(path: Path, flower_id: str, passes: list[Mapping[str, Any]]) -> None:
     """Write only the selected flower passes into a deterministic derived DXF."""
-    document = ezdxf.new("R2018")
+    document = ezdxf.new("R12")
     document.layers.add("EXTRACTED_SEQUENCE", color=5)
     document.layers.add("STATION_LABELS", color=7)
     modelspace = document.modelspace()
@@ -98,15 +118,14 @@ def _write_extracted_sequence_dxf(path: Path, flower_id: str, passes: list[Mappi
         closed = len(positioned) > 2 and math.dist(positioned[0], positioned[-1]) <= 1e-9
         if closed:
             positioned = positioned[:-1]
-        modelspace.add_lwpolyline(positioned, close=closed, dxfattribs={"layer": "EXTRACTED_SEQUENCE"})
+        modelspace.add_polyline2d(positioned, close=closed, dxfattribs={"layer": "EXTRACTED_SEQUENCE"})
         label = modelspace.add_text(
             f"{flower_id} STATION-{index + 1:03d}",
             height=max(spacing * 0.025, 1.0),
             dxfattribs={"layer": "STATION_LABELS"},
         )
         label.set_placement((index * spacing, -max(spacing * 0.08, 3.0)))
-    document.header["$INSUNITS"] = 0
-    document.saveas(path)
+    _save_dxf_deterministically(document, path)
 
 
 def _positioned_passes(passes: list[Mapping[str, Any]]) -> tuple[list[list[tuple[float, float]]], float]:
@@ -156,15 +175,206 @@ def _write_profile_png(path: Path, flower_id: str, station_label: str, item: Map
     plt.close(figure)
 
 
+def _entity_points(entity: Any, sample_count: int = 96) -> list[tuple[float, float]]:
+    if entity.dxftype() == "POLYLINE":
+        points = [(float(vertex.dxf.location.x), float(vertex.dxf.location.y)) for vertex in entity.vertices]
+        if entity.is_closed and points and points[0] != points[-1]:
+            points.append(points[0])
+        return points
+    if entity.dxftype() == "ARC":
+        center = entity.dxf.center
+        start = math.radians(float(entity.dxf.start_angle))
+        sweep = math.radians((float(entity.dxf.end_angle) - float(entity.dxf.start_angle)) % 360.0)
+        return [
+            (
+                float(center.x) + float(entity.dxf.radius) * math.cos(start + sweep * index / sample_count),
+                float(center.y) + float(entity.dxf.radius) * math.sin(start + sweep * index / sample_count),
+            )
+            for index in range(sample_count + 1)
+        ]
+    return []
+
+
+def _write_roller_artifacts(
+    roller_dir: Path,
+    flower_id: str,
+    station_label: str,
+    roller: Mapping[str, Any],
+    source_entities: Mapping[str, Any],
+) -> dict[str, Any]:
+    occurrence_id = _safe_name(str(roller["occurrence_id"]))
+    target = roller_dir / station_label / occurrence_id
+    target.mkdir(parents=True, exist_ok=True)
+    handles = [str(value) for value in roller.get("source_handles", [])]
+    entities = [source_entities[handle] for handle in handles if handle in source_entities]
+    if not entities:
+        raise ValueError(f"roller source geometry unavailable: {occurrence_id}")
+    document = ezdxf.new("R12")
+    document.layers.add("ROLLER_EVIDENCE", color=3)
+    modelspace = document.modelspace()
+    for entity in entities:
+        copied = entity.copy()
+        copied.dxf.layer = "ROLLER_EVIDENCE"
+        modelspace.add_entity(copied)
+    dxf_name = "ROLLER.dxf"
+    _save_dxf_deterministically(document, target / dxf_name)
+
+    figure, axis = plt.subplots(figsize=(4.5, 4.0))
+    partial = False
+    for entity in entities:
+        points = _entity_points(entity)
+        if points:
+            x, y = zip(*points)
+            axis.plot(x, y, color="#7a3e00", linewidth=2.0)
+        partial = partial or entity.dxftype() == "ARC" or (entity.dxftype() == "POLYLINE" and not entity.is_closed)
+    evidence = dict(roller.get("evidence") or {})
+    role = str(roller.get("role") or evidence.get("candidate_role") or "UNCLASSIFIED").upper()
+    axis.set_title(f"{flower_id} {station_label}\n{occurrence_id} — {role}")
+    axis.set_aspect("equal", adjustable="datalim")
+    axis.axis("off")
+    png_name = "ROLLER.png"
+    figure.savefig(target / png_name, dpi=180, bbox_inches="tight", facecolor="white")
+    plt.close(figure)
+    record = {
+        "schema_version": LIBRARY_SCHEMA_VERSION,
+        "flower_id": flower_id,
+        "station_label": station_label,
+        "source_station_id": roller.get("station_id"),
+        "occurrence_id": occurrence_id,
+        "candidate_role": role,
+        "source_handles": handles,
+        "confidence": roller.get("confidence"),
+        "role_status": "CANDIDATE_NOT_ENGINEER_CONFIRMED",
+        "geometry_completeness": "PARTIAL_GEOMETRY" if partial else "COMPLETE_OUTLINE",
+        "dxf": dxf_name,
+        "png": png_name,
+        "evidence": evidence,
+        "physical_asset_assignment": False,
+        "manufacturing_approval": "NOT_APPROVED",
+    }
+    _write_json(target / "ROLLER.json", record)
+    return record
+
+
+def _station_roller_evidence(
+    root: Path,
+    entry: Mapping[str, Any],
+    flower_id: str,
+    passes: list[Mapping[str, Any]],
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any] | None]:
+    configured = entry.get("extraction_project_path")
+    if not configured:
+        return {}, None
+    project_root = Path(str(configured)).expanduser().resolve()
+    project = json.loads((project_root / "project.json").read_text(encoding="utf-8"))
+    report_path = project_root / "report_data.json"
+    report = json.loads(report_path.read_text(encoding="utf-8")) if report_path.is_file() else {}
+    source_files = sorted((project_root / "source").glob("*.dxf"))
+    if len(source_files) != 1:
+        raise ValueError(f"expected one extracted source DXF for {flower_id}")
+    source_document = ezdxf.readfile(source_files[0])
+    source_entities = {
+        str(entity.dxf.handle): entity
+        for entity in source_document.modelspace()
+        if getattr(entity.dxf, "handle", None)
+    }
+    profiles = list(project.get("profiles", []))
+    profiles_by_id = {str(profile.get("profile_id")): profile for profile in profiles}
+    station_region = {
+        str(station.get("station_id")): str((station.get("evidence") or {}).get("region_type") or "")
+        for station in project.get("stations", [])
+    }
+    composite_by_handle = {}
+    for composite in report.get("composite_flowers", []):
+        for item in composite.get("passes", []):
+            for handle in item.get("source_handles", []):
+                composite_by_handle[str(handle)] = item
+    rollers_by_station: dict[str, list[Mapping[str, Any]]] = {}
+    for roller in project.get("rollers", []):
+        rollers_by_station.setdefault(str(roller.get("station_id")), []).append(roller)
+
+    station_records: dict[str, list[dict[str, Any]]] = {}
+    mappings = []
+    roller_dir = root / "04_ROLLERS" / flower_id
+    for index, item in enumerate(passes):
+        station_label = f"STATION-{index + 1:03d}"
+        source_handle = str(item.get("source_handle", ""))
+        direct = [
+            profile
+            for profile in profiles
+            if source_handle in {str(value) for value in profile.get("source_handles", [])}
+            and station_region.get(str(profile.get("station_id"))) != "COMPOSITE_FLOWER"
+        ]
+        linkage_method = "SOURCE_HANDLE"
+        linkage_score = 1.0
+        selected_profile = direct[0] if len(direct) == 1 else None
+        if selected_profile is None and source_handle in composite_by_handle:
+            matches = composite_by_handle[source_handle].get("individual_profile_matches", [])
+            ranked = sorted(matches, key=lambda value: (-float(value.get("similarity_score", 0.0)), str(value.get("individual_profile_id", ""))))
+            selected_profile = profiles_by_id.get(str(ranked[0].get("individual_profile_id"))) if ranked else None
+            linkage_method = "EXACT_GEOMETRY_MATCH" if ranked and ranked[0].get("exact_match") else "GEOMETRY_MATCH_REVIEW_REQUIRED"
+            linkage_score = float(ranked[0].get("similarity_score", 0.0)) if ranked else 0.0
+        source_station_id = str(selected_profile.get("station_id")) if selected_profile else None
+        records = []
+        for roller in sorted(rollers_by_station.get(source_station_id or "", []), key=lambda value: str(value.get("occurrence_id", ""))):
+            records.append(_write_roller_artifacts(roller_dir, flower_id, station_label, roller, source_entities))
+        station_records[station_label] = records
+        mappings.append({
+            "station_label": station_label,
+            "pass_id": item.get("pass_id"),
+            "source_station_id": source_station_id,
+            "linkage_method": linkage_method if selected_profile else "NO_STATION_MATCH",
+            "linkage_score": linkage_score,
+            "roller_occurrence_count": len(records),
+            "confirmation_status": "CANDIDATE_NOT_ENGINEER_CONFIRMED",
+        })
+        station_manifest_dir = roller_dir / station_label
+        station_manifest_dir.mkdir(parents=True, exist_ok=True)
+        _write_json(station_manifest_dir / "STATION_ROLLERS.json", {
+            "schema_version": LIBRARY_SCHEMA_VERSION,
+            "flower_id": flower_id,
+            "station_label": station_label,
+            "source_station_id": source_station_id,
+            "linkage_method": linkage_method if selected_profile else "NO_STATION_MATCH",
+            "linkage_score": linkage_score,
+            "confirmation_status": "CANDIDATE_NOT_ENGINEER_CONFIRMED",
+            "roller_occurrence_count": len(records),
+            "roller_occurrences": [
+                {
+                    "occurrence_id": record["occurrence_id"],
+                    "candidate_role": record["candidate_role"],
+                    "geometry_completeness": record["geometry_completeness"],
+                    "record": f"{record['occurrence_id']}/ROLLER.json",
+                    "dxf": f"{record['occurrence_id']}/ROLLER.dxf",
+                    "png": f"{record['occurrence_id']}/ROLLER.png",
+                }
+                for record in records
+            ],
+            "notice": "Historical roller occurrence evidence only. No physical asset is identified or approved.",
+        })
+    return station_records, {
+        "schema_version": LIBRARY_SCHEMA_VERSION,
+        "source_project_sha256": _digest_file(project_root / "project.json"),
+        "station_mappings": mappings,
+        "notice": "Detected roller geometry is historical evidence only. Partial geometry is retained. No physical asset is assigned.",
+    }
+
+
 def _dataset_flowers(dataset: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
     return {str(item["flower_id"]): item for item in dataset.get("flowers", [])}
 
 
-def _station_metadata(flower_id: str, item: Mapping[str, Any]) -> dict[str, Any]:
+def _station_metadata(
+    flower_id: str,
+    item: Mapping[str, Any],
+    roller_records: list[Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    roller_records = roller_records or []
+    station_label = f"STATION-{int(item.get('inferred_order', 0)) + 1:03d}"
     return {
         "schema_version": LIBRARY_SCHEMA_VERSION,
         "flower_id": flower_id,
-        "station_label": f"STATION-{int(item.get('inferred_order', 0)) + 1:03d}",
+        "station_label": station_label,
         "pass_id": item.get("pass_id"),
         "sequence_order": int(item.get("inferred_order", 0)) + 1,
         "source_handle": item.get("source_handle"),
@@ -175,6 +385,12 @@ def _station_metadata(flower_id: str, item: Mapping[str, Any]) -> dict[str, Any]
         "quality_flags": item.get("quality_flags", []),
         "roller_association_status": "UNRESOLVED_UNLESS_STATION_EVIDENCE_EXISTS",
         "roller_evidence_link": f"../../../04_ROLLERS/{flower_id}/ROLLER_EVIDENCE.json",
+        "roller_station_manifest_link": f"../../../04_ROLLERS/{flower_id}/{station_label}/STATION_ROLLERS.json",
+        "roller_occurrence_count": len(roller_records),
+        "roller_occurrence_links": [
+            f"../../../04_ROLLERS/{flower_id}/{station_label}/{record['occurrence_id']}/ROLLER.json"
+            for record in roller_records
+        ],
         "manufacturing_approval": "NOT_APPROVED",
         "physical_asset_assignment": False,
     }
@@ -219,13 +435,15 @@ def _build_verified_flower(
         "quality_flags": quality_flags,
     })
 
+    station_rollers, station_mapping = _station_roller_evidence(root, entry, flower_id, passes)
+
     station_links: list[str] = []
     for item in passes:
         order = int(item.get("inferred_order", 0)) + 1
         station_label = f"STATION-{order:03d}"
         station_dir = root / "02_STATIONS" / flower_id / station_label
         station_dir.mkdir(parents=True, exist_ok=True)
-        _write_json(station_dir / "STATION.json", _station_metadata(flower_id, item))
+        _write_json(station_dir / "STATION.json", _station_metadata(flower_id, item, station_rollers.get(station_label)))
         points = item.get("points") or item.get("normalized_points") or []
         (station_dir / "PROFILE.svg").write_text(_svg(points, f"{flower_id} {station_label}"), encoding="utf-8")
         _write_profile_png(station_dir / "PROFILE.png", flower_id, station_label, item)
@@ -248,6 +466,14 @@ def _build_verified_flower(
             "source_handles": [item.get("source_handle") for item in window],
             "station_links": [f"../../../02_STATIONS/{flower_id}/STATION-{order:03d}/STATION.json" for order in range(start_order, end_order + 1)],
             "roller_evidence_link": f"../../../04_ROLLERS/{flower_id}/ROLLER_EVIDENCE.json",
+            "roller_station_links": [
+                f"../../../04_ROLLERS/{flower_id}/STATION-{order:03d}/STATION_ROLLERS.json"
+                for order in range(start_order, end_order + 1)
+            ],
+            "roller_occurrence_count": sum(
+                len(station_rollers.get(f"STATION-{order:03d}", []))
+                for order in range(start_order, end_order + 1)
+            ),
             "roller_station_association_status": "UNRESOLVED_UNLESS_STATION_EVIDENCE_EXISTS",
         }
         _write_json(subsequence_dir / "SUBSEQUENCE.json", record)
@@ -257,7 +483,7 @@ def _build_verified_flower(
 
     roller_dir = root / "04_ROLLERS" / flower_id
     roller_dir.mkdir(parents=True, exist_ok=True)
-    roller_records = []
+    roller_records = [record for station_records in station_rollers.values() for record in station_records]
     for roller in entry.get("roller_sources", []):
         evidence_id = _safe_name(str(roller["evidence_id"]))
         roller_source = Path(str(roller["path"]))
@@ -273,6 +499,7 @@ def _build_verified_flower(
         "schema_version": LIBRARY_SCHEMA_VERSION,
         "flower_id": flower_id,
         "records": roller_records,
+        "station_mapping": station_mapping,
         "notice": "Roller geometry is supporting evidence only. No station or physical asset is automatically assigned.",
     })
     return {
