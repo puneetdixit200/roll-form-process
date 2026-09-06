@@ -38,6 +38,8 @@ from rollform_extractor.visual_profile_validation import validate_visual_profile
 from rollform_extractor.integrated_rollform_workflow import create_workflow, get_workflow, select_profile as select_workflow_profile, select_target as select_workflow_target
 from rollform_extractor.flower_roller_evidence import create_roller_evidence_review
 from rollform_extractor.flower_dataset_validation import validate_flower_prototype_dataset
+from rollform_extractor.historical_roller_library import configured_library, roller_asset
+from rollform_extractor.visual_flower_service import historical_dataset
 from rollform_extractor.web.backend.demo_auth import COOKIE_NAME, enabled as demo_auth_enabled, hash_password, issue_session, login_allowed, record_failed_login, valid_session, verify_password
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -238,6 +240,13 @@ def create_app(workspace: Path | None = None, auto_run_jobs: bool = True) -> Fas
     @app.get("/api/visual-flower/model/status")
     def visual_model_status() -> dict[str, Any]:
         return model_status(visual_engine())
+
+    @app.get("/api/visual-flower/historical/rollers/{roller_id}/{kind}")
+    def historical_roller_asset(roller_id: str, kind: str) -> Response:
+        payload = roller_asset(configured_library(), str(historical_dataset().get("dataset_hash")), roller_id, kind)
+        if payload is None:
+            raise HTTPException(status_code=404, detail="historical roller artifact unavailable")
+        return Response(content=payload, media_type="image/png" if kind == "png" else "application/dxf", headers={"Cache-Control": "no-store"})
 
     @app.get("/api/visual-flower/model/doctor")
     def visual_model_doctor() -> dict[str, Any]:

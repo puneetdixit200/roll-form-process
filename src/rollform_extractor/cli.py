@@ -520,6 +520,7 @@ def main(argv: list[str] | None = None) -> int:
             root = args.source_root.resolve()
             args.output_root.mkdir(parents=True, exist_ok=True)
             flower_specs = []
+            manifest_roller_specs = None
             if args.manifest:
                 manifest_path = args.manifest.resolve()
                 if root not in manifest_path.parents and manifest_path != root:
@@ -529,12 +530,21 @@ def main(argv: list[str] | None = None) -> int:
                 if not isinstance(entries, list):
                     raise ValueError("flower manifest must be a JSON list or object with flowers")
                 flower_specs.extend((root / str(item["path"]), str(item["flower_id"]), item.get("source_station_count") or item.get("expected_station_count"), str(item.get("extractor_mode") or "AUTO")) for item in entries if item.get("enabled", True))
+                if isinstance(values, dict) and "rollers" in values:
+                    roller_entries = values["rollers"]
+                    if not isinstance(roller_entries, list):
+                        raise ValueError("flower manifest rollers must be a JSON list")
+                    manifest_roller_specs = tuple(
+                        (root / str(item["path"]), str(item["evidence_id"]))
+                        for item in roller_entries
+                        if item.get("enabled", True)
+                    )
             elif args.flower:
                 flower_specs.extend((root / path, flower_id, None, "AUTO") for path, flower_id in args.flower)
             else:
                 flower_specs.extend(((root / "flower 1.dwg", "PRIVATE-FLOWER-001", None, "LEGACY_POLYLINE"), (root / "flower2.dwg", "PRIVATE-FLOWER-002", None, "LEGACY_POLYLINE")))
             flowers = tuple(ingest_private_flower(path, args.output_root / flower_id.lower(), flower_id, source_station_count=count, extractor_mode=mode) for path, flower_id, count, mode in flower_specs)
-            roller_specs = ((root / "roller1_sequnece aprtial.dwg", "PRIVATE-ROLLER-PARTIAL-001"), (root / "roller2_sequence partial.dwg", "PRIVATE-ROLLER-PARTIAL-002"))
+            roller_specs = manifest_roller_specs if manifest_roller_specs is not None else ((root / "roller1_sequnece aprtial.dwg", "PRIVATE-ROLLER-PARTIAL-001"), (root / "roller2_sequence partial.dwg", "PRIVATE-ROLLER-PARTIAL-002"))
             rollers = tuple(ingest_private_roller_evidence(path, args.output_root / evidence_id.lower(), evidence_id) for path, evidence_id in roller_specs if path.is_file())
             dataset = build_dataset(flowers, rollers)
             from rollform_extractor.flower_dataset_validation import validate_flower_prototype_dataset

@@ -12,8 +12,9 @@ from rollform_extractor.strip_length_constraint import (
     project_constant_strip_length,
 )
 from rollform_extractor.visual_profile_canonicalization import canonicalize_profile
-from rollform_extractor.visual_profile_metrics import compare_profiles
+from rollform_extractor.historical_profile_matching import compare_generated_to_historical
 from rollform_extractor.visual_profile_schema import VISUAL_ALGORITHM_VERSION, VisualProfile
+from rollform_extractor.historical_subsequence import best_contiguous_subsequence
 
 
 def generate_visual_candidates(
@@ -233,6 +234,15 @@ def _candidate(
             }
         )
 
+    grouped_histories = [
+        {"flower_id": flower_id, "passes": [item for item in histories if str(item["source_flower_id"]) == flower_id]}
+        for flower_id in sorted({str(item["source_flower_id"]) for item in histories})
+    ]
+    generated_for_sequence = [
+        {"pass_id": item["pass_id"], "order": item["order"], "progress": item["progress"], "profile": item["profile"]}
+        for item in generated
+    ]
+    historical_subsequence = best_contiguous_subsequence(generated_for_sequence, grouped_histories)
     values = [item["visual_confidence"]["score"] for item in generated]
     smoothness = _smoothness(generated)
     overall = round(
@@ -275,6 +285,8 @@ def _candidate(
             "non_calibrated": True,
         },
         "passes": generated,
+        "best_historical_subsequence": historical_subsequence.get("best_historical_subsequence") if historical_subsequence else None,
+        "top_historical_subsequences": historical_subsequence.get("top_historical_subsequences", []) if historical_subsequence else [],
         "warnings": [
             "VISUAL_ONLY_NOT_MANUFACTURING_VALIDATION",
             "CENTERLINE_STRIP_LENGTH_CONSTRAINED",
@@ -365,6 +377,8 @@ def _historical_passes(flowers):
                     {
                         "source_flower_id": flower.get("flower_id"),
                         "source_pass_id": item.get("pass_id"),
+                        "inferred_order": index,
+                        "shape_vector": tuple(float(value) for value in vector),
                         "progress": index / max(len(passes) - 1, 1),
                         "profile": {
                             "points": points,
@@ -378,52 +392,13 @@ def _historical_passes(flowers):
 
 
 def _match(target, historical, progress, allow_mirror, allow_rotation):
-    variants = [(historical["profile"], False, False)]
-    if allow_rotation:
-        points = historical["profile"]["points"]
-        for index in range(1, 4):
-            rotated = points
-            for _ in range(index):
-                rotated = [[-point[1], point[0]] for point in rotated]
-            variants.append(({**historical["profile"], "points": rotated}, False, True))
-    if allow_mirror:
-        points = historical["profile"]["points"]
-        variants.append(
-            (
-                {
-                    **historical["profile"],
-                    "points": [[-p[0], p[1]] for p in points],
-                },
-                True,
-                False,
-            )
-        )
-    matches = []
-    for variant, mirrored, rotated in variants:
-        result = compare_profiles(
-            target,
-            variant,
-            left_progress=progress,
-            right_progress=historical["progress"],
-        )
-        result.update(
-            {
-                "source_flower_id": historical["source_flower_id"],
-                "source_pass_id": historical["source_pass_id"],
-                "mirror_used": bool(mirrored),
-                "rotation_used": bool(rotated),
-                "alignment": "CANONICAL",
-                "historical_points": [list(point) for point in variant["points"]],
-            }
-        )
-        matches.append(result)
-    return max(
-        matches,
-        key=lambda x: (
-            x["overall_score"],
-            not x["mirror_used"],
-            not x["rotation_used"],
-        ),
+    return compare_generated_to_historical(
+        target,
+        historical,
+        generated_progress=progress,
+        historical_progress=historical["progress"],
+        allow_mirror=allow_mirror,
+        allow_rotation=allow_rotation,
     )
 
 

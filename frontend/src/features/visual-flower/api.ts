@@ -1,6 +1,7 @@
 import type { CadDrawingPreview, HistoricalFlowerDetail, HistoricalPassDetail, VisualProfile, VisualRun } from "./types";
 
 const API_ROOT = import.meta.env.VITE_API_ROOT ?? "";
+export const historicalRollerAssetUrl = (id: string, kind: "png" | "dxf") => `${API_ROOT}/api/visual-flower/historical/rollers/${encodeURIComponent(id)}/${kind}`;
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_ROOT}${path}`, init);
   if (!response.ok) throw new Error(await response.text());
@@ -106,6 +107,11 @@ export const getVisualImportProfiles = (importId: string) =>
         source_layers?: string[];
         source_units?: string | null;
         unit_status?: string;
+        representation?: string;
+        candidate_kind?: string;
+        derived_from_profile_id?: string;
+        classification_confidence?: string;
+        thickness_estimate?: number | null;
         aspect_ratio: number | null;
         warnings: string[];
         thumbnail_svg: string;

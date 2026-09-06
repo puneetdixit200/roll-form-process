@@ -12,7 +12,7 @@ function pointsFor(pass: SourcePass): number[][] {
   return Array.from({ length: Math.floor(vector.length / 2) }, (_, index) => [vector[index * 2], vector[index * 2 + 1]]);
 }
 
-export function HistoricalSourceFlowerExplorer({ flowerId, passId, generatedStation, onBack }: { flowerId: string; passId: string; generatedStation: number; onBack: () => void }) {
+export function HistoricalSourceFlowerExplorer({ flowerId, passId, generatedStation, sourceStartOrder, sourceEndOrder, onBack }: { flowerId: string; passId: string; generatedStation: number; sourceStartOrder?: number; sourceEndOrder?: number; onBack: () => void }) {
   const [flower, setFlower] = useState<SourceFlower | null>(null);
   const [passDetail, setPassDetail] = useState<SourcePass | null>(null);
   const [sourceError, setSourceError] = useState<string | null>(null);
@@ -30,9 +30,9 @@ export function HistoricalSourceFlowerExplorer({ flowerId, passId, generatedStat
     <header><h3>Historical Source Flower · {flowerId}</h3><p>Generated station {generatedStation} · source pass {current?.display_order ?? index + 1} / {flower?.station_count ?? "…"}</p><button type="button" onClick={onBack}>Back to generated station</button></header>
     {!flower ? <p>Historical source could not be loaded.</p> : sourceError ? <p role="alert">{sourceError}</p> : <>
       <div className="visual-controls"><button type="button" disabled={index <= 0} onClick={() => setIndex((value) => value - 1)}>Previous</button><button type="button" onClick={() => setPlaying((value) => !value)}>{playing ? "Pause" : "Play"}</button><button type="button" disabled={index >= flower.passes.length - 1} onClick={() => setIndex((value) => value + 1)}>Next</button></div>
-      <div className="historical-source-passes">{flower.passes.map((item, itemIndex) => <button className={itemIndex === index ? "selected" : ""} type="button" key={item.pass_id} onClick={() => setIndex(itemIndex)}>P{item.display_order ?? itemIndex + 1}</button>)}</div>
+      <div className="historical-source-passes">{flower.passes.map((item, itemIndex) => { const order = item.display_order ?? itemIndex + 1; const inInterval = sourceStartOrder != null && sourceEndOrder != null && order >= sourceStartOrder && order <= sourceEndOrder; return <button className={`${itemIndex === index ? "selected " : ""}${inInterval ? "subsequence " : ""}`} type="button" key={item.pass_id} onClick={() => setIndex(itemIndex)}>P{order}</button>; })}</div>
       <svg role="img" aria-label={`Historical pass ${current?.pass_id ?? ""}`} viewBox={`${bounds.minX - width * .1} ${-bounds.maxY - height * .1} ${width * 1.2} ${height * 1.2}`}><path d={path} fill="none" stroke="#155783" strokeWidth={Math.max(width, height) * .012} /></svg>
-      <p>Topology: {flower.topology ?? "unknown"} · Dimensions: {current?.width ?? "n/a"} × {current?.height ?? "n/a"}</p>
+      <p>Topology: {flower.topology ?? "unknown"} · Dimensions: {current?.width ?? "n/a"} × {current?.height ?? "n/a"}{sourceStartOrder != null && sourceEndOrder != null ? ` · highlighted historical interval P${sourceStartOrder}–P${sourceEndOrder}` : ""}</p>
       <h4>Historical roller design evidence</h4>{passDetail?.roller_roles?.length ? passDetail.roller_roles.map((role) => <div key={role.role}><strong>{role.role}</strong>{role.designs.map((design) => <span key={`${design.design_id}-${design.geometry_revision_id}`} className="evidence-chip">{design.design_id}{design.geometry_revision_id ? ` / ${design.geometry_revision_id}` : ""} · {design.confirmation_status ?? "UNCONFIRMED"}</span>)}</div>) : <p>No reviewed roller design evidence is recorded for this source pass.</p>}
     </>}
   </section>;

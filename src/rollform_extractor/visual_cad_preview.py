@@ -70,6 +70,8 @@ def _bounds(primitives: list[dict[str, Any]]) -> dict[str, float]:
             points.extend(item["points"])
         elif item["type"] == "POLYLINE":
             points.extend(item["points"])
+        elif item["type"] == "POINT":
+            points.append(item["position"])
     if not points:
         return {"min_x": 0.0, "min_y": 0.0, "max_x": 1.0, "max_y": 1.0, "width": 1.0, "height": 1.0}
     xs, ys = zip(*points)
@@ -84,6 +86,7 @@ def build_drawing_preview(path: Path, import_id: str, source_sha256: str) -> dic
     units = unit_names.get(units_code)
     entities = list(document.modelspace())
     primitives: list[dict[str, Any]] = []
+    reference_entities: list[dict[str, Any]] = []
     unsupported: dict[str, int] = {}
     layer_counts: dict[str, int] = {}
     for index, entity in enumerate(entities):
@@ -104,6 +107,8 @@ def build_drawing_preview(path: Path, import_id: str, source_sha256: str) -> dic
                     primitives.append({"primitive_id": f"{primitive_id}-segment-{segment_index:04d}", "source_handle": geometry["handle"], "layer": layer, "type": "ARC", "start": list(start), "end": list(end), "center": [arc["center"]["x"], arc["center"]["y"]], "radius": arc["radius"], "clockwise": arc["clockwise"]})
                 else:
                     primitives.append({"primitive_id": f"{primitive_id}-segment-{segment_index:04d}", "source_handle": geometry["handle"], "layer": layer, "type": "LINE", "start": list(start), "end": list(end)})
+        elif kind == "POINT":
+            reference_entities.append({"primitive_id": primitive_id, "source_handle": str(getattr(entity.dxf, "handle", "")), "layer": layer, "type": "POINT", "position": _point(entity.dxf.location), "reference_entity": True})
         elif kind == "CIRCLE":
             primitives.append({"primitive_id": primitive_id, "source_handle": str(getattr(entity.dxf, "handle", "")), "layer": layer, "type": "CIRCLE", "center": _point(entity.dxf.center), "radius": round(float(entity.dxf.radius), 8)})
         elif kind == "ELLIPSE":
@@ -114,4 +119,24 @@ def build_drawing_preview(path: Path, import_id: str, source_sha256: str) -> dic
             unsupported[kind] = unsupported.get(kind, 0) + 1
     primitives.sort(key=lambda item: item["primitive_id"])
     warnings = [f"UNSUPPORTED_{kind}_ENTITIES" for kind in sorted(unsupported)]
-    return {"schema_version": 1, "preview_version": DXF_DRAWING_PREVIEW_VERSION, "import_id": import_id, "source_sha256": source_sha256, "units": units, "unit_status": "CONFIRMED" if units else "UNKNOWN", "bounds": _bounds(primitives), "layers": [{"name": name, "visible_by_default": True, "entity_count": layer_counts[name]} for name in sorted(layer_counts)], "primitives": primitives, "unsupported_entity_counts": dict(sorted(unsupported.items())), "modelspace_entity_count": len(entities), "supported_primitive_count": len(primitives), "warnings": warnings, "private_paths_redacted": True, "source_cad_included": False}
+    return {
+        "schema_version": 1,
+        "preview_version": DXF_DRAWING_PREVIEW_VERSION,
+        "import_id": import_id,
+        "source_sha256": source_sha256,
+        "units": units,
+        "unit_status": "CONFIRMED" if units else "UNKNOWN",
+        "bounds": _bounds(primitives + reference_entities),
+        "layers": [{"name": name, "visible_by_default": True, "entity_count": layer_counts[name]} for name in sorted(layer_counts)],
+        "primitives": primitives,
+        "reference_entities": reference_entities,
+        "unsupported_entity_counts": dict(sorted(unsupported.items())),
+        "modelspace_entity_count": len(entities),
+        "source_entity_count": len(entities),
+        "forming_geometry_entity_count": sum(1 for entity in entities if entity.dxftype() in {"LINE", "ARC", "LWPOLYLINE", "POLYLINE", "CIRCLE", "ELLIPSE"}),
+        "supported_primitive_count": len(primitives),
+        "reference_entity_count": len(reference_entities),
+        "warnings": warnings,
+        "private_paths_redacted": True,
+        "source_cad_included": False,
+    }

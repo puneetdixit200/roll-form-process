@@ -97,6 +97,22 @@ def test_preview_expands_lwpolyline_bulge_to_true_arc(tmp_path):
         assert any(item["type"] == "ARC" for item in preview["primitives"])
 
 
+def test_preview_separates_reference_points_from_forming_geometry(tmp_path):
+    document = ezdxf.new("R2018")
+    document.header["$INSUNITS"] = 4
+    modelspace = document.modelspace()
+    modelspace.add_point((0, 0))
+    modelspace.add_point((31, 12))
+    modelspace.add_lwpolyline([(0, 0), (10, 0), (10, 2)], format="xy")
+    with TestClient(create_app(tmp_path, auto_run_jobs=False)) as client:
+        imported = client.post("/api/visual-flower/import", files={"file": ("references.dxf", _save_bytes(document), "application/dxf")}).json()
+        preview = client.get(f"/api/visual-flower/imports/{imported['import_id']}/drawing-preview").json()
+        assert preview["source_entity_count"] == 3
+        assert preview["reference_entity_count"] == 2
+        assert preview["supported_primitive_count"] == 2
+        assert {item["type"] for item in preview["reference_entities"]} == {"POINT"}
+
+
 def test_integrated_import_creates_linked_visual_and_project_workflow(tmp_path):
     with TestClient(create_app(tmp_path, auto_run_jobs=False)) as client:
         response = client.post("/api/rollform-workflows/import", files={"file": ("synthetic.dxf", _dxf_bytes(), "application/dxf")})

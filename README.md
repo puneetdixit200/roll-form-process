@@ -175,17 +175,18 @@ npm ci
 
 ## Run locally
 
-Backend:
+Use the supported launcher. It restores the saved historical dataset/model
+configuration, starts both services, and prevents the generation button from
+being disabled by an accidentally unconfigured backend:
 
 ```bash
-PYTHONPATH=src uvicorn backend.api.main:app --host 127.0.0.1 --port 8000
+.venv/bin/python scripts/run_visual_flower_demo.py start
 ```
 
-Frontend:
+Verify the complete generation and export path:
 
 ```bash
-cd frontend
-VITE_API_ROOT=http://127.0.0.1:8000 npm run dev
+.venv/bin/python scripts/run_visual_flower_demo.py verify
 ```
 
 Then open:
@@ -299,6 +300,7 @@ npm run build
 - [Phase 16 Roller Inventory](docs/specs/phase-16-roller-inventory.md)
 - [Phase 17 Roller Recognition](docs/specs/phase-17-roller-recognition.md)
 - [Phase 18 Validated Usage Search](docs/specs/phase-18-validated-usage-search.md)
+- [Target CAD Interpretation](docs/TARGET_CAD_INTERPRETATION.md)
 
 ## Resume-safe project summary
 

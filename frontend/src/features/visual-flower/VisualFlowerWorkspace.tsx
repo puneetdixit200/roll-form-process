@@ -19,6 +19,8 @@ import {
 import { exampleProfile, ProfileSketcher } from "./ProfileSketcher";
 import { CadDrawingCanvas } from "./CadDrawingCanvas";
 import { HistoricalSourceFlowerExplorer } from "./HistoricalSourceFlowerExplorer";
+import { HistoricalSubsequenceMatchCard } from "./HistoricalSubsequenceMatchCard";
+import { HistoricalMatchRollers } from "./HistoricalMatchRollers";
 import type { CadDrawingPreview, VisualCandidate, VisualProfile, VisualRun } from "./types";
 
 type ImportedProfile = {
@@ -31,6 +33,11 @@ type ImportedProfile = {
   source_layers?: string[];
   source_units?: string | null;
   source_handles?: string[];
+  representation?: string;
+  candidate_kind?: string;
+  derived_from_profile_id?: string;
+  classification_confidence?: string;
+  thickness_estimate?: number | null;
   aspect_ratio: number | null;
   warnings: string[];
   thumbnail_svg: string;
@@ -58,6 +65,7 @@ export default function VisualFlowerWorkspace() {
   const [candidateLimit, setCandidateLimit] = useState(3);
   const [generationEngine, setGenerationEngine] = useState("AUTO");
   const [message, setMessage] = useState("");
+  const [generating, setGenerating] = useState(false);
   // The bundled public example is known-valid, so the demo can be generated
   // immediately. Any edit, import, or JSON load resets this gate below.
   const [validated, setValidated] = useState(true);
@@ -73,7 +81,7 @@ export default function VisualFlowerWorkspace() {
   const [drawingPreview, setDrawingPreview] = useState<CadDrawingPreview | null>(null);
   const [selectedImportedProfileId, setSelectedImportedProfileId] = useState<string | null>(null);
   const [editingImported, setEditingImported] = useState(false);
-  const [historicalSource, setHistoricalSource] = useState<{ flowerId: string; passId: string } | null>(null);
+  const [historicalSource, setHistoricalSource] = useState<{ flowerId: string; passId: string; startOrder?: number; endOrder?: number } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dataset, setDataset] = useState<
     {
@@ -168,7 +176,8 @@ export default function VisualFlowerWorkspace() {
     }).catch(() => { if (profileHashRef.current === hashAtRequest) { setValidated(false); setValidatedProfileSnapshot(null); setBackendValidationHash(null); setMessage("Profile validation failed; generation is disabled."); } });
   }
   async function generate() {
-    if (!profile || !validated || validatedProfileSnapshot !== stableJson(profile)) return;
+    if (generating || !profile || !validated || validatedProfileSnapshot !== stableJson(profile)) return;
+    setGenerating(true);
     try {
       setMessage("Canonicalizing and matching historical passes...");
       const target = workflowId
@@ -197,6 +206,8 @@ export default function VisualFlowerWorkspace() {
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Generation failed");
+    } finally {
+      setGenerating(false);
     }
   }
   function downloadJson(name: string, value: unknown) {
@@ -249,7 +260,7 @@ export default function VisualFlowerWorkspace() {
       setMessage(
         `${result.profile_count} profile candidate(s) detected using ${
           result.converter ?? "offline extraction"
-        }. Select one below.`,
+        }. ${result.profile_count === 1 ? "Review and validate it." : result.profile_count === 0 ? "Drawing loaded successfully, but no connected target profile candidate was detected." : "Select the intended target profile."}`,
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "CAD import failed");
@@ -429,7 +440,7 @@ export default function VisualFlowerWorkspace() {
                   <div>
                     <strong>{item.profile_id}</strong>
                     <p>
-                      {item.open_closed} · {item.entity_count} entities · aspect
+                      {item.representation ?? item.open_closed} · {item.entity_count} source entities · aspect
                       {" "}
                       {item.aspect_ratio?.toFixed(2) ?? "unknown"}
                     </p>
@@ -445,6 +456,7 @@ export default function VisualFlowerWorkspace() {
                         ? item.warnings.join(", ")
                         : "No geometry warnings"}
                     </p>
+                    {(item as { candidate_kind?: string; thickness_estimate?: number; classification_confidence?: string }).candidate_kind === "DERIVED_CENTERLINE" && <p>Derived centerline estimate · thickness ≈ {(item as { thickness_estimate?: number }).thickness_estimate?.toFixed(3) ?? "?"} drawing units · engineer review required</p>}
                     <button
                       onClick={() =>
                         useImported(item.profile_id)}
@@ -535,11 +547,11 @@ export default function VisualFlowerWorkspace() {
             </label>
             <button
               disabled={
-                !validation.valid || !validated || dataset?.available === false
+                generating || !validation.valid || !validated || dataset?.available === false
               }
-              onClick={generate}
+              onClick={() => void generate()}
             >
-              Generate Flower Sequence
+              {generating ? "Generating Flower Sequence…" : "Generate Flower Sequence"}
             </button>
             </fieldset>
           </div>
@@ -787,7 +799,11 @@ export default function VisualFlowerWorkspace() {
                       </span>.
                     </p>
                     <MatchDetails item={currentPass} onOpenSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId })} />
-                    {historicalSource && <HistoricalSourceFlowerExplorer flowerId={historicalSource.flowerId} passId={historicalSource.passId} generatedStation={currentPass?.order ?? 0} onBack={() => setHistoricalSource(null)} />}
+                    {(candidate.top_historical_subsequences?.length ? candidate.top_historical_subsequences : candidate.best_historical_subsequence ? [candidate.best_historical_subsequence] : []).slice(0, 3).map((match, index) => <div key={`${match.source_flower_id}-${match.source_start_order}-${index}`}>
+                      <h3>Historical subsequence match #{index + 1}</h3>
+                      <HistoricalSubsequenceMatchCard match={match} activeGeneratedPassId={currentPass?.pass_id} onOpenSource={(flowerId, passId) => setHistoricalSource({ flowerId, passId, startOrder: match.source_start_order, endOrder: match.source_end_order })} />
+                    </div>)}
+                    {historicalSource && <HistoricalSourceFlowerExplorer flowerId={historicalSource.flowerId} passId={historicalSource.passId} sourceStartOrder={historicalSource.startOrder} sourceEndOrder={historicalSource.endOrder} generatedStation={currentPass?.order ?? 0} onBack={() => setHistoricalSource(null)} />}
                     <RollerEvidenceDetails
                       candidateId={candidate.candidate_id}
                       station={candidate.roller_evidence?.stations.find((item) => item.pass_id === currentPass?.pass_id)}
@@ -812,7 +828,7 @@ export default function VisualFlowerWorkspace() {
               </>
             )
             : <p>Validate a profile, then generate a sequence.</p>}
-          <p>{message}</p>
+          <p role="status" aria-live="polite">{message}</p>
         </div>
       </div>
     </section>
@@ -824,7 +840,7 @@ function MatchDetails({ item, onOpenSource }: { item: any; onOpenSource: (flower
   return (
     <details className="match-details">
       <summary>Top three historical matches and score components</summary>
-      {matches.map((match: any, index: number) => (
+      {matches.slice(0, 3).map((match: any, index: number) => (
         <div key={`${match.source_flower_id}-${match.source_pass_id}-${index}`}>
           <div className="historical-match-preview">
             <img
@@ -861,6 +877,7 @@ function MatchDetails({ item, onOpenSource }: { item: any; onOpenSource: (flower
             ) ?? "n/a"}
           </p>
           <button type="button" onClick={() => onOpenSource(match.source_flower_id, match.source_pass_id)}>View historical source sequence</button>
+          <HistoricalMatchRollers rollers={match.roller_occurrences} status={match.roller_link_status} />
             </div>
           </div>
         </div>

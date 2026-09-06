@@ -77,6 +77,7 @@ class HistoricalFlower:
     source_station_count: int | None = None
     extractor_mode_requested: str = "LEGACY_POLYLINE"
     extractor_mode_used: str = "LEGACY_POLYLINE"
+    source_region_id: str | None = None
 
     def to_dict(self, *, include_geometry: bool = False) -> dict[str, Any]:
         return {
@@ -90,6 +91,7 @@ class HistoricalFlower:
             "source_station_count": self.source_station_count,
             "extractor_mode_requested": self.extractor_mode_requested,
             "extractor_mode_used": self.extractor_mode_used,
+            "source_region_id": self.source_region_id,
             "topology": self.topology,
             "quality_flags": list(self.quality_flags),
             "passes": [item.to_dict(include_points=include_geometry) for item in self.passes],
@@ -157,7 +159,34 @@ def ingest_private_flower(
     requested = extractor_mode.upper()
     polylines = tuple(entity for entity in entities if entity.dxftype() == "POLYLINE")
     lwpolylines = tuple(entity for entity in entities if entity.dxftype() == "LWPOLYLINE")
-    if requested in {"LEGACY_POLYLINE", "AUTO"} and polylines:
+    composite_requires_review = False
+    station_sequence_requires_review = False
+    source_region_id: str | None = None
+    if requested == "COMPOSITE_FLOWER":
+        selected, composite_requires_review = _detected_composite_pass_entities(document, staged.converted_file)
+        used = "COMPOSITE_FLOWER"
+        passes = tuple(
+            _pass_from_polyline(entity, flower_id, index, before)
+            if entity.dxftype() == "POLYLINE"
+            else _pass_from_points(_lwpolyline_points(entity), str(entity.dxf.handle), flower_id, index, before)
+            for index, entity in enumerate(selected)
+        )
+    elif requested.startswith("STATION_SEQUENCE:"):
+        selector = requested.split(":", 1)[1].strip()
+        selected, source_region_id = _detected_station_sequence_pass_entities(
+            document,
+            staged.converted_file,
+            selector,
+        )
+        used = f"STATION_SEQUENCE:{selector}"
+        station_sequence_requires_review = True
+        passes = tuple(
+            _pass_from_polyline(entity, flower_id, index, before)
+            if entity.dxftype() == "POLYLINE"
+            else _pass_from_points(_lwpolyline_points(entity), str(entity.dxf.handle), flower_id, index, before)
+            for index, entity in enumerate(selected)
+        )
+    elif requested in {"LEGACY_POLYLINE", "AUTO"} and polylines:
         used = "LEGACY_POLYLINE"
         passes = tuple(_pass_from_polyline(entity, flower_id, index, before) for index, entity in enumerate(polylines))
     elif requested in {"LWPOLYLINE", "AUTO"} and lwpolylines:
@@ -172,6 +201,10 @@ def ingest_private_flower(
         quality.append("NO_SUPPORTED_SEQUENCE_PASSES")
     if source_station_count is not None and source_station_count != len(passes):
         quality.append("GENERIC_PIPELINE_STATION_COUNT_DIFFERS")
+    if composite_requires_review:
+        quality.append("COMPOSITE_PASS_ORDER_INFERRED_REVIEW_REQUIRED")
+    if station_sequence_requires_review:
+        quality.append("STATION_SEQUENCE_ORDER_INFERRED_REVIEW_REQUIRED")
     return HistoricalFlower(
         flower_id=flower_id,
         source_classification="PRIVATE_PROTOTYPE",
@@ -184,7 +217,92 @@ def ingest_private_flower(
         source_station_count=source_station_count,
         extractor_mode_requested=requested,
         extractor_mode_used=used,
+        source_region_id=source_region_id,
     )
+
+
+def _detect_flower_domain(document: Any, converted_file: Path) -> tuple[tuple[Any, ...], tuple[Any, ...], tuple[Any, ...]]:
+    """Run the authoritative extraction detectors and return stations, profiles, composites."""
+    from rollform_extractor.composite_flower import build_composite_flowers
+    from rollform_extractor.config import ExtractionConfig
+    from rollform_extractor.dxf_reader import inspect_drawing
+    from rollform_extractor.entity_parser import parse_entities
+    from rollform_extractor.profile_detector import detect_profiles
+    from rollform_extractor.roller_detector import detect_rollers
+    from rollform_extractor.stage_classifier import assign_stage_types
+    from rollform_extractor.station_detector import detect_stations
+    from rollform_extractor.support_classifier import classify_support
+
+    config = ExtractionConfig.load(None)
+    inspection = inspect_drawing(converted_file)
+    parsed = parse_entities(document, config)
+    classified = classify_support(parsed.entities + parsed.expanded_entities, inspection, config)
+    detected_stations = detect_stations(classified.entities, inspection, config, None)
+    profiles = detect_profiles(tuple(item.record for item in detected_stations.stations), classified.entities, config, None)
+    typed_for_rollers = assign_stage_types((item.record for item in detected_stations.stations), profiles.profiles)
+    rollers = detect_rollers(typed_for_rollers, profiles.profiles, classified.entities, config, None)
+    typed_stations = tuple(assign_stage_types(typed_for_rollers, profiles.profiles, rollers.rollers))
+    composites = tuple(build_composite_flowers(typed_stations, profiles.profiles, classified.entities))
+    return typed_stations, tuple(profiles.profiles), composites
+
+
+def _detected_station_sequence_pass_entities(
+    document: Any,
+    converted_file: Path,
+    selector: str,
+) -> tuple[tuple[Any, ...], str]:
+    """Select ordered profile outlines from one detected station sequence."""
+    if not selector.isdigit() or int(selector) < 1:
+        raise ValueError(f"INVALID_STATION_SEQUENCE_SELECTOR: {selector}")
+    sequence_number = int(selector)
+    stations, profiles, _composites = _detect_flower_domain(document, converted_file)
+    station_by_id = {item.station_id: item for item in stations}
+    candidates = []
+    for profile in profiles:
+        station = station_by_id.get(profile.station_id)
+        if station is None or int(station.evidence.get("sequence_id", 0) or 0) != sequence_number:
+            continue
+        region_type = str(station.evidence.get("region_type") or station.evidence.get("stage_type") or "")
+        if region_type not in {"FLOWER_PROFILE", "FINAL_PROFILE", "FLAT_STRIP"}:
+            continue
+        candidates.append((station.sequence_index if station.sequence_index is not None else 10**9, profile.profile_id, profile))
+    if not candidates:
+        raise ValueError(f"STATION_SEQUENCE_NOT_FOUND: {selector}")
+
+    by_handle = {
+        str(entity.dxf.handle): entity
+        for entity in document.modelspace()
+        if getattr(entity.dxf, "handle", None)
+    }
+    selected = []
+    for _order, profile_id, profile in sorted(candidates, key=lambda item: (item[0], item[1])):
+        matches = [
+            by_handle[handle]
+            for handle in profile.source_handles
+            if handle in by_handle and by_handle[handle].dxftype() in {"POLYLINE", "LWPOLYLINE"}
+        ]
+        if len(matches) != 1:
+            raise ValueError(f"STATION_SEQUENCE_PROFILE_SOURCE_REQUIRES_REVIEW: {profile_id}")
+        selected.append(matches[0])
+    return tuple(selected), f"sequence_{sequence_number:02d}"
+
+
+def _detected_composite_pass_entities(document: Any, converted_file: Path) -> tuple[tuple[Any, ...], bool]:
+    """Return one canonical composite sequence using the main extraction detectors."""
+    _stations, _profiles, detected = _detect_flower_domain(document, converted_file)
+    composites = tuple(item for item in detected if item.pass_count >= 3)
+    if len(composites) != 1:
+        raise ValueError(f"COMPOSITE_FLOWER_SELECTION_REQUIRES_REVIEW: detected {len(composites)} eligible regions")
+
+    by_handle = {str(entity.dxf.handle): entity for entity in document.modelspace() if getattr(entity.dxf, "handle", None)}
+    selected = []
+    composite = composites[0]
+    for item in sorted(composite.passes, key=lambda value: (value.inferred_order, value.pass_id)):
+        matches = [by_handle[handle] for handle in item.source_handles if handle in by_handle and by_handle[handle].dxftype() in {"POLYLINE", "LWPOLYLINE"}]
+        if len(matches) != 1:
+            raise ValueError(f"COMPOSITE_PASS_SOURCE_REQUIRES_REVIEW: {item.pass_id}")
+        selected.append(matches[0])
+    return tuple(selected), not composite.confirmed
 
 
 def ingest_private_roller_evidence(source: Path, private_root: Path, evidence_id: str) -> RollerSequenceEvidence:
@@ -214,9 +332,19 @@ def build_dataset(
     roller_station_evidence: Iterable[Mapping[str, Any]] = (),
 ) -> FlowerPrototypeDataset:
     flowers = tuple(sorted(flowers, key=lambda item: item.flower_id))
-    source_hashes = [item.source_sha256 for item in flowers if item.source_sha256 not in {"", "source"}]
-    if len(source_hashes) != len(set(source_hashes)):
-        raise ValueError("DUPLICATE_HISTORICAL_SOURCE")
+    source_keys = [
+        (item.source_sha256, item.source_region_id or "__WHOLE_SOURCE__")
+        for item in flowers
+        if item.source_sha256 not in {"", "source"}
+    ]
+    if len(source_keys) != len(set(source_keys)):
+        raise ValueError("DUPLICATE_HISTORICAL_SOURCE_REGION")
+    grouped_regions: dict[str, list[str | None]] = {}
+    for item in flowers:
+        if item.source_sha256 not in {"", "source"}:
+            grouped_regions.setdefault(item.source_sha256, []).append(item.source_region_id)
+    if any(len(regions) > 1 and any(region is None for region in regions) for regions in grouped_regions.values()):
+        raise ValueError("DUPLICATE_HISTORICAL_SOURCE_REQUIRES_REGION_IDENTITY")
     rollers = tuple(sorted(roller_evidence, key=lambda item: item.evidence_id))
     station_evidence = tuple(sorted((dict(item) for item in roller_station_evidence), key=lambda item: (str(item.get("flower_id", "")), str(item.get("pass_id", "")), str(item.get("role", "")), str(item.get("design_id", "")), str(item.get("geometry_revision_id", "")))))
     payload = {
@@ -263,6 +391,7 @@ def _dataset_from_dict(value: dict[str, Any]) -> FlowerPrototypeDataset:
             source_entity_count=int(flower_value["source_entity_count"]), raw_profile_count=int(flower_value["raw_profile_count"]), passes=tuple(passes),
             topology=flower_value["topology"], quality_flags=tuple(flower_value.get("quality_flags", [])), source_station_count=flower_value.get("source_station_count"),
             extractor_mode_requested=str(flower_value.get("extractor_mode_requested", "LEGACY_POLYLINE")), extractor_mode_used=str(flower_value.get("extractor_mode_used", "LEGACY_POLYLINE")),
+            source_region_id=flower_value.get("source_region_id"),
         ))
     rollers = tuple(RollerSequenceEvidence(
         evidence_id=item["evidence_id"], source_file_id=item["source_file_id"], source_sha256=item["source_sha256"],
