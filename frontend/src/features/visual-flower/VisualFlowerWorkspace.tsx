@@ -38,6 +38,9 @@ type ImportedProfile = {
   derived_from_profile_id?: string;
   classification_confidence?: string;
   thickness_estimate?: number | null;
+  median_thickness?: number | null;
+  developed_length?: number | null;
+  derivation_version?: string;
   aspect_ratio: number | null;
   warnings: string[];
   thumbnail_svg: string;
@@ -456,7 +459,7 @@ export default function VisualFlowerWorkspace() {
                         ? item.warnings.join(", ")
                         : "No geometry warnings"}
                     </p>
-                    {(item as { candidate_kind?: string; thickness_estimate?: number; classification_confidence?: string }).candidate_kind === "DERIVED_CENTERLINE" && <p>Derived centerline estimate · thickness ≈ {(item as { thickness_estimate?: number }).thickness_estimate?.toFixed(3) ?? "?"} drawing units · engineer review required</p>}
+                    {(item as { candidate_kind?: string; thickness_estimate?: number; source_units?: string | null; developed_length?: number }).candidate_kind === "DERIVED_CENTERLINE" && <p>Derived geometric centerline · thickness ≈ {(item as { thickness_estimate?: number }).thickness_estimate?.toFixed(3) ?? "?"} {item.source_units ?? "drawing units"} · length ≈ {(item as { developed_length?: number }).developed_length?.toFixed(2) ?? "?"} · engineer review required</p>}
                     <button
                       onClick={() =>
                         useImported(item.profile_id)}

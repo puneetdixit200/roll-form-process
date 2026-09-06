@@ -79,6 +79,20 @@ def _bounds(primitives: list[dict[str, Any]]) -> dict[str, float]:
     return {"min_x": min_x, "min_y": min_y, "max_x": max_x, "max_y": max_y, "width": max(max_x - min_x, 1e-9), "height": max(max_y - min_y, 1e-9)}
 
 
+def _profile_overlay(candidate: dict[str, Any]) -> dict[str, Any]:
+    profile = candidate["profile"]
+    vertices = {item["vertex_id"]: (float(item["x"]), float(item["y"])) for item in profile.get("vertices", [])}
+    primitives: list[dict[str, Any]] = []
+    for index, segment in enumerate(profile.get("segments", []), start=1):
+        start = vertices[segment["start_vertex_id"]]
+        end = vertices[segment["end_vertex_id"]]
+        item: dict[str, Any] = {"primitive_id": f"{candidate['candidate_id']}-overlay-{index:04d}", "source_handle": "", "layer": "DERIVED", "type": segment["type"], "start": list(start), "end": list(end)}
+        if segment["type"] == "ARC":
+            item.update({"center": [float(segment["center"]["x"]), float(segment["center"]["y"])], "radius": float(segment["radius"]), "clockwise": bool(segment.get("clockwise", False))})
+        primitives.append(item)
+    return {"candidate_id": candidate["candidate_id"], "overlay_kind": "DERIVED_CENTERLINE", "primitives": primitives, "bounds": _bounds(primitives)}
+
+
 def build_drawing_preview(path: Path, import_id: str, source_sha256: str) -> dict[str, Any]:
     document = ezdxf.readfile(path)
     units_code = int(document.header.get("$INSUNITS", 0) or 0)
@@ -119,6 +133,8 @@ def build_drawing_preview(path: Path, import_id: str, source_sha256: str) -> dic
             unsupported[kind] = unsupported.get(kind, 0) + 1
     primitives.sort(key=lambda item: item["primitive_id"])
     warnings = [f"UNSUPPORTED_{kind}_ENTITIES" for kind in sorted(unsupported)]
+    from rollform_extractor.visual_cad_profile_detection import detect_profiles
+    overlays = [_profile_overlay(candidate) for candidate in detect_profiles(path) if candidate.get("candidate_kind") == "DERIVED_CENTERLINE"]
     return {
         "schema_version": 1,
         "preview_version": DXF_DRAWING_PREVIEW_VERSION,
@@ -136,6 +152,7 @@ def build_drawing_preview(path: Path, import_id: str, source_sha256: str) -> dic
         "forming_geometry_entity_count": sum(1 for entity in entities if entity.dxftype() in {"LINE", "ARC", "LWPOLYLINE", "POLYLINE", "CIRCLE", "ELLIPSE"}),
         "supported_primitive_count": len(primitives),
         "reference_entity_count": len(reference_entities),
+        "candidate_overlays": overlays,
         "warnings": warnings,
         "private_paths_redacted": True,
         "source_cad_included": False,
