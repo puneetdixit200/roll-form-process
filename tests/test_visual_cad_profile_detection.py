@@ -83,3 +83,24 @@ def test_lwpolyline_bulge_is_preserved_as_true_arc(tmp_path):
     assert segment["center"]["y"] == pytest.approx(0.0, abs=1e-7)
     assert "BULGE_ARC_APPROXIMATED_AS_POLYLINE" not in candidates[0]["warnings"]
     validate_profile(profile)
+
+
+def test_closed_constant_width_strip_exposes_boundary_and_derived_centerline(tmp_path):
+    document = ezdxf.new("R2018")
+    document.header["$INSUNITS"] = 4
+    modelspace = document.modelspace()
+    points = [(2, 0, 0), (29, 0, math.tan(math.pi / 8)), (31, 2, 0), (31, 10, -math.tan(math.pi / 8)), (33, 12, 0), (40, 12, math.tan(math.pi / 8)), (42, 14, 0), (42, 20, 0), (40, 20, 0), (40, 14, 0), (33, 14, math.tan(math.pi / 8)), (29, 10, 0), (29, 2, 0), (2, 2, 0), (2, 31, 0), (0, 31, 0), (0, 2, math.tan(math.pi / 8))]
+    modelspace.add_lwpolyline(points, format="xyb", close=True)
+    path = tmp_path / "strip.dxf"
+    document.saveas(path)
+
+    candidates = detect_profiles(path)
+
+    assert {item["representation"] for item in candidates} == {"STRIP_OUTLINE", "CENTERLINE_PATH"}
+    raw = next(item for item in candidates if item["representation"] == "STRIP_OUTLINE")
+    centerline = next(item for item in candidates if item["representation"] == "CENTERLINE_PATH")
+    assert raw["candidate_kind"] == "RAW_GEOMETRY"
+    assert centerline["candidate_kind"] == "DERIVED_CENTERLINE"
+    assert centerline["derived_from_profile_id"] == raw["profile_id"]
+    assert centerline["open_closed"] == "OPEN_PATH"
+    assert centerline["profile"]["metadata"]["derivation_status"] == "ESTIMATED_REVIEW_REQUIRED"

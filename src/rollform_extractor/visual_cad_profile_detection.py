@@ -306,6 +306,7 @@ def _profile(component: list[dict[str, Any]], tolerance: float, units: str | Non
             "connection_tolerance": tolerance,
             "warnings": sorted(set(warnings)),
             "detector_version": DXF_PROFILE_DETECTOR_VERSION,
+            "representation": "CENTERLINE_PATH" if not closed else "GENERIC_CLOSED_CONTOUR",
         },
     }
     score = len(component) * 10 + min(len(segments), 20) - (100 if branched else 0)
@@ -324,6 +325,8 @@ def _profile(component: list[dict[str, Any]], tolerance: float, units: str | Non
         "unit_status": unit_status,
         "candidate_score": score,
         "warnings": profile["metadata"]["warnings"],
+        "representation": profile["metadata"]["representation"],
+        "candidate_kind": "RAW_GEOMETRY",
         "thumbnail_svg": thumbnail_svg(profile),
     }
 
@@ -333,8 +336,24 @@ def detect_profiles(dxf_path: Path) -> list[dict[str, Any]]:
     entities = [item for entity in document.modelspace() if (item := _entity_geometry(entity)) is not None]
     tolerance = _connection_tolerance(entities)
     units, unit_status = _units(document)
-    candidates = [_profile(component, tolerance, units, unit_status) for component in _components(entities, tolerance)]
-    return sorted(candidates, key=lambda item: (-item["candidate_score"], item["profile_id"]))
+    candidates = []
+    for component in _components(entities, tolerance):
+        candidate = _profile(component, tolerance, units, unit_status)
+        if candidate["profile"]["closed"]:
+            from rollform_extractor.visual_cad_strip import classify_closed_profile, derive_centerline_candidate
+            classification = classify_closed_profile(candidate["profile"])
+            candidate.update(classification)
+            candidate["profile"]["metadata"].update({
+                "representation": classification["representation"],
+                "classification_confidence": classification["classification_confidence"],
+                "classification_reasons": classification["classification_reasons"],
+                "thickness_estimate": classification["thickness_estimate"],
+            })
+            derived = derive_centerline_candidate(candidate)
+            if derived is not None:
+                candidates.append(derived)
+        candidates.append(candidate)
+    return sorted(candidates, key=lambda item: (-float(item["candidate_score"]), item.get("candidate_kind", ""), item["profile_id"]))
 
 
 def _arc_sweep(start: tuple[float, float], end: tuple[float, float], center: dict[str, Any], clockwise: bool) -> float:

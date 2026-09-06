@@ -107,6 +107,11 @@ export const getVisualImportProfiles = (importId: string) =>
         source_layers?: string[];
         source_units?: string | null;
         unit_status?: string;
+        representation?: string;
+        candidate_kind?: string;
+        derived_from_profile_id?: string;
+        classification_confidence?: string;
+        thickness_estimate?: number | null;
         aspect_ratio: number | null;
         warnings: string[];
         thumbnail_svg: string;

@@ -300,6 +300,7 @@ npm run build
 - [Phase 16 Roller Inventory](docs/specs/phase-16-roller-inventory.md)
 - [Phase 17 Roller Recognition](docs/specs/phase-17-roller-recognition.md)
 - [Phase 18 Validated Usage Search](docs/specs/phase-18-validated-usage-search.md)
+- [Target CAD Interpretation](docs/TARGET_CAD_INTERPRETATION.md)
 
 ## Resume-safe project summary
 

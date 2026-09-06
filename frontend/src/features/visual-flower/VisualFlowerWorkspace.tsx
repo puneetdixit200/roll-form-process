@@ -33,6 +33,11 @@ type ImportedProfile = {
   source_layers?: string[];
   source_units?: string | null;
   source_handles?: string[];
+  representation?: string;
+  candidate_kind?: string;
+  derived_from_profile_id?: string;
+  classification_confidence?: string;
+  thickness_estimate?: number | null;
   aspect_ratio: number | null;
   warnings: string[];
   thumbnail_svg: string;
@@ -255,7 +260,7 @@ export default function VisualFlowerWorkspace() {
       setMessage(
         `${result.profile_count} profile candidate(s) detected using ${
           result.converter ?? "offline extraction"
-        }. Select one below.`,
+        }. ${result.profile_count === 1 ? "Review and validate it." : result.profile_count === 0 ? "Drawing loaded successfully, but no connected target profile candidate was detected." : "Select the intended target profile."}`,
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "CAD import failed");
@@ -435,7 +440,7 @@ export default function VisualFlowerWorkspace() {
                   <div>
                     <strong>{item.profile_id}</strong>
                     <p>
-                      {item.open_closed} · {item.entity_count} entities · aspect
+                      {item.representation ?? item.open_closed} · {item.entity_count} source entities · aspect
                       {" "}
                       {item.aspect_ratio?.toFixed(2) ?? "unknown"}
                     </p>
@@ -451,6 +456,7 @@ export default function VisualFlowerWorkspace() {
                         ? item.warnings.join(", ")
                         : "No geometry warnings"}
                     </p>
+                    {(item as { candidate_kind?: string; thickness_estimate?: number; classification_confidence?: string }).candidate_kind === "DERIVED_CENTERLINE" && <p>Derived centerline estimate · thickness ≈ {(item as { thickness_estimate?: number }).thickness_estimate?.toFixed(3) ?? "?"} drawing units · engineer review required</p>}
                     <button
                       onClick={() =>
                         useImported(item.profile_id)}

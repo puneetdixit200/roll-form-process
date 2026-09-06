@@ -82,6 +82,12 @@ dxf_reader.py
 
 The browser receives derived vector geometry, not the private source path or raw CAD file.
 
+Imported closed strip boundaries are retained as `STRIP_OUTLINE` evidence and
+may produce a separate, review-required `CENTERLINE_PATH` candidate. Reference
+entities such as POINTs are exposed separately from forming primitives; they
+are never silently treated as target profile geometry. See
+[Target CAD Interpretation](TARGET_CAD_INTERPRETATION.md).
+
 ## 4. Visual target representation
 
 The browser/backend exchange a versioned `VisualProfile` containing:
