@@ -7,6 +7,7 @@ import pytest
 
 from rollform_extractor.visual_cad_profile_detection import detect_profiles
 from rollform_extractor.visual_profile_schema import validate_profile
+from rollform_extractor.visual_profile_validation import validate_visual_profile
 
 
 def test_connected_line_arc_line_is_one_open_profile(tmp_path):
@@ -104,3 +105,21 @@ def test_closed_constant_width_strip_exposes_boundary_and_derived_centerline(tmp
     assert centerline["derived_from_profile_id"] == raw["profile_id"]
     assert centerline["open_closed"] == "OPEN_PATH"
     assert centerline["profile"]["metadata"]["derivation_status"] == "ESTIMATED_REVIEW_REQUIRED"
+    assert centerline["derivation_version"] == "strip-outline-centerline-v2"
+    assert centerline["median_thickness"] == pytest.approx(2.0, abs=0.02)
+    assert any(segment["type"] == "ARC" for segment in centerline["profile"]["segments"])
+    assert any(segment.get("radius") == pytest.approx(3.0, abs=0.02) for segment in centerline["profile"]["segments"] if segment["type"] == "ARC")
+    assert validate_visual_profile(centerline["profile"])["valid"] is True
+
+
+def test_slender_closed_rectangle_is_not_a_strip_outline(tmp_path):
+    document = ezdxf.new("R2018")
+    document.modelspace().add_lwpolyline([(0, 0), (100, 0), (100, 10), (0, 10)], close=True)
+    path = tmp_path / "slender-section.dxf"
+    document.saveas(path)
+
+    candidates = detect_profiles(path)
+
+    assert len(candidates) == 1
+    assert candidates[0]["representation"] != "STRIP_OUTLINE"
+    assert candidates[0]["candidate_kind"] == "RAW_GEOMETRY"

@@ -20,11 +20,13 @@ estimate, derivation method, and `ESTIMATED_REVIEW_REQUIRED` status.  The raw
 boundary is never overwritten and the derived candidate is not a production
 approval.
 
-The current deterministic derivation uses a width estimate from polygon area
-and perimeter, identifies boundary edges consistent with that width as cap
-anchors, and averages equal-arclength samples from the two boundary chains.
-This is a visual prototype heuristic and must be reviewed before dimensional
-or manufacturing use.
+The current deterministic derivation is versioned as
+`strip-outline-centerline-v2`. It uses area/perimeter only as a coarse hint,
+selects mutually consistent end caps, estimates thickness from paired boundary
+geometry, and preserves analytic LINE/ARC geometry where opposing source
+segments support an offset interpretation. Unresolved local sections remain
+explicit approximations rather than being mislabeled as exact geometry. The
+result must be reviewed before dimensional or manufacturing use.
 
 ## Preview accounting
 

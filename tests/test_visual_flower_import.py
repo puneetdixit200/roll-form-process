@@ -1,4 +1,5 @@
 import json
+import math
 
 import ezdxf
 from fastapi.testclient import TestClient
@@ -111,6 +112,24 @@ def test_preview_separates_reference_points_from_forming_geometry(tmp_path):
         assert preview["reference_entity_count"] == 2
         assert preview["supported_primitive_count"] == 2
         assert {item["type"] for item in preview["reference_entities"]} == {"POINT"}
+
+
+def test_strip_preview_contains_a_separate_derived_centerline_overlay(tmp_path):
+    document = ezdxf.new("R2018")
+    document.header["$INSUNITS"] = 4
+    modelspace = document.modelspace()
+    for point in [(0, 0), (0, 0), (31, 0), (31, 12), (42, 12)]:
+        modelspace.add_point(point)
+    points = [(2, 0, 0), (29, 0, math.tan(math.pi / 8)), (31, 2, 0), (31, 10, -math.tan(math.pi / 8)), (33, 12, 0), (40, 12, math.tan(math.pi / 8)), (42, 14, 0), (42, 20, 0), (40, 20, 0), (40, 14, 0), (33, 14, math.tan(math.pi / 8)), (29, 10, 0), (29, 2, 0), (2, 2, 0), (2, 31, 0), (0, 31, 0), (0, 2, math.tan(math.pi / 8))]
+    modelspace.add_lwpolyline(points, format="xyb", close=True)
+    with TestClient(create_app(tmp_path, auto_run_jobs=False)) as client:
+        imported = client.post("/api/visual-flower/import", files={"file": ("strip.dxf", _save_bytes(document), "application/dxf")}).json()
+        preview = client.get(f"/api/visual-flower/imports/{imported['import_id']}/drawing-preview").json()
+        overlays = preview["candidate_overlays"]
+        assert len(overlays) == 1
+        assert overlays[0]["overlay_kind"] == "DERIVED_CENTERLINE"
+        assert any(item["type"] == "ARC" for item in overlays[0]["primitives"])
+        assert preview["reference_entity_count"] == 5
 
 
 def test_integrated_import_creates_linked_visual_and_project_workflow(tmp_path):
