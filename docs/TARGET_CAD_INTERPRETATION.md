@@ -28,6 +28,16 @@ segments support an offset interpretation. Unresolved local sections remain
 explicit approximations rather than being mislabeled as exact geometry. The
 result must be reviewed before dimensional or manufacturing use.
 
+Straight paired sections are derived from arclength-matched midpoint samples of
+both boundary chains; they are never copied from one source edge. Boundary
+thickness is sampled along the chains using local normal separation, with cap
+lengths retained separately as a supporting hint. Reconstruction evidence uses
+dense sampling of the source and derived LINE/ARC geometry and reports RMS,
+maximum deviation, and coverage as distinct metrics. The reported developed
+length is the deterministic average of the paired analytic boundary arclengths;
+the geometric length of the reconstructed centerline is retained separately
+for engineer review when the source boundaries are not exact parallel offsets.
+
 ## Preview accounting
 
 The safe vector preview distinguishes:
