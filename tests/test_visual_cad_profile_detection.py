@@ -6,6 +6,7 @@ import ezdxf
 import pytest
 
 from rollform_extractor.visual_cad_profile_detection import detect_profiles
+import rollform_extractor.visual_cad_strip as strip_geometry
 from rollform_extractor.visual_profile_schema import validate_profile
 from rollform_extractor.visual_profile_validation import validate_visual_profile
 
@@ -123,3 +124,46 @@ def test_slender_closed_rectangle_is_not_a_strip_outline(tmp_path):
     assert len(candidates) == 1
     assert candidates[0]["representation"] != "STRIP_OUTLINE"
     assert candidates[0]["candidate_kind"] == "RAW_GEOMETRY"
+
+
+def _line(start, end):
+    return {"type": "LINE", "start": start, "end": end, "length": math.hypot(end[0] - start[0], end[1] - start[1])}
+
+
+def test_straight_centerline_is_the_geometric_midpoint_for_multiple_orientations():
+    cases = [((0.0, 0.0), (10.0, 0.0), ((0.0, 2.0), (10.0, 2.0))), ((0.0, 0.0), (0.0, 10.0), ((2.0, 0.0), (2.0, 10.0))), ((0.0, 0.0), (10.0, 10.0), ((-2.0, 2.0), (8.0, 12.0)))]
+    for left_start, left_end, (right_start, right_end) in cases:
+        derived, _ = strip_geometry._analytic_centerline([_line(left_start, left_end)], [_line(right_start, right_end)], 2.0)
+        assert len(derived) == 1
+        assert derived[0]["type"] == "LINE"
+        assert derived[0]["start"] == pytest.approx(((left_start[0] + right_start[0]) / 2, (left_start[1] + right_start[1]) / 2))
+        assert derived[0]["end"] == pytest.approx(((left_end[0] + right_end[0]) / 2, (left_end[1] + right_end[1]) / 2))
+
+
+def test_line_arc_line_strip_preserves_analytic_arc_and_midpoint_sections():
+    left = [_line((0.0, 0.0), (10.0, 0.0)), {"type": "ARC", "start": (10.0, 0.0), "end": (15.0, 5.0), "center": {"x": 10.0, "y": 5.0}, "radius": 5.0, "clockwise": False, "length": math.pi * 2.5}, _line((15.0, 5.0), (15.0, 15.0))]
+    right = [_line((0.0, 2.0), (10.0, 2.0)), {"type": "ARC", "start": (10.0, 2.0), "end": (15.0, 7.0), "center": {"x": 10.0, "y": 7.0}, "radius": 5.0, "clockwise": False, "length": math.pi * 2.5}, _line((15.0, 7.0), (15.0, 17.0))]
+    derived, _ = strip_geometry._analytic_centerline(left, right, 2.0)
+    assert [item["type"] for item in derived] == ["LINE", "ARC", "LINE"]
+    assert derived[0]["start"] == pytest.approx((0.0, 1.0))
+    assert derived[0]["end"] == pytest.approx((10.0, 1.0))
+    assert derived[1]["radius"] == pytest.approx(5.0)
+    assert derived[2]["start"] == pytest.approx((15.0, 6.0))
+
+
+def test_real_fixture_centerline_has_endpoint_and_developed_length_oracles(tmp_path):
+    document = ezdxf.new("R2018")
+    document.header["$INSUNITS"] = 4
+    points = [(2, 0, 0), (29, 0, math.tan(math.pi / 8)), (31, 2, 0), (31, 10, -math.tan(math.pi / 8)), (33, 12, 0), (40, 12, math.tan(math.pi / 8)), (42, 14, 0), (42, 20, 0), (40, 20, 0), (40, 14, 0), (33, 14, math.tan(math.pi / 8)), (29, 10, 0), (29, 2, 0), (2, 2, 0), (2, 31, 0), (0, 31, 0), (0, 2, math.tan(math.pi / 8))]
+    document.modelspace().add_lwpolyline(points, format="xyb", close=True)
+    path = tmp_path / "real-regression.dxf"
+    document.saveas(path)
+    candidate = next(item for item in detect_profiles(path) if item["representation"] == "CENTERLINE_PATH")
+    vertices = candidate["profile"]["vertices"]
+    endpoints = {(round(vertices[0]["x"], 2), round(vertices[0]["y"], 2)), (round(vertices[-1]["x"], 2), round(vertices[-1]["y"], 2))}
+    assert endpoints == {(1.0, 31.0), (41.0, 20.0)}
+    assert candidate["developed_length"] == pytest.approx(86.42477796, abs=0.02)
+    assert candidate["profile"]["metadata"]["geometric_centerline_length"] > 0
+    assert candidate["profile"]["metadata"]["analytic_arc_count"] >= 1
+    assert candidate["profile"]["metadata"]["boundary_reconstruction_rms"] is not None
+    assert candidate["profile"]["metadata"]["boundary_reconstruction_maximum_deviation"] >= candidate["profile"]["metadata"]["boundary_reconstruction_rms"]
