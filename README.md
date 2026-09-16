@@ -2,6 +2,18 @@
 
 A visual engineering prototype for **DWG/DXF roll-forming analysis, flower-sequence generation, historical similarity search, and roller-design evidence traceability**.
 
+## License and permission
+
+This is proprietary software owned by Puneet Dixit. It is **not open source**.
+All rights are reserved. Copying, running, modifying, redistributing, hosting,
+integrating, or commercial use requires prior written permission from Puneet
+Dixit. See the repository [LICENSE](LICENSE) for the complete terms.
+
+Public visibility on GitHub does not grant permission to use the project. Third-
+party dependencies remain governed by their own licenses, and private customer
+drawings, factory data, credentials, runtime databases, and model artifacts are
+not licensed by this repository notice.
+
 The project combines deterministic CAD extraction, a learned visual sequence model with an out-of-distribution fallback, historical pass matching, explainable roller-design recognition, and an engineer-facing React/FastAPI application.
 
 > **Engineering boundary:** this system provides visual geometry and historical design evidence. It does **not** approve manufacturing feasibility, automatically select a physical production roller, or replace engineering review.

@@ -1,0 +1,42 @@
+PUNEET DIXIT PROPRIETARY SOFTWARE LICENSE
+Version 1.0 — 2026
+
+Copyright (c) 2026 Puneet Dixit. All rights reserved.
+
+1. Permission requirement
+
+This repository and its original source code, documentation, configuration,
+visual assets, database schemas, and derived project materials are proprietary
+and are not released under an open-source license.
+
+No person or organization may use, copy, reproduce, modify, adapt, merge,
+publish, distribute, sublicense, sell, host, deploy, provide access to, or
+create derivative works from this project without prior written permission
+from Puneet Dixit.
+
+2. Private and customer data
+
+Customer drawings, factory data, credentials, runtime databases, model files,
+and other private artifacts are not licensed by this notice. Their use is
+subject to their owners' separate permissions and agreements.
+
+3. Limited evaluation
+
+Viewing the public repository does not grant permission to run, integrate,
+commercialize, or redistribute the project. Any evaluation access must be
+specifically authorized in writing by Puneet Dixit.
+
+4. No warranty
+
+The project is provided "as is", without warranty of any kind, express or
+implied. In no event shall the copyright holder be liable for any claim,
+damages, or other liability arising from the project or its use.
+
+5. Third-party components
+
+Third-party libraries and other components remain subject to their own
+licenses. This license applies only to material owned by Puneet Dixit and does
+not replace or restrict those independent licenses.
+
+For permission requests, contact the repository owner through the repository's
+official contact channel.
